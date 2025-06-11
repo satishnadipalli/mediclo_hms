@@ -403,10 +403,10 @@ const DoctorsDashboard: React.FC = () => {
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
         <div className="flex items-center justify-between p-4 border-b">
           <h2 className="text-lg font-semibold text-[#1E437A]">Today's Appointments</h2>
-          <button className="flex items-center gap-1 text-gray-500 px-3 py-1 border border-gray-300 rounded-md hover:bg-gray-50">
+          {/* <button className="flex items-center gap-1 text-gray-500 px-3 py-1 border border-gray-300 rounded-md hover:bg-gray-50">
             <Image src={filter} width={15} height={15} alt=""></Image>
             <span>Filters</span>
-          </button>
+          </button> */}
         </div>
         
         <div className="overflow-x-auto">

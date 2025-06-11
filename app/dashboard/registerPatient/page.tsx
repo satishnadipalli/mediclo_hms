@@ -227,9 +227,9 @@ const PatientRegistrationForm = () => {
                 className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D]"
               >
                 <option value="">Select payment method</option>
-                <option value="creditDebit">Credit/Debit Card</option>
+                {/* <option value="creditDebit">Credit/Debit Card</option> */}
                 <option value="cash">Cash</option>
-                <option value="insurance">Insurance</option>
+                <option value="insurance">UPI</option>
               </select>
             </div>
             

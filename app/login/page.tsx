@@ -15,6 +15,7 @@ export default function AdminLoginPage(): ReactElement {
   }, []);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    console.log("Hello")
     e.preventDefault();
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`, {
@@ -29,8 +30,11 @@ export default function AdminLoginPage(): ReactElement {
       }
   
       const { token, user }: { token: string; user: { role: 'therapist' | 'receptionist' } } = await response.json();
-  
+      
+      console.log(user);
+
       localStorage.setItem('adminToken', token);
+      localStorage.setItem('adminDetails',JSON.stringify(user));
   
       if (user.role === 'therapist') {
         router.push('/doctorDashboard');

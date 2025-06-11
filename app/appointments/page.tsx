@@ -122,7 +122,7 @@ const AppointmentsPage: React.FC = () => {
       <div className="bg-white rounded-lg border border-gray-200 p-6 flex-1">
         <div className="flex justify-between items-center mb-6">
           <div className="flex gap-3">
-            <h2 className="text-xl font-semibold text-[#1E437A]">All Appointments</h2>
+            <h2 className="text-xl font-semibold text-[#1E437A]">All </h2>
             <div className="flex items-center gap-2">
               <span className="px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-600">
                 {appointments.filter(a => a.status === "Confirmed").length} Confirmed
@@ -132,10 +132,10 @@ const AppointmentsPage: React.FC = () => {
               </span>
             </div>
           </div>
-          <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-gray-700">
+          {/* <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-gray-700">
             <SlidersHorizontal className="w-4 h-4" />
             Filters
-          </button>
+          </button> */}
         </div>
         
         <div className="overflow-x-auto">
@@ -149,6 +149,8 @@ const AppointmentsPage: React.FC = () => {
                 <th className="pb-3 font-medium">Parent Contact</th>
                 <th className="pb-3 font-medium">Status</th>
                 <th className="pb-3 font-medium">Actions</th>
+                <th className="pb-3 font-medium">No.of Sessions</th>
+                <th className="pb-3 font-medium">Sessions Paid</th>
               </tr>
             </thead>
             <tbody>
@@ -211,6 +213,8 @@ const AppointmentsPage: React.FC = () => {
                       <div className="text-gray-500">No actions available</div>
                     )}
                   </td>
+                  <td className="py-4 text-[#456696]">5</td>
+                  <td className="py-4 text-[#456696]">2</td>
                 </tr>
               ))}
             </tbody>
