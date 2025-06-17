@@ -1,14 +1,21 @@
-"use client"
+"use client";
 import React, { useState, useEffect } from "react";
-import { Calendar, Eye, Phone, Plus, Search, SlidersHorizontal } from "lucide-react";
-import eye from '@/public/eye.svg'
-import phone from '@/public/phone.svg'
+import {
+  Calendar,
+  Eye,
+  Phone,
+  Plus,
+  Search,
+  SlidersHorizontal,
+} from "lucide-react";
+import eye from "@/public/eye.svg";
+import phone from "@/public/phone.svg";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
-import { Clock, User, Edit3, Trash2 } from "lucide-react"
-import {Stethoscope, UserCheck } from "lucide-react"
+import { Clock, User, Edit3, Trash2 } from "lucide-react";
+import { Stethoscope, UserCheck } from "lucide-react";
 interface Appointment {
   _id: string;
   date: string;
@@ -25,7 +32,7 @@ interface Appointment {
   parentInfo: {
     contactNumber: string;
   };
-  status: "scheduled" | "completed" | "cancelled" | "no_show";
+  status?: "scheduled" | "completed" | "cancelled" | "no_show";
 }
 
 const ReceptionistDashboard = () => {
@@ -35,9 +42,9 @@ const ReceptionistDashboard = () => {
   const router = useRouter();
 
   useEffect(() => {
-    const token = localStorage.getItem('adminToken');
+    const token = localStorage.getItem("adminToken");
     if (!token) {
-      router.push('/login');
+      router.push("/login");
       return;
     }
 
@@ -46,14 +53,17 @@ const ReceptionistDashboard = () => {
 
   const fetchAppointments = async () => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/appointments`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+          },
         }
-      });
+      );
 
       if (!response.ok) {
-        throw new Error('Failed to fetch appointments');
+        throw new Error("Failed to fetch appointments");
       }
 
       const data = await response.json();
@@ -62,7 +72,7 @@ const ReceptionistDashboard = () => {
       if (error instanceof Error) {
         toast.error(error.message);
       } else {
-        toast.error('An unknown error occurred while fetching appointments');
+        toast.error("An unknown error occurred while fetching appointments");
       }
     } finally {
       setLoading(false);
@@ -71,48 +81,62 @@ const ReceptionistDashboard = () => {
 
   const handleStatusUpdate = async (id: string, newStatus: string) => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/${id}/status`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-        },
-        body: JSON.stringify({ status: newStatus })
-      });
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/appointments/${id}/status`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+          },
+          body: JSON.stringify({ status: newStatus }),
+        }
+      );
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to update status');
+        throw new Error(errorData.message || "Failed to update status");
       }
 
-      toast.success('Appointment status updated');
+      toast.success("Appointment status updated");
       fetchAppointments();
     } catch (error) {
       if (error instanceof Error) {
         toast.error(error.message);
       } else {
-        toast.error('An unknown error occurred while updating status');
+        toast.error("An unknown error occurred while updating status");
       }
     }
   };
 
-  const filteredAppointments = appointments.filter(appointment =>
-    appointment.patientId.childName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    appointment.doctorId.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    appointment.doctorId.lastName.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredAppointments = appointments.filter(
+    (appointment) =>
+      (appointment.patientId?.childName?.toLowerCase() || "").includes(
+        searchTerm.toLowerCase()
+      ) ||
+      (appointment.doctorId?.firstName?.toLowerCase() || "").includes(
+        searchTerm.toLowerCase()
+      ) ||
+      (appointment.doctorId?.lastName?.toLowerCase() || "").includes(
+        searchTerm.toLowerCase()
+      )
   );
 
   if (loading) {
     return (
       <div className="p-6 max-w-[90%] mt-15 ml-70 mx-auto">
-        <h1 className="text-2xl font-bold text-[#1E437A] mb-6">Loading appointments...</h1>
+        <h1 className="text-2xl font-bold text-[#1E437A] mb-6">
+          Loading appointments...
+        </h1>
       </div>
     );
   }
 
   return (
     <div className="p-6 max-w-[84%] mt-15 ml-70 mx-auto  hide-scrollbar">
-      <h1 className="text-2xl font-bold text-[#1E437A] mb-6">Hello, Receptionist!</h1>
+      <h1 className="text-2xl font-bold text-[#1E437A] mb-6">
+        Hello, Receptionist!
+      </h1>
       <div className="flex gap-4 mb-6">
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-3 text-gray-400 w-5 h-5" />
@@ -127,13 +151,13 @@ const ReceptionistDashboard = () => {
 
         <button
           className="flex items-center gap-2 bg-[#C83C921A] text-[#C83C92] px-4 py-2 rounded-lg font-medium"
-          onClick={() => router.push('/dashboard/schedule-appointment')}
+          onClick={() => router.push("/dashboard/schedule-appointment")}
         >
           <Calendar className="w-5 h-5" />
           Schedule an Appointment
         </button>
 
-        <Link href={'/dashboard/registerPatient'}>
+        <Link href={"/dashboard/registerPatient"}>
           <button className="cursor-pointer flex items-center gap-2 bg-[#C83C92] text-white px-4 py-2 rounded-lg font-medium">
             <Plus className="w-5 h-5" />
             Register New Patient
@@ -143,89 +167,12 @@ const ReceptionistDashboard = () => {
 
       <div className="bg-white rounded-lg border border-gray-200 p-6 flex-1">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold text-[#1E437A] ml-5">Upcoming Appointments</h2>
-          {/* <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-gray-700">
-            <SlidersHorizontal className="w-4 h-4" />
-            Filters
-          </button> */}
+          <h2 className="text-xl font-semibold text-[#1E437A] ml-5">
+            Upcoming Appointments
+          </h2>
         </div>
 
-        {/* <div className="overflow-x-auto">
-          <table className="w-full ml-5">
-            <thead className="">
-              <tr className="text-left text-[#1E437A] bg-[#F9F9FC] h-12">
-                <th className="pb-3 font-medium">Date</th>
-                <th className="pb-3 font-medium">Time</th>
-                <th className="pb-3 font-medium">Patient Name</th>
-                <th className="pb-3 font-medium">Doctor</th>
-                <th className="pb-3 font-medium">Parent Contact</th>
-                <th className="pb-3 font-medium">Status</th>
-                <th className="pb-3 font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredAppointments.length > 0 ? (
-                filteredAppointments.map((appointment) => (
-                  <tr key={appointment._id} className="border-b">
-                    <td className="py-4 text-[#456696]">
-                      {new Date(appointment.date).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric'
-                      })}
-                    </td>
-                    <td className="py-4 text-[#456696]">{appointment.timeSlot}</td>
-                    <td className="py-4 text-[#456696]">{appointment.patientId.childName}</td>
-                    <td className="py-4 text-[#456696]">
-                      Dr. {appointment.doctorId.firstName} {appointment.doctorId.lastName}
-                    </td>
-                    <td className="py-4 text-[#456696]">
-                      {appointment.parentInfo?.contactNumber || "N/A"}
-                    </td>
-                    <td className="py-4">
-                      <span
-                        className={`px-3 py-1 rounded-full text-sm font-medium ${appointment.status === "scheduled"
-                            ? "bg-green-100 text-green-600"
-                            : appointment.status === "completed"
-                              ? "bg-blue-100 text-blue-600"
-                              : "bg-orange-100 text-orange-600"
-                          }`}
-                      >
-                        {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1).replace('_', ' ')}
-                      </span>
-                    </td>
-                    <td className="py-4 flex gap-3">
-                      <button
-                        className="flex items-center gap-1 text-[#C83C92] font-medium"
-                        onClick={() => router.push(`/dashboard/appointments/${appointment._id}`)}
-                      >
-                        <Image src={eye} width={18} height={18} alt="eye" />
-                        View Details
-                      </button>
-                      <button
-                        className="flex items-center gap-1 text-[#C83C92] font-medium"
-                        onClick={() => appointment.parentInfo?.contactNumber && (window.location.href = `tel:${appointment.parentInfo.contactNumber}`)}
-                        disabled={!appointment.parentInfo?.contactNumber}
-                      >
-
-                        <Image src={phone} width={18} height={18} alt="phone" />
-                        Call Parent
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={7} className="py-4 text-center text-gray-500">
-                    No appointments found
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div> */}
-
-        <DoctorScheduleTable/>
+        <DoctorScheduleTable />
       </div>
     </div>
   );
@@ -233,20 +180,18 @@ const ReceptionistDashboard = () => {
 
 export default ReceptionistDashboard;
 
-
-
 interface Appointment {
-  id: string
-  patientName: string
-  type?: "consultation" | "follow-up" | "emergency" | "surgery"
-  status?: "scheduled" | "completed" | "cancelled"
-  duration?: number
+  id: string;
+  patientName: string;
+  type?: "consultation" | "follow-up" | "emergency" | "surgery";
+  status?: "scheduled" | "completed" | "cancelled";
+  duration?: number;
 }
 
 interface DoctorSchedule {
   [doctor: string]: {
-    [time: string]: Appointment | null
-  }
+    [time: string]: Appointment | null;
+  };
 }
 
 const DoctorScheduleTable: React.FC = () => {
@@ -265,7 +210,7 @@ const DoctorScheduleTable: React.FC = () => {
     "5:30",
     "6:00",
     "6:45",
-  ]
+  ];
 
   const doctors = [
     { name: "Dr. Ashish", specialty: "Cardiology", color: "blue" },
@@ -275,50 +220,269 @@ const DoctorScheduleTable: React.FC = () => {
     { name: "Dr. Sarang", specialty: "Neurology", color: "indigo" },
     { name: "Dr. Rajesh", specialty: "General Medicine", color: "orange" },
     { name: "Dr. Vihan P", specialty: "ENT", color: "teal" },
-  ]
+  ];
 
   const [scheduleData, setScheduleData] = useState<DoctorSchedule>({
     "Dr. Ashish": {
-      "9:15": { id: "1",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "John Doe", type: "consultation", status: "scheduled", duration: 30 },
-      "11:30": { id: "2",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "Sarah Wilson", type: "follow-up", status: "scheduled", duration: 20 },
-      "2:30": { id: "3",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "Mike Johnson", type: "consultation", status: "scheduled", duration: 45 },
-      "4:45": { id: "4",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "Emma Davis", type: "emergency", status: "scheduled", duration: 60 },
+      "9:15": {
+        id: "1",
+        patientId: "1e234",
+        consultaionId: "ifj93y4334",
+        doctorId: "123jerij9u",
+        patientName: "John Doe",
+        type: "consultation",
+        status: "scheduled",
+        duration: 30,
+      },
+      "11:30": {
+        id: "2",
+        patientId: "1e234",
+        consultaionId: "ifj93y4334",
+        doctorId: "123jerij9u",
+        patientName: "Sarah Wilson",
+        type: "follow-up",
+        status: "scheduled",
+        duration: 20,
+      },
+      "2:30": {
+        id: "3",
+        patientId: "1e234",
+        consultaionId: "ifj93y4334",
+        doctorId: "123jerij9u",
+        patientName: "Mike Johnson",
+        type: "consultation",
+        status: "scheduled",
+        duration: 45,
+      },
+      "4:45": {
+        id: "4",
+        patientId: "1e234",
+        consultaionId: "ifj93y4334",
+        doctorId: "123jerij9u",
+        patientName: "Emma Davis",
+        type: "emergency",
+        status: "scheduled",
+        duration: 60,
+      },
     },
     "Dr. Chandrika": {
-      "10:00": { id: "5",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "Alice Brown", type: "consultation", status: "scheduled", duration: 30 },
-      "12:15": { id: "6",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "Tommy Lee", type: "follow-up", status: "scheduled", duration: 15 },
-      "3:15": { id: "7",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "Lucy Chen", type: "consultation", status: "scheduled", duration: 30 },
-      "5:30": { id: "8",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "Baby Smith", type: "consultation", status: "scheduled", duration: 25 },
+      "10:00": {
+        id: "5",
+        patientId: "1e234",
+        consultaionId: "ifj93y4334",
+        doctorId: "123jerij9u",
+        patientName: "Alice Brown",
+        type: "consultation",
+        status: "scheduled",
+        duration: 30,
+      },
+      "12:15": {
+        id: "6",
+        patientId: "1e234",
+        consultaionId: "ifj93y4334",
+        doctorId: "123jerij9u",
+        patientName: "Tommy Lee",
+        type: "follow-up",
+        status: "scheduled",
+        duration: 15,
+      },
+      "3:15": {
+        id: "7",
+        patientId: "1e234",
+        consultaionId: "ifj93y4334",
+        doctorId: "123jerij9u",
+        patientName: "Lucy Chen",
+        type: "consultation",
+        status: "scheduled",
+        duration: 30,
+      },
+      "5:30": {
+        id: "8",
+        patientId: "1e234",
+        consultaionId: "ifj93y4334",
+        doctorId: "123jerij9u",
+        patientName: "Baby Smith",
+        type: "consultation",
+        status: "scheduled",
+        duration: 25,
+      },
     },
     "Dr. Mira G": {
-      "9:15": { id: "9",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "Diana Miller", type: "consultation", status: "scheduled", duration: 40 },
-      "1:00": { id: "10",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "Robert Garcia", type: "follow-up", status: "scheduled", duration: 20 },
-      "4:00": { id: "11",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "Lisa Wang", type: "consultation", status: "scheduled", duration: 35 },
+      "9:15": {
+        id: "9",
+        patientId: "1e234",
+        consultaionId: "ifj93y4334",
+        doctorId: "123jerij9u",
+        patientName: "Diana Miller",
+        type: "consultation",
+        status: "scheduled",
+        duration: 40,
+      },
+      "1:00": {
+        id: "10",
+        patientId: "1e234",
+        consultaionId: "ifj93y4334",
+        doctorId: "123jerij9u",
+        patientName: "Robert Garcia",
+        type: "follow-up",
+        status: "scheduled",
+        duration: 20,
+      },
+      "4:00": {
+        id: "11",
+        patientId: "1e234",
+        consultaionId: "ifj93y4334",
+        doctorId: "123jerij9u",
+        patientName: "Lisa Wang",
+        type: "consultation",
+        status: "scheduled",
+        duration: 35,
+      },
     },
     "Dr. Nikhilesh": {
-      "10:45": { id: "12",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "James Taylor", type: "consultation", status: "scheduled", duration: 50 },
-      "1:45": { id: "13",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "Maria Rodriguez", type: "surgery", status: "scheduled", duration: 120 },
-      "6:00": { id: "14",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "David Kim", type: "follow-up", status: "scheduled", duration: 30 },
+      "10:45": {
+        id: "12",
+        patientId: "1e234",
+        consultaionId: "ifj93y4334",
+        doctorId: "123jerij9u",
+        patientName: "James Taylor",
+        type: "consultation",
+        status: "scheduled",
+        duration: 50,
+      },
+      "1:45": {
+        id: "13",
+        patientId: "1e234",
+        consultaionId: "ifj93y4334",
+        doctorId: "123jerij9u",
+        patientName: "Maria Rodriguez",
+        type: "surgery",
+        status: "scheduled",
+        duration: 120,
+      },
+      "6:00": {
+        id: "14",
+        patientId: "1e234",
+        consultaionId: "ifj93y4334",
+        doctorId: "123jerij9u",
+        patientName: "David Kim",
+        type: "follow-up",
+        status: "scheduled",
+        duration: 30,
+      },
     },
     "Dr. Sarang": {
-      "11:30": { id: "15",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "Jennifer Lopez", type: "consultation", status: "scheduled", duration: 45 },
-      "2:30": { id: "16",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "Kevin Brown", type: "emergency", status: "scheduled", duration: 90 },
-      "5:30": { id: "17",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "Amanda White", type: "follow-up", status: "scheduled", duration: 25 },
+      "11:30": {
+        id: "15",
+        patientId: "1e234",
+        consultaionId: "ifj93y4334",
+        doctorId: "123jerij9u",
+        patientName: "Jennifer Lopez",
+        type: "consultation",
+        status: "scheduled",
+        duration: 45,
+      },
+      "2:30": {
+        id: "16",
+        patientId: "1e234",
+        consultaionId: "ifj93y4334",
+        doctorId: "123jerij9u",
+        patientName: "Kevin Brown",
+        type: "emergency",
+        status: "scheduled",
+        duration: 90,
+      },
+      "5:30": {
+        id: "17",
+        patientId: "1e234",
+        consultaionId: "ifj93y4334",
+        doctorId: "123jerij9u",
+        patientName: "Amanda White",
+        type: "follow-up",
+        status: "scheduled",
+        duration: 25,
+      },
     },
     "Dr. Rajesh": {
-      "9:15": { id: "18",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "Chris Johnson", type: "consultation", status: "scheduled", duration: 30 },
-      "12:15": { id: "19",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "Nicole Davis", type: "consultation", status: "scheduled", duration: 35 },
-      "3:15": { id: "20",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "Ryan Miller", type: "follow-up", status: "scheduled", duration: 20 },
-      "6:45": { id: "21",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "Sophia Garcia", type: "consultation", status: "scheduled", duration: 40 },
+      "9:15": {
+        id: "18",
+        patientId: "1e234",
+        consultaionId: "ifj93y4334",
+        doctorId: "123jerij9u",
+        patientName: "Chris Johnson",
+        type: "consultation",
+        status: "scheduled",
+        duration: 30,
+      },
+      "12:15": {
+        id: "19",
+        patientId: "1e234",
+        consultaionId: "ifj93y4334",
+        doctorId: "123jerij9u",
+        patientName: "Nicole Davis",
+        type: "consultation",
+        status: "scheduled",
+        duration: 35,
+      },
+      "3:15": {
+        id: "20",
+        patientId: "1e234",
+        consultaionId: "ifj93y4334",
+        doctorId: "123jerij9u",
+        patientName: "Ryan Miller",
+        type: "follow-up",
+        status: "scheduled",
+        duration: 20,
+      },
+      "6:45": {
+        id: "21",
+        patientId: "1e234",
+        consultaionId: "ifj93y4334",
+        doctorId: "123jerij9u",
+        patientName: "Sophia Garcia",
+        type: "consultation",
+        status: "scheduled",
+        duration: 40,
+      },
     },
     "Dr. Vihan P": {
-      "10:00": { id: "22",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "Alex Wilson", type: "consultation", status: "scheduled", duration: 30 },
-      "1:00": { id: "23",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "Grace Lee", type: "surgery", status: "scheduled", duration: 90 },
-      "4:45": { id: "24",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "Nathan Chen", type: "follow-up", status: "scheduled", duration: 25 },
+      "10:00": {
+        id: "22",
+        patientId: "1e234",
+        consultaionId: "ifj93y4334",
+        doctorId: "123jerij9u",
+        patientName: "Alex Wilson",
+        type: "consultation",
+        status: "scheduled",
+        duration: 30,
+      },
+      "1:00": {
+        id: "23",
+        patientId: "1e234",
+        consultaionId: "ifj93y4334",
+        doctorId: "123jerij9u",
+        patientName: "Grace Lee",
+        type: "surgery",
+        status: "scheduled",
+        duration: 90,
+      },
+      "4:45": {
+        id: "24",
+        patientId: "1e234",
+        consultaionId: "ifj93y4334",
+        doctorId: "123jerij9u",
+        patientName: "Nathan Chen",
+        type: "follow-up",
+        status: "scheduled",
+        duration: 25,
+      },
     },
-  })
+  });
 
-  const [selectedSlot, setSelectedSlot] = useState<{ doctor: string; time: string } | null>(null)
+  const [selectedSlot, setSelectedSlot] = useState<{
+    doctor: string;
+    time: string;
+  } | null>(null);
 
   const getAppointmentTypeColor = (type?: string, doctorColor?: string) => {
     const baseColors = {
@@ -329,17 +493,20 @@ const DoctorScheduleTable: React.FC = () => {
       indigo: "bg-indigo-100 border-indigo-300 text-indigo-800",
       orange: "bg-orange-100 border-orange-300 text-orange-800",
       teal: "bg-teal-100 border-teal-300 text-teal-800",
-    }
+    };
 
     if (type === "emergency") {
-      return "bg-red-100 border-red-400 text-red-800 ring-2 ring-red-200"
+      return "bg-red-100 border-red-400 text-red-800 ring-2 ring-red-200";
     }
     if (type === "surgery") {
-      return "bg-purple-100 border-purple-400 text-purple-800 ring-2 ring-purple-200"
+      return "bg-purple-100 border-purple-400 text-purple-800 ring-2 ring-purple-200";
     }
 
-    return baseColors[doctorColor as keyof typeof baseColors] || "bg-gray-100 border-gray-300 text-gray-800"
-  }
+    return (
+      baseColors[doctorColor as keyof typeof baseColors] ||
+      "bg-gray-100 border-gray-300 text-gray-800"
+    );
+  };
 
   const getDoctorHeaderColor = (color: string) => {
     const colors = {
@@ -350,25 +517,26 @@ const DoctorScheduleTable: React.FC = () => {
       indigo: "from-indigo-500 to-indigo-600",
       orange: "from-orange-500 to-orange-600",
       teal: "from-teal-500 to-teal-600",
-    }
-    return colors[color as keyof typeof colors] || "from-gray-500 to-gray-600"
-  }
+    };
+    return colors[color as keyof typeof colors] || "from-gray-500 to-gray-600";
+  };
 
   const handleSlotClick = (doctor: string, time: string) => {
-    setSelectedSlot({ doctor, time })
-  }
+    setSelectedSlot({ doctor, time });
+  };
 
   const formatTime = (time: string) => {
-    const [hour, minute] = time.split(":")
-    const hourNum = Number.parseInt(hour)
-    const ampm = hourNum >= 12 ? "PM" : "AM"
-    const displayHour = hourNum > 12 ? hourNum - 12 : hourNum === 0 ? 12 : hourNum
-    return `${displayHour}:${minute} ${ampm}`
-  }
+    const [hour, minute] = time.split(":");
+    const hourNum = Number.parseInt(hour);
+    const ampm = hourNum >= 12 ? "PM" : "AM";
+    const displayHour =
+      hourNum > 12 ? hourNum - 12 : hourNum === 0 ? 12 : hourNum;
+    return `${displayHour}:${minute} ${ampm}`;
+  };
 
   const getAppointmentCount = (doctorName: string) => {
-    return Object.values(scheduleData[doctorName] || {}).filter(Boolean).length
-  }
+    return Object.values(scheduleData[doctorName] || {}).filter(Boolean).length;
+  };
 
   return (
     <div className="p-2 bg-gradient-to-br from-slate-50 to-blue-50 min-h-screen">
@@ -380,8 +548,12 @@ const DoctorScheduleTable: React.FC = () => {
               <Stethoscope className="w-8 h-8 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Doctor Schedule</h1>
-              <p className="text-gray-600">Daily consultation schedule by doctor</p>
+              <h1 className="text-3xl font-bold text-gray-900">
+                Doctor Schedule
+              </h1>
+              <p className="text-gray-600">
+                Daily consultation schedule by doctor
+              </p>
             </div>
           </div>
 
@@ -389,7 +561,9 @@ const DoctorScheduleTable: React.FC = () => {
           <div className="flex flex-wrap gap-4 p-4 bg-white rounded-xl shadow-sm border">
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 bg-blue-100 border border-blue-300 rounded"></div>
-              <span className="text-sm text-gray-700">Regular Consultation</span>
+              <span className="text-sm text-gray-700">
+                Regular Consultation
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 bg-green-100 border border-green-300 rounded"></div>
@@ -420,16 +594,27 @@ const DoctorScheduleTable: React.FC = () => {
                     </div>
                   </th>
                   {doctors.map((doctor) => (
-                    <th key={doctor.name} className="p-4 text-center min-w-[180px]">
+                    <th
+                      key={doctor.name}
+                      className="p-4 text-center min-w-[180px]"
+                    >
                       <div
-                        className={`bg-gradient-to-r ${getDoctorHeaderColor(doctor.color)} rounded-lg p-3 text-white`}
+                        className={`bg-gradient-to-r ${getDoctorHeaderColor(
+                          doctor.color
+                        )} rounded-lg p-3 text-white`}
                       >
                         <div className="flex items-center justify-center gap-2 mb-1">
                           <UserCheck className="w-5 h-5" />
-                          <span className="font-semibold text-sm">{doctor.name}</span>
+                          <span className="font-semibold text-sm">
+                            {doctor.name}
+                          </span>
                         </div>
-                        <div className="text-xs opacity-90">{doctor.specialty}</div>
-                        <div className="text-xs opacity-75 mt-1">{getAppointmentCount(doctor.name)} appointments</div>
+                        <div className="text-xs opacity-90">
+                          {doctor.specialty}
+                        </div>
+                        <div className="text-xs opacity-75 mt-1">
+                          {getAppointmentCount(doctor.name)} appointments
+                        </div>
                       </div>
                     </th>
                   ))}
@@ -441,19 +626,23 @@ const DoctorScheduleTable: React.FC = () => {
                 {timeSlots.map((time, timeIndex) => (
                   <tr
                     key={time}
-                    className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${timeIndex % 2 === 0 ? "bg-gray-25" : "bg-white"}`}
+                    className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${
+                      timeIndex % 2 === 0 ? "bg-gray-25" : "bg-white"
+                    }`}
                   >
                     {/* Time Column */}
                     <td className="p-4 border-r border-gray-200 bg-slate-50 sticky left-0 z-10">
                       <div className="flex items-center gap-2">
                         <div className="w-3 h-3 bg-slate-400 rounded-full"></div>
-                        <span className="font-medium text-gray-700 text-sm">{formatTime(time)}</span>
+                        <span className="font-medium text-gray-700 text-sm">
+                          {formatTime(time)}
+                        </span>
                       </div>
                     </td>
 
                     {/* Doctor Columns */}
                     {doctors.map((doctor) => {
-                      const appointment = scheduleData[doctor.name]?.[time]
+                      const appointment = scheduleData[doctor.name]?.[time];
                       return (
                         <td
                           key={`${doctor.name}-${time}`}
@@ -462,13 +651,18 @@ const DoctorScheduleTable: React.FC = () => {
                         >
                           {appointment ? (
                             <div
-                              className={`p-3 rounded-lg border-2 transition-all hover:shadow-md ${getAppointmentTypeColor(appointment.type, doctor.color)}`}
+                              className={`p-3 rounded-lg border-2 transition-all hover:shadow-md ${getAppointmentTypeColor(
+                                appointment.type,
+                                doctor.color
+                              )}`}
                             >
                               <div className="flex items-start justify-between gap-2">
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-1 mb-1">
                                     <User className="w-3 h-3 flex-shrink-0" />
-                                    <p className="font-semibold text-xs truncate">{appointment.patientName}</p>
+                                    <p className="font-semibold text-xs truncate">
+                                      {appointment.patientName}
+                                    </p>
                                   </div>
                                   <div className="flex items-center gap-2 mb-1">
                                     {appointment.type && (
@@ -477,7 +671,9 @@ const DoctorScheduleTable: React.FC = () => {
                                       </span>
                                     )}
                                     {appointment.duration && (
-                                      <span className="text-xs opacity-70">{appointment.duration}min</span>
+                                      <span className="text-xs opacity-70">
+                                        {appointment.duration}min
+                                      </span>
                                     )}
                                   </div>
                                 </div>
@@ -497,7 +693,7 @@ const DoctorScheduleTable: React.FC = () => {
                             </div>
                           )}
                         </td>
-                      )
+                      );
                     })}
                   </tr>
                 ))}
@@ -526,14 +722,23 @@ const DoctorScheduleTable: React.FC = () => {
         {/* Doctor Statistics */}
         <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {doctors.slice(0, 4).map((doctor) => (
-            <div key={doctor.name} className="p-4 bg-white rounded-xl shadow-sm border">
+            <div
+              key={doctor.name}
+              className="p-4 bg-white rounded-xl shadow-sm border"
+            >
               <div className="flex items-center gap-3">
-                <div className={`p-2 bg-gradient-to-r ${getDoctorHeaderColor(doctor.color)} rounded-lg`}>
+                <div
+                  className={`p-2 bg-gradient-to-r ${getDoctorHeaderColor(
+                    doctor.color
+                  )} rounded-lg`}
+                >
                   <UserCheck className="w-5 h-5 text-white" />
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">{doctor.name}</p>
-                  <p className="text-xl font-bold text-gray-900">{getAppointmentCount(doctor.name)} patients</p>
+                  <p className="text-xl font-bold text-gray-900">
+                    {getAppointmentCount(doctor.name)} patients
+                  </p>
                   <p className="text-xs text-gray-500">{doctor.specialty}</p>
                 </div>
               </div>
@@ -542,5 +747,5 @@ const DoctorScheduleTable: React.FC = () => {
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
