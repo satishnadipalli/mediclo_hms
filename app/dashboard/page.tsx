@@ -59,33 +59,33 @@ const ReceptionistDashboard = () => {
       return
     }
 
-    fetchAppointments()
+    // fetchAppointments()
   }, [])
 
-  const fetchAppointments = async () => {
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
-        },
-      })
+  // const fetchAppointments = async () => {
+  //   try {
+  //     const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments`, {
+  //       headers: {
+  //         Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+  //       },
+  //     })
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch appointments")
-      }
+  //     if (!response.ok) {
+  //       throw new Error("Failed to fetch appointments")
+  //     }
 
-      const data = await response.json()
-      setAppointments(data.data)
-    } catch (error) {
-      if (error instanceof Error) {
-        toast.error(error.message)
-      } else {
-        toast.error("An unknown error occurred while fetching appointments")
-      }
-    } finally {
-      setLoading(false)
-    }
-  }
+  //     const data = await response.json()
+  //     setAppointments(data.data)
+  //   } catch (error) {
+  //     if (error instanceof Error) {
+  //       toast.error(error.message)
+  //     } else {
+  //       toast.error("An unknown error occurred while fetching appointments")
+  //     }
+  //   } finally {
+  //     setLoading(false)
+  //   }
+  // }
 
   const handleStatusUpdate = async (id: string, newStatus: string) => {
     try {
@@ -121,32 +121,15 @@ const ReceptionistDashboard = () => {
       appointment?.doctorId?.lastName?.toLowerCase()?.includes(searchTerm.toLowerCase()),
   )
 
-  if (loading) {
-    return (
-      <div className="p-6 max-w-[90%] mt-15 ml-70 mx-auto">
-        <h1 className="text-2xl font-bold text-[#1E437A] mb-6">Loading appointments...</h1>
-      </div>
-    )
-  }
 
   return (
     <div className="p-6 max-w-[84%] mt-15 ml-70 mx-auto hide-scrollbar">
       <h1 className="text-2xl font-bold text-[#1E437A] mb-6">Hello, Receptionist!</h1>
       <div className="flex gap-4 mb-6">
-        <div className="flex-1 relative">
-          <Search className="absolute left-3 top-3 text-gray-400 w-5 h-5" />
-          <input
-            type="text"
-            placeholder="Search patients or doctors..."
-            className="pl-10 pr-4 py-2 bg-white w-110 border text-[#858D9D] border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-
+        
         <button
           className="flex items-center gap-2 bg-[#C83C921A] text-[#C83C92] px-4 py-2 rounded-lg font-medium"
-          onClick={() => router.push("/dashboard/scheduleAppoint")}
+          onClick={() => router.push("/dashboard/scheduleAppointment")}
         >
           <Calendar className="w-5 h-5" />
           Schedule an Appointment
