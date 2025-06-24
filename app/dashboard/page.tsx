@@ -146,7 +146,7 @@ const ReceptionistDashboard = () => {
 
         <button
           className="flex items-center gap-2 bg-[#C83C921A] text-[#C83C92] px-4 py-2 rounded-lg font-medium"
-          onClick={() => router.push("/dashboard/scheduleAppointment")}
+          onClick={() => router.push("/dashboard/scheduleAppoint")}
         >
           <Calendar className="w-5 h-5" />
           Schedule an Appointment
