@@ -1,117 +1,136 @@
 "use client"
-import React, { useState, useEffect } from "react";
-import { Calendar, Eye, Phone, Plus, Search, SlidersHorizontal } from "lucide-react";
-import eye from '@/public/eye.svg'
-import phone from '@/public/phone.svg'
-import Image from "next/image";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { toast } from "react-toastify";
-import { Clock, User, Edit3, Trash2 } from "lucide-react"
-import {Stethoscope, UserCheck } from "lucide-react"
+import type React from "react"
+import { useState, useEffect } from "react"
+import { Calendar, Plus, Search, Clock, User, Edit3, Trash2, X } from "lucide-react"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { toast } from "react-toastify"
+import { Stethoscope, UserCheck } from "lucide-react"
+
 interface Appointment {
-  _id: string;
-  date: string;
-  timeSlot: string;
+  _id: string
+  date: string
+  timeSlot: string
   patientId: {
-    childName: string;
-    _id: string;
-  };
+    childName: string
+    _id: string
+  }
   doctorId: {
-    firstName: string;
-    lastName: string;
-    _id: string;
-  };
+    firstName: string
+    lastName: string
+    _id: string
+  }
   parentInfo: {
-    contactNumber: string;
-  };
-  status: "scheduled" | "completed" | "cancelled" | "no_show";
+    contactNumber: string
+  }
+  status: "scheduled" | "completed" | "cancelled" | "no_show"
+}
+
+// API Response interfaces
+interface CalendarAppointment {
+  id: string
+  patientId: string
+  doctorId: string
+  patientName: string
+  type: "initial assessment" | "therapy session"
+  status: "scheduled"
+  duration: number
+}
+
+interface CalendarApiResponse {
+  success: boolean
+  data: {
+    [doctorName: string]: {
+      [timeSlot: string]: CalendarAppointment | null
+    }
+  }
 }
 
 const ReceptionistDashboard = () => {
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const router = useRouter();
+  const [appointments, setAppointments] = useState<Appointment[]>([])
+  const [loading, setLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState("")
+  const router = useRouter()
 
   useEffect(() => {
-    const token = localStorage.getItem('adminToken');
+    const token = localStorage.getItem("adminToken")
     if (!token) {
-      router.push('/login');
-      return;
+      router.push("/login")
+      return
     }
 
-    fetchAppointments();
-  }, []);
+    fetchAppointments()
+  }, [])
 
   const fetchAppointments = async () => {
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-        }
-      });
+          Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+        },
+      })
 
       if (!response.ok) {
-        throw new Error('Failed to fetch appointments');
+        throw new Error("Failed to fetch appointments")
       }
 
-      const data = await response.json();
-      setAppointments(data.data);
+      const data = await response.json()
+      setAppointments(data.data)
     } catch (error) {
       if (error instanceof Error) {
-        toast.error(error.message);
+        toast.error(error.message)
       } else {
-        toast.error('An unknown error occurred while fetching appointments');
+        toast.error("An unknown error occurred while fetching appointments")
       }
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const handleStatusUpdate = async (id: string, newStatus: string) => {
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/${id}/status`, {
-        method: 'PUT',
+        method: "PUT",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
         },
-        body: JSON.stringify({ status: newStatus })
-      });
+        body: JSON.stringify({ status: newStatus }),
+      })
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to update status');
+        const errorData = await response.json()
+        throw new Error(errorData.message || "Failed to update status")
       }
 
-      toast.success('Appointment status updated');
-      fetchAppointments();
+      toast.success("Appointment status updated")
+      fetchAppointments()
     } catch (error) {
       if (error instanceof Error) {
-        toast.error(error.message);
+        toast.error(error.message)
       } else {
-        toast.error('An unknown error occurred while updating status');
+        toast.error("An unknown error occurred while updating status")
       }
     }
-  };
+  }
 
-  const filteredAppointments = appointments.filter(appointment =>
-    appointment.patientId.childName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    appointment.doctorId.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    appointment.doctorId.lastName.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredAppointments = appointments.filter(
+    (appointment) =>
+      appointment?.patientId?.childName?.toLowerCase()?.includes(searchTerm.toLowerCase()) ||
+      appointment?.doctorId?.firstName?.toLowerCase()?.includes(searchTerm.toLowerCase()) ||
+      appointment?.doctorId?.lastName?.toLowerCase()?.includes(searchTerm.toLowerCase()),
+  )
 
   if (loading) {
     return (
       <div className="p-6 max-w-[90%] mt-15 ml-70 mx-auto">
         <h1 className="text-2xl font-bold text-[#1E437A] mb-6">Loading appointments...</h1>
       </div>
-    );
+    )
   }
 
   return (
-    <div className="p-6 max-w-[84%] mt-15 ml-70 mx-auto  hide-scrollbar">
+    <div className="p-6 max-w-[84%] mt-15 ml-70 mx-auto hide-scrollbar">
       <h1 className="text-2xl font-bold text-[#1E437A] mb-6">Hello, Receptionist!</h1>
       <div className="flex gap-4 mb-6">
         <div className="flex-1 relative">
@@ -127,13 +146,13 @@ const ReceptionistDashboard = () => {
 
         <button
           className="flex items-center gap-2 bg-[#C83C921A] text-[#C83C92] px-4 py-2 rounded-lg font-medium"
-          onClick={() => router.push('/dashboard/schedule-appointment')}
+          onClick={() => router.push("/dashboard/scheduleAppointment")}
         >
           <Calendar className="w-5 h-5" />
           Schedule an Appointment
         </button>
 
-        <Link href={'/dashboard/registerPatient'}>
+        <Link href={"/dashboard/registerPatient"}>
           <button className="cursor-pointer flex items-center gap-2 bg-[#C83C92] text-white px-4 py-2 rounded-lg font-medium">
             <Plus className="w-5 h-5" />
             Register New Patient
@@ -143,182 +162,183 @@ const ReceptionistDashboard = () => {
 
       <div className="bg-white rounded-lg border border-gray-200 p-6 flex-1">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold text-[#1E437A] ml-5">Upcoming Appointments</h2>
-          {/* <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-gray-700">
-            <SlidersHorizontal className="w-4 h-4" />
-            Filters
-          </button> */}
+          <h2 className="text-xl font-semibold text-[#1E437A] ml-5">Doctor Schedule</h2>
         </div>
 
-        {/* <div className="overflow-x-auto">
-          <table className="w-full ml-5">
-            <thead className="">
-              <tr className="text-left text-[#1E437A] bg-[#F9F9FC] h-12">
-                <th className="pb-3 font-medium">Date</th>
-                <th className="pb-3 font-medium">Time</th>
-                <th className="pb-3 font-medium">Patient Name</th>
-                <th className="pb-3 font-medium">Doctor</th>
-                <th className="pb-3 font-medium">Parent Contact</th>
-                <th className="pb-3 font-medium">Status</th>
-                <th className="pb-3 font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredAppointments.length > 0 ? (
-                filteredAppointments.map((appointment) => (
-                  <tr key={appointment._id} className="border-b">
-                    <td className="py-4 text-[#456696]">
-                      {new Date(appointment.date).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric'
-                      })}
-                    </td>
-                    <td className="py-4 text-[#456696]">{appointment.timeSlot}</td>
-                    <td className="py-4 text-[#456696]">{appointment.patientId.childName}</td>
-                    <td className="py-4 text-[#456696]">
-                      Dr. {appointment.doctorId.firstName} {appointment.doctorId.lastName}
-                    </td>
-                    <td className="py-4 text-[#456696]">
-                      {appointment.parentInfo?.contactNumber || "N/A"}
-                    </td>
-                    <td className="py-4">
-                      <span
-                        className={`px-3 py-1 rounded-full text-sm font-medium ${appointment.status === "scheduled"
-                            ? "bg-green-100 text-green-600"
-                            : appointment.status === "completed"
-                              ? "bg-blue-100 text-blue-600"
-                              : "bg-orange-100 text-orange-600"
-                          }`}
-                      >
-                        {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1).replace('_', ' ')}
-                      </span>
-                    </td>
-                    <td className="py-4 flex gap-3">
-                      <button
-                        className="flex items-center gap-1 text-[#C83C92] font-medium"
-                        onClick={() => router.push(`/dashboard/appointments/${appointment._id}`)}
-                      >
-                        <Image src={eye} width={18} height={18} alt="eye" />
-                        View Details
-                      </button>
-                      <button
-                        className="flex items-center gap-1 text-[#C83C92] font-medium"
-                        onClick={() => appointment.parentInfo?.contactNumber && (window.location.href = `tel:${appointment.parentInfo.contactNumber}`)}
-                        disabled={!appointment.parentInfo?.contactNumber}
-                      >
-
-                        <Image src={phone} width={18} height={18} alt="phone" />
-                        Call Parent
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={7} className="py-4 text-center text-gray-500">
-                    No appointments found
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div> */}
-
-        <DoctorScheduleTable/>
+        <DoctorScheduleTable />
       </div>
     </div>
-  );
-};
-
-export default ReceptionistDashboard;
-
-
-
-interface Appointment {
-  id: string
-  patientName: string
-  type?: "consultation" | "follow-up" | "emergency" | "surgery"
-  status?: "scheduled" | "completed" | "cancelled"
-  duration?: number
-}
-
-interface DoctorSchedule {
-  [doctor: string]: {
-    [time: string]: Appointment | null
-  }
+  )
 }
 
 const DoctorScheduleTable: React.FC = () => {
-  const timeSlots = [
-    "9:15",
-    "10:00",
-    "10:45",
-    "11:30",
-    "12:15",
-    "1:00",
-    "1:45",
-    "2:30",
-    "3:15",
-    "4:00",
-    "4:45",
-    "5:30",
-    "6:00",
-    "6:45",
-  ]
+  const [scheduleData, setScheduleData] = useState<CalendarApiResponse["data"]>({})
+  const [loading, setLoading] = useState(true)
+  const [selectedSlot, setSelectedSlot] = useState<{ doctor: string; time: string } | null>(null)
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0])
 
-  const doctors = [
-    { name: "Dr. Ashish", specialty: "Cardiology", color: "blue" },
-    { name: "Dr. Chandrika", specialty: "Pediatrics", color: "pink" },
-    { name: "Dr. Mira G", specialty: "Dermatology", color: "green" },
-    { name: "Dr. Nikhilesh", specialty: "Orthopedics", color: "purple" },
-    { name: "Dr. Sarang", specialty: "Neurology", color: "indigo" },
-    { name: "Dr. Rajesh", specialty: "General Medicine", color: "orange" },
-    { name: "Dr. Vihan P", specialty: "ENT", color: "teal" },
-  ]
-
-  const [scheduleData, setScheduleData] = useState<DoctorSchedule>({
-    "Dr. Ashish": {
-      "9:15": { id: "1",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "John Doe", type: "consultation", status: "scheduled", duration: 30 },
-      "11:30": { id: "2",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "Sarah Wilson", type: "follow-up", status: "scheduled", duration: 20 },
-      "2:30": { id: "3",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "Mike Johnson", type: "consultation", status: "scheduled", duration: 45 },
-      "4:45": { id: "4",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "Emma Davis", type: "emergency", status: "scheduled", duration: 60 },
-    },
-    "Dr. Chandrika": {
-      "10:00": { id: "5",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "Alice Brown", type: "consultation", status: "scheduled", duration: 30 },
-      "12:15": { id: "6",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "Tommy Lee", type: "follow-up", status: "scheduled", duration: 15 },
-      "3:15": { id: "7",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "Lucy Chen", type: "consultation", status: "scheduled", duration: 30 },
-      "5:30": { id: "8",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "Baby Smith", type: "consultation", status: "scheduled", duration: 25 },
-    },
-    "Dr. Mira G": {
-      "9:15": { id: "9",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "Diana Miller", type: "consultation", status: "scheduled", duration: 40 },
-      "1:00": { id: "10",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "Robert Garcia", type: "follow-up", status: "scheduled", duration: 20 },
-      "4:00": { id: "11",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "Lisa Wang", type: "consultation", status: "scheduled", duration: 35 },
-    },
-    "Dr. Nikhilesh": {
-      "10:45": { id: "12",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "James Taylor", type: "consultation", status: "scheduled", duration: 50 },
-      "1:45": { id: "13",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "Maria Rodriguez", type: "surgery", status: "scheduled", duration: 120 },
-      "6:00": { id: "14",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "David Kim", type: "follow-up", status: "scheduled", duration: 30 },
-    },
-    "Dr. Sarang": {
-      "11:30": { id: "15",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "Jennifer Lopez", type: "consultation", status: "scheduled", duration: 45 },
-      "2:30": { id: "16",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "Kevin Brown", type: "emergency", status: "scheduled", duration: 90 },
-      "5:30": { id: "17",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "Amanda White", type: "follow-up", status: "scheduled", duration: 25 },
-    },
-    "Dr. Rajesh": {
-      "9:15": { id: "18",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "Chris Johnson", type: "consultation", status: "scheduled", duration: 30 },
-      "12:15": { id: "19",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "Nicole Davis", type: "consultation", status: "scheduled", duration: 35 },
-      "3:15": { id: "20",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "Ryan Miller", type: "follow-up", status: "scheduled", duration: 20 },
-      "6:45": { id: "21",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "Sophia Garcia", type: "consultation", status: "scheduled", duration: 40 },
-    },
-    "Dr. Vihan P": {
-      "10:00": { id: "22",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "Alex Wilson", type: "consultation", status: "scheduled", duration: 30 },
-      "1:00": { id: "23",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "Grace Lee", type: "surgery", status: "scheduled", duration: 90 },
-      "4:45": { id: "24",patientId:"1e234", consultaionId:"ifj93y4334", doctorId:"123jerij9u", patientName: "Nathan Chen", type: "follow-up", status: "scheduled", duration: 25 },
-    },
+  // Reschedule Modal State
+  const [showRescheduleModal, setShowRescheduleModal] = useState(false)
+  const [selectedAppointment, setSelectedAppointment] = useState<CalendarAppointment | null>(null)
+  const [rescheduleData, setRescheduleData] = useState({
+    date: "",
+    startTime: "",
+    endTime: "",
+    reason: "",
   })
 
-  const [selectedSlot, setSelectedSlot] = useState<{ doctor: string; time: string } | null>(null)
+  // Predefined time slots
+  const predefinedTimeSlots = [
+    "09:15 AM",
+    "10:00 AM",
+    "10:45 AM",
+    "11:30 AM",
+    "12:15 PM",
+    "01:00 PM",
+    "01:45 PM",
+    "02:30 PM",
+    "03:15 PM",
+    "04:00 PM",
+    "04:45 PM",
+    "05:30 PM",
+    "06:15 PM",
+    "07:00 PM",
+  ]
+
+  // Calculate end time (45 minutes after start time)
+  const calculateEndTime = (startTime: string): string => {
+    const [time, period] = startTime.split(" ")
+    const [hours, minutes] = time.split(":").map(Number)
+
+    let totalMinutes = hours * 60 + minutes + 45
+    if (period === "PM" && hours !== 12) totalMinutes += 12 * 60
+    if (period === "AM" && hours === 12) totalMinutes -= 12 * 60
+
+    const endHours = Math.floor(totalMinutes / 60) % 24
+    const endMins = totalMinutes % 60
+    const endPeriod = endHours >= 12 ? "PM" : "AM"
+    const displayHours = endHours > 12 ? endHours - 12 : endHours === 0 ? 12 : endHours
+
+    return `${displayHours.toString().padStart(2, "0")}:${endMins.toString().padStart(2, "0")} ${endPeriod}`
+  }
+
+  // Handle reschedule click
+  const handleRescheduleClick = (appointment: CalendarAppointment) => {
+    setSelectedAppointment(appointment)
+    setRescheduleData({
+      date: selectedDate,
+      startTime: "",
+      endTime: "",
+      reason: "",
+    })
+    setShowRescheduleModal(true)
+  }
+
+  // Handle reschedule submission
+  const handleRescheduleSubmit = async () => {
+    if (!selectedAppointment || !rescheduleData.date || !rescheduleData.startTime) {
+      toast.error("Please fill in all required fields")
+      return
+    }
+
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/appointments/${selectedAppointment.id}/reschedule`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+          },
+          body: JSON.stringify({
+            date: rescheduleData.date,
+            startTime: rescheduleData.startTime,
+            endTime: rescheduleData.endTime,
+            reason: rescheduleData.reason,
+          }),
+        },
+      )
+
+      if (!response.ok) {
+        throw new Error("Failed to reschedule appointment")
+      }
+
+      toast.success("Appointment rescheduled successfully")
+      setShowRescheduleModal(false)
+      setSelectedAppointment(null)
+      setRescheduleData({ date: "", startTime: "", endTime: "", reason: "" })
+      fetchCalendarData() // Refresh the calendar
+    } catch (error) {
+      console.error("Error rescheduling appointment:", error)
+      toast.error("Failed to reschedule appointment")
+    }
+  }
+
+  // Extract time slots and doctors from API response
+  const [timeSlots, setTimeSlots] = useState<string[]>([])
+  const [doctors, setDoctors] = useState<Array<{ name: string; specialty: string; color: string }>>([])
+
+  useEffect(() => {
+    fetchCalendarData()
+  }, [])
+
+  const fetchCalendarData = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/calendar`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch calendar data")
+      }
+
+      const apiResponse: CalendarApiResponse = await response.json()
+
+      console.log("Calendar API Response:", apiResponse)
+
+      if (apiResponse.success) {
+        setScheduleData(apiResponse.data)
+
+        if (Object.keys(apiResponse.data).length === 0) {
+          console.log("No calendar data available")
+          toast.info("No appointments scheduled")
+        }
+
+        // Extract doctors and time slots from API response
+        const doctorNames = Object.keys(apiResponse.data)
+        const firstDoctorSlots = doctorNames.length > 0 ? Object.keys(apiResponse.data[doctorNames[0]]) : []
+
+        setTimeSlots(firstDoctorSlots)
+
+        // Create doctor objects with colors
+        const doctorColors = ["blue", "pink", "green", "purple", "indigo", "orange", "teal"]
+        const doctorsData = doctorNames.map((name, index) => ({
+          name,
+          specialty: getSpecialtyFromName(name),
+          color: doctorColors[index % doctorColors.length],
+        }))
+
+        setDoctors(doctorsData)
+      }
+    } catch (error) {
+      console.error("Error fetching calendar data:", error)
+      toast.error("Failed to fetch calendar data")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const getSpecialtyFromName = (doctorName: string): string => {
+    const specialtyMap: { [key: string]: string } = {
+      "Dr. Abhishek Mishra": "Pediatrics",
+      "Dr. Staff User": "General Medicine",
+      "Dr. satish test": "Cardiology",
+    }
+    return specialtyMap[doctorName] || "General Medicine"
+  }
 
   const getAppointmentTypeColor = (type?: string, doctorColor?: string) => {
     const baseColors = {
@@ -331,11 +351,11 @@ const DoctorScheduleTable: React.FC = () => {
       teal: "bg-teal-100 border-teal-300 text-teal-800",
     }
 
-    if (type === "emergency") {
-      return "bg-red-100 border-red-400 text-red-800 ring-2 ring-red-200"
+    if (type === "initial assessment") {
+      return "bg-blue-100 border-blue-400 text-blue-800 ring-2 ring-blue-200"
     }
-    if (type === "surgery") {
-      return "bg-purple-100 border-purple-400 text-purple-800 ring-2 ring-purple-200"
+    if (type === "therapy session") {
+      return "bg-green-100 border-green-400 text-green-800 ring-2 ring-green-200"
     }
 
     return baseColors[doctorColor as keyof typeof baseColors] || "bg-gray-100 border-gray-300 text-gray-800"
@@ -354,20 +374,87 @@ const DoctorScheduleTable: React.FC = () => {
     return colors[color as keyof typeof colors] || "from-gray-500 to-gray-600"
   }
 
-  const handleSlotClick = (doctor: string, time: string) => {
+  const handleSlotClick = async (doctor: string, time: string) => {
     setSelectedSlot({ doctor, time })
+
+    const appointment = scheduleData[doctor]?.[time]
+    if (appointment) {
+      console.log("Existing appointment clicked:", appointment)
+    } else {
+      console.log("Empty slot clicked:", { doctor, time })
+    }
   }
 
   const formatTime = (time: string) => {
-    const [hour, minute] = time.split(":")
-    const hourNum = Number.parseInt(hour)
-    const ampm = hourNum >= 12 ? "PM" : "AM"
-    const displayHour = hourNum > 12 ? hourNum - 12 : hourNum === 0 ? 12 : hourNum
-    return `${displayHour}:${minute} ${ampm}`
+    return time
   }
 
   const getAppointmentCount = (doctorName: string) => {
     return Object.values(scheduleData[doctorName] || {}).filter(Boolean).length
+  }
+
+  const handleBookAppointment = async () => {
+    if (!selectedSlot) return
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+        },
+        body: JSON.stringify({
+          doctorName: selectedSlot.doctor,
+          timeSlot: selectedSlot.time,
+          date: selectedDate,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to book appointment")
+      }
+
+      toast.success("Appointment booked successfully")
+      fetchCalendarData()
+      setSelectedSlot(null)
+    } catch (error) {
+      console.error("Error booking appointment:", error)
+      toast.error("Failed to book appointment")
+    }
+  }
+
+  const handleDeleteAppointment = async (appointmentId: string) => {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/${appointmentId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to delete appointment")
+      }
+
+      toast.success("Appointment deleted successfully")
+      fetchCalendarData()
+    } catch (error) {
+      console.error("Error deleting appointment:", error)
+      toast.error("Failed to delete appointment")
+    }
+  }
+
+  const handleDateChange = (newDate: string) => {
+    setSelectedDate(newDate)
+  }
+
+  if (loading) {
+    return (
+      <div className="p-8 text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+        <p className="mt-4 text-gray-600">Loading calendar...</p>
+      </div>
+    )
   }
 
   return (
@@ -375,33 +462,47 @@ const DoctorScheduleTable: React.FC = () => {
       <div className="max-w-full mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl">
-              <Stethoscope className="w-8 h-8 text-white" />
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl">
+                <Stethoscope className="w-8 h-8 text-white" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">Doctor Schedule</h1>
+                <p className="text-gray-600">Daily consultation schedule by doctor</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Doctor Schedule</h1>
-              <p className="text-gray-600">Daily consultation schedule by doctor</p>
+
+            {/* Date Selector */}
+            <div className="flex items-center gap-4">
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => handleDateChange(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button
+                onClick={fetchCalendarData}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Refresh
+              </button>
             </div>
           </div>
 
           {/* Legend */}
           <div className="flex flex-wrap gap-4 p-4 bg-white rounded-xl shadow-sm border">
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-blue-100 border border-blue-300 rounded"></div>
-              <span className="text-sm text-gray-700">Regular Consultation</span>
+              <div className="w-4 h-4 bg-blue-100 border border-blue-300 rounded ring-2 ring-blue-200"></div>
+              <span className="text-sm text-gray-700">Initial Assessment</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-green-100 border border-green-300 rounded"></div>
-              <span className="text-sm text-gray-700">Follow-up</span>
+              <div className="w-4 h-4 bg-green-100 border border-green-300 rounded ring-2 ring-green-200"></div>
+              <span className="text-sm text-gray-700">Therapy Session</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-red-100 border border-red-400 rounded ring-2 ring-red-200"></div>
-              <span className="text-sm text-gray-700">Emergency</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-purple-100 border border-purple-400 rounded ring-2 ring-purple-200"></div>
-              <span className="text-sm text-gray-700">Surgery</span>
+              <div className="w-4 h-4 bg-gray-100 border border-gray-300 rounded border-dashed"></div>
+              <span className="text-sm text-gray-700">Available Slot</span>
             </div>
           </div>
         </div>
@@ -471,21 +572,30 @@ const DoctorScheduleTable: React.FC = () => {
                                     <p className="font-semibold text-xs truncate">{appointment.patientName}</p>
                                   </div>
                                   <div className="flex items-center gap-2 mb-1">
-                                    {appointment.type && (
-                                      <span className="inline-block px-2 py-0.5 text-xs font-medium bg-white bg-opacity-60 rounded-full">
-                                        {appointment.type}
-                                      </span>
-                                    )}
-                                    {appointment.duration && (
-                                      <span className="text-xs opacity-70">{appointment.duration}min</span>
-                                    )}
+                                    <span className="inline-block px-2 py-0.5 text-xs font-medium bg-white bg-opacity-60 rounded-full">
+                                      {appointment.type}
+                                    </span>
+                                    <span className="text-xs opacity-70">{appointment.duration}min</span>
                                   </div>
+                                  <div className="text-xs opacity-70">Status: {appointment.status}</div>
                                 </div>
                                 <div className="flex flex-col gap-1">
-                                  <button className="p-1 hover:bg-white hover:bg-opacity-60 rounded transition-colors">
+                                  <button
+                                    className="p-1 hover:bg-white hover:bg-opacity-60 rounded transition-colors"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleRescheduleClick(appointment)
+                                    }}
+                                  >
                                     <Edit3 className="w-3 h-3" />
                                   </button>
-                                  <button className="p-1 hover:bg-white hover:bg-opacity-60 rounded transition-colors">
+                                  <button
+                                    className="p-1 hover:bg-white hover:bg-opacity-60 rounded transition-colors"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleDeleteAppointment(appointment.id)
+                                    }}
+                                  >
                                     <Trash2 className="w-3 h-3" />
                                   </button>
                                 </div>
@@ -513,11 +623,23 @@ const DoctorScheduleTable: React.FC = () => {
               Selected: {selectedSlot.doctor} at {formatTime(selectedSlot.time)}
             </h3>
             <div className="flex gap-3">
-              <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                Book Appointment
-              </button>
-              <button className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
-                View Details
+              {!scheduleData[selectedSlot.doctor]?.[selectedSlot.time] ? (
+                <button
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  onClick={handleBookAppointment}
+                >
+                  Book Appointment
+                </button>
+              ) : (
+                <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                  View Details
+                </button>
+              )}
+              <button
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                onClick={() => setSelectedSlot(null)}
+              >
+                Close
               </button>
             </div>
           </div>
@@ -541,6 +663,137 @@ const DoctorScheduleTable: React.FC = () => {
           ))}
         </div>
       </div>
+
+      {/* Reschedule Modal */}
+      {showRescheduleModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-white bg-opacity-20 rounded-lg">
+                    <Calendar className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">Reschedule Appointment</h3>
+                    <p className="text-blue-100 text-sm">{selectedAppointment?.patientName}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowRescheduleModal(false)}
+                  className="p-1 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-white" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-6">
+              {/* Current Appointment Info */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h4 className="text-sm font-medium text-gray-700 mb-2">Current Appointment</h4>
+                <div className="text-sm text-gray-600">
+                  <p>
+                    Patient: <span className="font-medium">{selectedAppointment?.patientName}</span>
+                  </p>
+                  <p>
+                    Type: <span className="font-medium">{selectedAppointment?.type}</span>
+                  </p>
+                  <p>
+                    Duration: <span className="font-medium">{selectedAppointment?.duration} minutes</span>
+                  </p>
+                </div>
+              </div>
+
+              {/* New Date Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  New Date <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={rescheduleData.date}
+                  onChange={(e) => setRescheduleData((prev) => ({ ...prev, date: e.target.value }))}
+                  min={new Date().toISOString().split("T")[0]}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              {/* Time Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  New Time Slot <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={rescheduleData.startTime}
+                  onChange={(e) => {
+                    const startTime = e.target.value
+                    const endTime = calculateEndTime(startTime)
+                    setRescheduleData((prev) => ({
+                      ...prev,
+                      startTime,
+                      endTime,
+                    }))
+                  }}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Select time slot</option>
+                  {predefinedTimeSlots.map((slot) => (
+                    <option key={slot} value={slot}>
+                      {slot}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* End Time Display */}
+              {rescheduleData.startTime && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">End Time (Auto-calculated)</label>
+                  <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-700">
+                    {rescheduleData.endTime}
+                  </div>
+                </div>
+              )}
+
+              {/* Reason */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Reason for Rescheduling (Optional)
+                </label>
+                <textarea
+                  value={rescheduleData.reason}
+                  onChange={(e) => setRescheduleData((prev) => ({ ...prev, reason: e.target.value }))}
+                  placeholder="Enter reason for rescheduling..."
+                  rows={3}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                />
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="bg-gray-50 px-6 py-4 flex items-center justify-end gap-3">
+              <button
+                onClick={() => setShowRescheduleModal(false)}
+                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRescheduleSubmit}
+                disabled={!rescheduleData.date || !rescheduleData.startTime}
+                className="px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Reschedule Appointment
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
+
+export default ReceptionistDashboard
