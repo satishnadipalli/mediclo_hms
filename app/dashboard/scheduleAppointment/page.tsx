@@ -32,6 +32,8 @@ interface Patient {
   // Handle both old and new formats
   childName?: string
   fullName?: string
+  firstName?: string
+  lastname?: string
   parentName?: string
   contactNumber?: string
   email: string
@@ -117,11 +119,26 @@ const AppointmentSchedulingPage = () => {
 
       const apiResponse: CalendarApiResponse = await response.json()
 
+      console.log("api response", apiResponse)
+
       if (apiResponse.success) {
         setCalendarData(apiResponse.data)
-        setAvailableDoctors(Object.keys(apiResponse.data))
 
-        // Set patients data and initialize filtered patients
+        // Get all doctor IDs
+        const doctorIds = Object.keys(apiResponse.data)
+
+        // Set available doctor IDs
+
+
+        // 👉 Extract doctor name and id and set to setDoctDetails
+        const doctorDetails = doctorIds.map((id) => ({
+          id,
+          name: apiResponse.data[id].name,
+        }));
+
+        setAvailableDoctors(doctorDetails)
+
+        // If patients exist, set them
         if (apiResponse.patients) {
           setPatients(apiResponse.patients)
           setFilteredPatients(apiResponse.patients)
@@ -136,6 +153,7 @@ const AppointmentSchedulingPage = () => {
   // Update useEffect to fetch data when date changes
   useEffect(() => {
     if (formData.appointmentDate) {
+      console.log("wokring")
       fetchCalendarData(formData.appointmentDate)
       // Reset doctor and time slot when date changes
       setFormData((prev) => ({
@@ -151,10 +169,10 @@ const AppointmentSchedulingPage = () => {
       setFilteredPatients(patients)
     } else {
       const filtered = patients.filter((patient) => {
-        const childName = patient.childName || patient.fullName || ""
-        const parentName = patient.parentName || patient.parentInfo?.name || ""
-        const phone = patient.contactNumber || patient.parentInfo?.phone || ""
-        const patientId = patient._id || patient.id || ""
+        const childName = patient?.childName || patient?.fullName || ""
+        const parentName = patient?.parentName || patient?.parentInfo?.name || ""
+        const phone = patient?.contactNumber || patient?.parentInfo?.phone || ""
+        const patientId = patient?._id || patient?.id || ""
 
         return (
           childName.toLowerCase().includes(patientSearchTerm.toLowerCase()) ||
@@ -170,13 +188,18 @@ const AppointmentSchedulingPage = () => {
   // Update the existing useEffect for time slots
   useEffect(() => {
     if (formData.doctor && calendarData[formData.doctor]) {
-      const doctorSlots = calendarData[formData.doctor]
-      const availableSlots = Object.keys(doctorSlots).filter((timeSlot) => doctorSlots[timeSlot] === null)
-      setAvailableTimeSlots(availableSlots)
+      const doctorSlots = calendarData[formData.doctor].slots;
+
+      const availableSlots = Object.keys(doctorSlots).filter(
+        (timeSlot) => doctorSlots[timeSlot] === null
+      );
+
+      setAvailableTimeSlots(availableSlots);
     } else {
-      setAvailableTimeSlots([])
+      setAvailableTimeSlots([]);
     }
-  }, [formData.doctor, calendarData])
+  }, [formData.doctor, calendarData]);
+
 
   // Add useEffect to fetch services on component mount
   useEffect(() => {
@@ -219,6 +242,9 @@ const AppointmentSchedulingPage = () => {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement> | React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault()
 
+    // console.log(formData);
+
+    // return;
     if (
       !formData.doctor ||
       !formData.appointmentDate ||
@@ -226,6 +252,8 @@ const AppointmentSchedulingPage = () => {
       !formData.serviceId ||
       !formData.consent
     ) {
+      console.log("dojdn")
+      console.log("doctor",formData.doctor," ","date",formData.appointmentDate," ","timeslot",formData.timeSlot," ","sid",formData.serviceId," ","consoet",formData.consent)
       toast.error("Please fill in all required fields and provide consent")
       return
     }
@@ -236,12 +264,13 @@ const AppointmentSchedulingPage = () => {
       const endTime = calculateEndTime(formData.timeSlot)
 
       const appointmentData = {
-        patientName: formData.patientName,
+        patientId: selectedPatient?._id,
+        patientName: formData.patientName || selectedPatient?.firstName + " " + selectedPatient?.lastName ,
         fatherName: formData.fatherName || formData.patientName,
         email: formData.email,
         phone: formData.phone,
         serviceId: formData.serviceId,
-        therapistId: null,
+        therapistId: formData?.doctor,
         date: formData.appointmentDate,
         startTime: formData.timeSlot,
         endTime: endTime,
@@ -254,6 +283,9 @@ const AppointmentSchedulingPage = () => {
         consent: formData.consent,
         totalSessions: formData.totalSessions,
       }
+
+      // console.log(appointmentData);
+      // return;
 
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments`, {
         method: "POST",
@@ -270,6 +302,7 @@ const AppointmentSchedulingPage = () => {
       }
 
       const result = await response.json()
+      console.log("successfully apointment created",result)
       toast.success("Appointment scheduled successfully!")
 
       // Redirect back to dashboard
@@ -278,6 +311,7 @@ const AppointmentSchedulingPage = () => {
       console.error("Error creating appointment:", error)
       toast.error(error instanceof Error ? error.message : "Failed to schedule appointment")
     } finally {
+      
       setLoading(false)
     }
   }
@@ -316,149 +350,149 @@ const AppointmentSchedulingPage = () => {
 
 
 
-              {/* Appointment Information Section */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-          <h2 className="text-lg font-semibold text-[#1E437A] mb-4">Appointment Information</h2>
+      {/* Appointment Information Section */}
+      <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+        <h2 className="text-lg font-semibold text-[#1E437A] mb-4">Appointment Information</h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
-            <div>
-              <label className="block text-[#1E437A] mb-2" htmlFor="appointmentDate">
-                Date *
-              </label>
-              <div className="relative">
-                <input
-                  type="date"
-                  id="appointmentDate"
-                  name="appointmentDate"
-                  value={formData.appointmentDate}
-                  onChange={handleDateChange}
-                  min={new Date().toISOString().split("T")[0]}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D]"
-                  placeholder="Select appointment date"
-                  required
-                />
-                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                  <Calendar className="h-4 w-4 mr-2 text-gray-400" />
-                </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+          <div>
+            <label className="block text-[#1E437A] mb-2" htmlFor="appointmentDate">
+              Date *
+            </label>
+            <div className="relative">
+              <input
+                type="date"
+                id="appointmentDate"
+                name="appointmentDate"
+                value={formData.appointmentDate}
+                onChange={handleDateChange}
+                min={new Date().toISOString().split("T")[0]}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D]"
+                placeholder="Select appointment date"
+                required
+              />
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                <Calendar className="h-4 w-4 mr-2 text-gray-400" />
               </div>
             </div>
+          </div>
 
-            <div>
-              <label className="block text-[#1E437A] mb-2" htmlFor="doctor">
-                Select Doctor *
-              </label>
-              <div className="relative">
-                <select
-                  id="doctor"
-                  name="doctor"
-                  value={formData.doctor}
-                  onChange={handleInputChange}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none"
-                  required
-                  disabled={!formData.appointmentDate}
+          <div>
+            <label className="block text-[#1E437A] mb-2" htmlFor="doctor">
+              Select Doctor *
+            </label>
+            <div className="relative">
+              <select
+                id="doctor"
+                name="doctor"
+                value={formData.doctor}
+                onChange={handleInputChange}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none"
+                required
+                disabled={!formData.appointmentDate}
+              >
+                <option value="">{!formData.appointmentDate ? "Select date first" : "Select doctor"}</option>
+                {availableDoctors.map((doctor) => (
+                  <option key={doctor?.id} value={doctor?.id}>
+                    {doctor?.name}
+                  </option>
+                ))}
+              </select>
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                <svg
+                  className="h-5 w-5 text-gray-400"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
                 >
-                  <option value="">{!formData.appointmentDate ? "Select date first" : "Select doctor"}</option>
-                  {availableDoctors.map((doctor) => (
-                    <option key={doctor} value={doctor}>
-                      {doctor}
-                    </option>
-                  ))}
-                </select>
-                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                  <svg
-                    className="h-5 w-5 text-gray-400"
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </div>
+                  <path
+                    fillRule="evenodd"
+                    d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                    clipRule="evenodd"
+                  />
+                </svg>
               </div>
             </div>
+          </div>
 
-            <div>
-              <label className="block text-[#1E437A] mb-2" htmlFor="timeSlot">
-                Available Time Slots *
-              </label>
-              <div className="relative">
-                <select
-                  id="timeSlot"
-                  name="timeSlot"
-                  value={formData.timeSlot}
-                  onChange={handleInputChange}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none"
-                  disabled={!formData.doctor}
-                  required
+          <div>
+            <label className="block text-[#1E437A] mb-2" htmlFor="timeSlot">
+              Available Time Slots *
+            </label>
+            <div className="relative">
+              <select
+                id="timeSlot"
+                name="timeSlot"
+                value={formData.timeSlot}
+                onChange={handleInputChange}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none"
+                disabled={!formData.doctor}
+                required
+              >
+                <option value="">{!formData.doctor ? "Select doctor first" : "Select time slot"}</option>
+                {availableTimeSlots.map((timeSlot) => (
+                  <option key={timeSlot} value={timeSlot}>
+                    {timeSlot}
+                  </option>
+                ))}
+              </select>
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                <svg
+                  className="h-5 w-5 text-gray-400"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
                 >
-                  <option value="">{!formData.doctor ? "Select doctor first" : "Select time slot"}</option>
-                  {availableTimeSlots.map((timeSlot) => (
-                    <option key={timeSlot} value={timeSlot}>
-                      {timeSlot}
-                    </option>
-                  ))}
-                </select>
-                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                  <svg
-                    className="h-5 w-5 text-gray-400"
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </div>
+                  <path
+                    fillRule="evenodd"
+                    d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                    clipRule="evenodd"
+                  />
+                </svg>
               </div>
-              {formData.doctor && availableTimeSlots.length === 0 && (
-                <p className="text-sm text-red-500 mt-1">No available slots for selected doctor</p>
-              )}
             </div>
-            <div>
-              <label className="block text-[#1E437A] mb-2" htmlFor="serviceId">
-                Select Service *
-              </label>
-              <div className="relative">
-                <select
-                  id="serviceId"
-                  name="serviceId"
-                  value={formData.serviceId}
-                  onChange={handleInputChange}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none"
-                  required
+            {formData.doctor && availableTimeSlots.length === 0 && (
+              <p className="text-sm text-red-500 mt-1">No available slots for selected doctor</p>
+            )}
+          </div>
+          <div>
+            <label className="block text-[#1E437A] mb-2" htmlFor="serviceId">
+              Select Service *
+            </label>
+            <div className="relative">
+              <select
+                id="serviceId"
+                name="serviceId"
+                value={formData.serviceId}
+                onChange={handleInputChange}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none"
+                required
+              >
+                <option value="">Select a service</option>
+                {services.map((service) => (
+                  <option key={service._id} value={service._id}>
+                    {service.name} - ${service.price}
+                  </option>
+                ))}
+              </select>
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                <svg
+                  className="h-5 w-5 text-gray-400"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
                 >
-                  <option value="">Select a service</option>
-                  {services.map((service) => (
-                    <option key={service._id} value={service._id}>
-                      {service.name} - ${service.price}
-                    </option>
-                  ))}
-                </select>
-                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                  <svg
-                    className="h-5 w-5 text-gray-400"
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </div>
+                  <path
+                    fillRule="evenodd"
+                    d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                    clipRule="evenodd"
+                  />
+                </svg>
               </div>
             </div>
           </div>
         </div>
+      </div>
 
       {/* Form */}
       <form onSubmit={handleSubmit}>
@@ -520,14 +554,14 @@ const AppointmentSchedulingPage = () => {
                 {filteredPatients.length > 0 ? (
                   filteredPatients.map((patient) => (
                     <div
-                      key={patient._id}
+                      key={patient?._id}
                       onClick={() => {
                         setSelectedPatient(patient)
-                        const childName = patient.childName || patient.fullName || ""
-                        const parentName = patient.parentName || patient.parentInfo?.name || ""
-                        const email = patient.email || patient.parentInfo?.email || ""
-                        const phone = patient.contactNumber || patient.parentInfo?.phone || ""
-                        const address = patient.address || patient.parentInfo?.address || ""
+                        const childName = patient?.childName || patient?.fullName || ""
+                        const parentName = patient?.parentName || patient?.parentInfo?.name || ""
+                        const email = patient?.email || patient?.parentInfo?.email || ""
+                        const phone = patient?.contactNumber || patient?.parentInfo?.phone || ""
+                        const address = patient?.address || patient?.parentInfo?.address || ""
 
                         setFormData({
                           ...formData,
@@ -544,16 +578,16 @@ const AppointmentSchedulingPage = () => {
                     >
                       <div className="flex justify-between items-start">
                         <div>
-                          <div className="font-medium text-gray-900">{patient.childName || patient.fullName}</div>
+                          <div className="font-medium text-gray-900">{patient?.childName || patient?.fullName || patient?.firstName + patient?.lastName}</div>
                           <div className="text-sm text-gray-600">
-                            Parent: {patient.parentName || patient.parentInfo?.name} | Phone:{" "}
-                            {patient.contactNumber || patient.parentInfo?.phone}
+                            Parent: {patient?.parentName || patient?.parentInfo?.name} | Phone:{" "}
+                            {patient?.contactNumber || patient?.parentInfo?.phone}
                           </div>
                           <div className="text-xs text-gray-500">
-                            ID: {patient._id} | Gender: {patient.childGender || "Not specified"}
+                            ID: {patient?._id} | Gender: {patient?.childGender || "Not specified"}
                           </div>
                         </div>
-                        <div className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">{patient.status}</div>
+                        <div className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">{patient?.status}</div>
                       </div>
                     </div>
                   ))
@@ -569,10 +603,10 @@ const AppointmentSchedulingPage = () => {
           {selectedPatient && (
             <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
               <div className="text-sm text-green-800">
-                ✓ Selected: <strong>{selectedPatient.childName || selectedPatient.fullName}</strong>
+                ✓ Selected: <strong>{selectedPatient?.childName || selectedPatient?.fullName || selectedPatient?.firstName + " " + selectedPatient?.lastName}</strong>
                 <div className="text-xs mt-1">
-                  Parent: {selectedPatient.parentName || selectedPatient.parentInfo?.name} | Phone:{" "}
-                  {selectedPatient.contactNumber || selectedPatient.parentInfo?.phone}
+                  Parent: {selectedPatient?.parentName || selectedPatient?.parentInfo?.name} | Phone:{" "}
+                  {selectedPatient?.contactNumber || selectedPatient?.parentInfo?.phone}
                 </div>
               </div>
             </div>
@@ -592,7 +626,7 @@ const AppointmentSchedulingPage = () => {
                 type="text"
                 id="patientName"
                 name="patientName"
-                value={formData.patientName}
+                value={formData.patientName || selectedPatient?.firstName + " " + selectedPatient?.lastName}
                 onChange={handleInputChange}
                 className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D]"
                 placeholder="Enter patient name"
@@ -654,7 +688,7 @@ const AppointmentSchedulingPage = () => {
                 <label className="block text-[#1E437A] mb-2">Parent/Guardian Name</label>
                 <input
                   type="text"
-                  value={selectedPatient.parentName || selectedPatient.parentInfo?.name || ""}
+                  value={selectedPatient?.parentName || selectedPatient?.parentInfo?.name || ""}
                   readOnly
                   className="w-full p-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
                 />

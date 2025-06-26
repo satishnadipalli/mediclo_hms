@@ -1,7 +1,7 @@
 "use client"
 import type React from "react"
 import { useState, useEffect } from "react"
-import { Calendar, Plus, Search, Clock, User, Edit3, Trash2, X } from "lucide-react"
+import { Calendar, Plus, Clock, User, Edit3, Trash2, X, CheckCircle, DollarSign, AlertCircle } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { toast } from "react-toastify"
@@ -26,15 +26,37 @@ interface Appointment {
   status: "scheduled" | "completed" | "cancelled" | "no_show"
 }
 
-// API Response interfaces
+// Enhanced API Response interfaces
 interface CalendarAppointment {
   id: string
   patientId: string
   doctorId: string
   patientName: string
-  type: "initial assessment" | "therapy session"
-  status: "scheduled"
+  type: "initial assessment" | "therapy session" | "follow-up" | "other"
+  status:
+    | "scheduled"
+    | "rescheduled"
+    | "cancelled"
+    | "no-show"
+    | "pending-assignment"
+    | "pending_confirmation"
+    | "converted"
+    | "completed"
   duration: number
+  // Payment information
+  payment: {
+    amount: number
+    status: "pending" | "paid" | "refunded"
+    method: "card" | "cash" | "insurance" | "not_specified"
+  }
+  // Session information
+  totalSessions: number
+  sessionsPaid: number
+  sessionsCompleted: number
+  // Additional fields
+  phone: string
+  email: string
+  notes?: string
 }
 
 interface CalendarApiResponse {
@@ -44,6 +66,360 @@ interface CalendarApiResponse {
       [timeSlot: string]: CalendarAppointment | null
     }
   }
+}
+
+// Enhanced Status Update Modal Component
+const StatusUpdateModal: React.FC<{
+  appointment: CalendarAppointment
+  isOpen: boolean
+  onClose: () => void
+  onUpdate: (appointmentId: string, updates: any) => void
+}> = ({ appointment, isOpen, onClose, onUpdate }) => {
+  const [status, setStatus] = useState(appointment?.status || "scheduled")
+  const [paymentStatus, setPaymentStatus] = useState(appointment?.payment?.status || "pending")
+  const [paymentAmount, setPaymentAmount] = useState(appointment?.payment?.amount || 0)
+  const [paymentMethod, setPaymentMethod] = useState(appointment?.payment?.method || "not_specified")
+  const [notes, setNotes] = useState(appointment?.notes || "")
+  const [sessionsCompleted, setSessionsCompleted] = useState(appointment?.sessionsCompleted || 0)
+  const [isUpdating, setIsUpdating] = useState(false)
+  const [validationErrors, setValidationErrors] = useState<string[]>([])
+
+  // Reset form when appointment changes or modal opens
+  useEffect(() => {
+    if (appointment && isOpen) {
+      setStatus(appointment.status || "scheduled")
+      setPaymentStatus(appointment.payment?.status || "pending")
+      setPaymentAmount(appointment.payment?.amount || 0)
+      setPaymentMethod(appointment.payment?.method || "not_specified")
+      setNotes(appointment.notes || "")
+      setSessionsCompleted(appointment.sessionsCompleted || 0)
+      setValidationErrors([])
+    }
+  }, [appointment, isOpen])
+
+  // Auto-increment sessions when status changes to completed
+  useEffect(() => {
+    if (status === "completed" && appointment) {
+      // Only auto-increment if current sessionsCompleted is less than what we're setting
+      const currentCompleted = appointment.sessionsCompleted || 0
+      if (sessionsCompleted <= currentCompleted) {
+        const newCompleted = Math.min(currentCompleted + 1, appointment.totalSessions || 0)
+        setSessionsCompleted(newCompleted)
+      }
+
+      // Auto-set payment to paid if amount is greater than 0 and status is pending
+      if (paymentAmount > 0 && paymentStatus === "pending") {
+        setPaymentStatus("paid")
+      }
+    }
+  }, [status, appointment, paymentAmount, paymentStatus, sessionsCompleted])
+
+  // Validation function
+  const validateForm = (): boolean => {
+    const errors: string[] = []
+
+    if (!status) {
+      errors.push("Status is required")
+    }
+
+    if (sessionsCompleted > (appointment?.totalSessions || 0)) {
+      errors.push(`Sessions completed cannot exceed total sessions (${appointment?.totalSessions})`)
+    }
+
+    if (sessionsCompleted < 0) {
+      errors.push("Sessions completed cannot be negative")
+    }
+
+    if (paymentAmount < 0) {
+      errors.push("Payment amount cannot be negative")
+    }
+
+    // If marking as completed, ensure at least one session is completed
+    if (status === "completed" && sessionsCompleted === 0) {
+      errors.push("At least one session must be completed when marking as completed")
+    }
+
+    setValidationErrors(errors)
+    return errors.length === 0
+  }
+
+  const handleUpdate = async () => {
+    if (!validateForm()) {
+      toast.error("Please fix the validation errors")
+      return
+    }
+
+    setIsUpdating(true)
+    try {
+      const updates = {
+        status,
+        payment: {
+          amount: paymentAmount,
+          status: paymentStatus,
+          method: paymentMethod,
+        },
+        notes,
+        sessionsCompleted,
+      }
+
+      await onUpdate(appointment?.id, updates)
+      onClose()
+
+      // Show success message based on status
+      if (status === "completed") {
+        toast.success(`Appointment completed! Session ${sessionsCompleted}/${appointment?.totalSessions} recorded.`)
+      } else {
+        toast.success("Appointment updated successfully")
+      }
+    } catch (error) {
+      console.error("Update error:", error)
+      toast.error("Failed to update appointment")
+    } finally {
+      setIsUpdating(false)
+    }
+  }
+
+  // Quick complete function
+  const handleQuickComplete = () => {
+    setStatus("completed")
+    const newCompleted = Math.min((appointment?.sessionsCompleted || 0) + 1, appointment?.totalSessions || 0)
+    setSessionsCompleted(newCompleted)
+    if (paymentAmount > 0) {
+      setPaymentStatus("paid")
+    }
+  }
+
+  if (!isOpen || !appointment) return null
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
+        {/* Modal Header */}
+        <div className="bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-white bg-opacity-20 rounded-lg">
+                <CheckCircle className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-white">Update Appointment</h3>
+                <p className="text-purple-100 text-sm">{appointment?.patientName}</p>
+              </div>
+            </div>
+            <button onClick={onClose} className="p-1 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors">
+              <X className="w-5 h-5 text-white" />
+            </button>
+          </div>
+        </div>
+
+        {/* Modal Body */}
+        <div className="p-6 space-y-6 max-h-96 overflow-y-auto">
+          {/* Validation Errors */}
+          {validationErrors.length > 0 && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertCircle className="w-4 h-4 text-red-600" />
+                <h4 className="text-sm font-medium text-red-800">Please fix the following errors:</h4>
+              </div>
+              <ul className="text-sm text-red-700 space-y-1">
+                {validationErrors.map((error, index) => (
+                  <li key={index} className="flex items-center gap-2">
+                    <span className="w-1 h-1 bg-red-600 rounded-full"></span>
+                    {error}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Current Info */}
+          <div className="bg-gray-50 rounded-lg p-4">
+            <h4 className="text-sm font-medium text-black mb-2">Appointment Details</h4>
+            <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
+              <div>
+                <p>
+                  Patient: <span className="font-medium">{appointment?.patientName}</span>
+                </p>
+                <p>
+                  Type: <span className="font-medium">{appointment?.type}</span>
+                </p>
+                <p>
+                  Duration: <span className="font-medium">{appointment?.duration} min</span>
+                </p>
+              </div>
+              <div>
+                <p>
+                  Phone: <span className="font-medium">{appointment?.phone}</span>
+                </p>
+                <p>
+                  Sessions:{" "}
+                  <span className="font-medium">
+                    {appointment?.sessionsCompleted}/{appointment?.totalSessions}
+                  </span>
+                </p>
+                <p>
+                  Paid Sessions: <span className="font-medium">{appointment?.sessionsPaid}</span>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Actions */}
+          <div className="flex gap-2">
+            <button
+              onClick={handleQuickComplete}
+              className="flex-1 px-3 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors text-sm font-medium"
+            >
+              Quick Complete Session
+            </button>
+            <button
+              onClick={() => {
+                setStatus("cancelled")
+                setPaymentStatus("refunded")
+              }}
+              className="flex-1 px-3 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors text-sm font-medium"
+            >
+              Cancel Appointment
+            </button>
+          </div>
+
+          {/* Status Update */}
+          <div>
+            <label className="block text-sm font-medium text-black mb-2">
+              Appointment Status <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value as any)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+            >
+              <option value="scheduled">Scheduled</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+              <option value="no-show">No Show</option>
+              <option value="rescheduled">Rescheduled</option>
+            </select>
+          </div>
+
+          {/* Payment Status */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-black mb-2">Payment Status</label>
+              <select
+                value={paymentStatus}
+                onChange={(e) => setPaymentStatus(e.target.value as any)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              >
+                <option value="pending">Pending</option>
+                <option value="paid">Paid</option>
+                <option value="refunded">Refunded</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-black mb-2">Payment Method</label>
+              <select
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value as any)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              >
+                <option value="not_specified">Not Specified</option>
+                <option value="cash">Cash</option>
+                <option value="card">Card</option>
+                <option value="insurance">Insurance</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Payment Amount */}
+          <div>
+            <label className="block text-sm font-medium text-black mb-2">Payment Amount</label>
+            <input
+              type="number"
+              value={paymentAmount}
+              onChange={(e) => setPaymentAmount(Number(e.target.value))}
+              min="0"
+              step="0.01"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              placeholder="Enter amount"
+            />
+          </div>
+
+          {/* Sessions Completed */}
+          <div>
+            <label className="block text-sm font-medium text-black mb-2">
+              Sessions Completed
+              <span className="text-gray-500 text-xs ml-2">(Max: {appointment?.totalSessions})</span>
+            </label>
+            <input
+              type="number"
+              value={sessionsCompleted}
+              onChange={(e) => setSessionsCompleted(Number(e.target.value))}
+              max={appointment?.totalSessions}
+              min={0}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+            />
+            {/* Progress bar */}
+            <div className="mt-2">
+              <div className="flex justify-between text-xs text-gray-500 mb-1">
+                <span>Progress</span>
+                <span>
+                  {sessionsCompleted}/{appointment?.totalSessions}
+                </span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+                  style={{
+                    width: `${Math.min((sessionsCompleted / (appointment?.totalSessions || 1)) * 100, 100)}%`,
+                  }}
+                ></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div>
+            <label className="block text-sm font-medium text-black mb-2">Notes</label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Add any notes about the appointment..."
+              rows={3}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+            />
+          </div>
+        </div>
+
+        {/* Modal Footer */}
+        <div className="bg-gray-50 px-6 py-4 flex items-center justify-end gap-3">
+          <button
+            onClick={onClose}
+            disabled={isUpdating}
+            className="px-4 py-2 text-black bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleUpdate}
+            disabled={isUpdating || validationErrors.length > 0}
+            className="px-6 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 disabled:opacity-50 transition-colors flex items-center gap-2"
+          >
+            {isUpdating ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                Updating...
+              </>
+            ) : (
+              <>
+                <CheckCircle className="w-4 h-4" />
+                Update Appointment
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 const ReceptionistDashboard = () => {
@@ -58,34 +434,7 @@ const ReceptionistDashboard = () => {
       router.push("/login")
       return
     }
-
-    // fetchAppointments()
   }, [])
-
-  // const fetchAppointments = async () => {
-  //   try {
-  //     const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments`, {
-  //       headers: {
-  //         Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
-  //       },
-  //     })
-
-  //     if (!response.ok) {
-  //       throw new Error("Failed to fetch appointments")
-  //     }
-
-  //     const data = await response.json()
-  //     setAppointments(data.data)
-  //   } catch (error) {
-  //     if (error instanceof Error) {
-  //       toast.error(error.message)
-  //     } else {
-  //       toast.error("An unknown error occurred while fetching appointments")
-  //     }
-  //   } finally {
-  //     setLoading(false)
-  //   }
-  // }
 
   const handleStatusUpdate = async (id: string, newStatus: string) => {
     try {
@@ -104,7 +453,6 @@ const ReceptionistDashboard = () => {
       }
 
       toast.success("Appointment status updated")
-      fetchAppointments()
     } catch (error) {
       if (error instanceof Error) {
         toast.error(error.message)
@@ -114,19 +462,10 @@ const ReceptionistDashboard = () => {
     }
   }
 
-  const filteredAppointments = appointments.filter(
-    (appointment) =>
-      appointment?.patientId?.childName?.toLowerCase()?.includes(searchTerm.toLowerCase()) ||
-      appointment?.doctorId?.firstName?.toLowerCase()?.includes(searchTerm.toLowerCase()) ||
-      appointment?.doctorId?.lastName?.toLowerCase()?.includes(searchTerm.toLowerCase()),
-  )
-
-
   return (
     <div className="p-6 max-w-[84%] mt-15 ml-70 mx-auto hide-scrollbar">
       <h1 className="text-2xl font-bold text-[#1E437A] mb-6">Hello, Receptionist!</h1>
       <div className="flex gap-4 mb-6">
-        
         <button
           className="flex items-center gap-2 bg-[#C83C921A] text-[#C83C92] px-4 py-2 rounded-lg font-medium"
           onClick={() => router.push("/dashboard/scheduleAppointment")}
@@ -160,9 +499,12 @@ const DoctorScheduleTable: React.FC = () => {
   const [selectedSlot, setSelectedSlot] = useState<{ doctor: string; time: string } | null>(null)
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0])
 
+  // Status Update Modal State
+  const [showStatusModal, setShowStatusModal] = useState(false)
+  const [selectedAppointment, setSelectedAppointment] = useState<CalendarAppointment | null>(null)
+
   // Reschedule Modal State
   const [showRescheduleModal, setShowRescheduleModal] = useState(false)
-  const [selectedAppointment, setSelectedAppointment] = useState<CalendarAppointment | null>(null)
   const [rescheduleData, setRescheduleData] = useState({
     date: "",
     startTime: "",
@@ -205,6 +547,12 @@ const DoctorScheduleTable: React.FC = () => {
     return `${displayHours.toString().padStart(2, "0")}:${endMins.toString().padStart(2, "0")} ${endPeriod}`
   }
 
+  // Handle status update click
+  const handleStatusClick = (appointment: CalendarAppointment) => {
+    setSelectedAppointment(appointment)
+    setShowStatusModal(true)
+  }
+
   // Handle reschedule click
   const handleRescheduleClick = (appointment: CalendarAppointment) => {
     setSelectedAppointment(appointment)
@@ -217,6 +565,64 @@ const DoctorScheduleTable: React.FC = () => {
     setShowRescheduleModal(true)
   }
 
+  // Enhanced appointment update handler
+  const handleAppointmentUpdate = async (appointmentId: string, updates: any) => {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/updateappointment/${appointmentId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+        },
+        body: JSON.stringify(updates),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || "Failed to update appointment")
+      }
+
+      const result = await response.json()
+
+      // Update local state with the updated appointment data
+      setScheduleData((prevData) => {
+        const newData = { ...prevData }
+
+        // Find and update the appointment in the schedule data
+        Object.keys(newData).forEach((doctorName) => {
+          Object.keys(newData[doctorName]).forEach((timeSlot) => {
+            const appointment = newData[doctorName][timeSlot]
+            if (appointment && appointment?.id === appointmentId) {
+              // Update the appointment with new data from server response
+              newData[doctorName][timeSlot] = {
+                ...appointment,
+                ...updates,
+                // Use server response data if available
+                ...(result.data && {
+                  status: result.data.status,
+                  sessionsCompleted: result.data.sessionsCompleted,
+                  // sessionsPaid:result
+                  payment: result.data.payment,
+                  notes: result.data.notes,
+                }),
+              }
+            }
+          })
+        })
+
+        return newData
+      })
+
+      // Refresh the calendar to get latest data
+      setTimeout(() => {
+        fetchCalendarData()
+      }, 1000)
+    } catch (error) {
+      console.error("Error updating appointment:", error)
+      throw error
+    }
+  }
+
   // Handle reschedule submission
   const handleRescheduleSubmit = async () => {
     if (!selectedAppointment || !rescheduleData.date || !rescheduleData.startTime) {
@@ -226,7 +632,7 @@ const DoctorScheduleTable: React.FC = () => {
 
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/appointments/${selectedAppointment.id}/reschedule`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/appointments/${selectedAppointment?.id}/reschedule`,
         {
           method: "PUT",
           headers: {
@@ -263,16 +669,19 @@ const DoctorScheduleTable: React.FC = () => {
 
   useEffect(() => {
     fetchCalendarData()
-  }, [])
+  }, [selectedDate])
 
   const fetchCalendarData = async () => {
     try {
       setLoading(true)
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/calendar`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/appointments/calendar?date=${selectedDate}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+          },
         },
-      })
+      )
 
       if (!response.ok) {
         throw new Error("Failed to fetch calendar data")
@@ -280,14 +689,11 @@ const DoctorScheduleTable: React.FC = () => {
 
       const apiResponse: CalendarApiResponse = await response.json()
 
-      console.log("Calendar API Response:", apiResponse)
-
       if (apiResponse.success) {
         setScheduleData(apiResponse.data)
 
         if (Object.keys(apiResponse.data).length === 0) {
           console.log("No calendar data available")
-          toast.info("No appointments scheduled")
         }
 
         // Extract doctors and time slots from API response
@@ -323,7 +729,8 @@ const DoctorScheduleTable: React.FC = () => {
     return specialtyMap[doctorName] || "General Medicine"
   }
 
-  const getAppointmentTypeColor = (type?: string, doctorColor?: string) => {
+  // Enhanced appointment styling with status and payment indicators
+  const getAppointmentTypeColor = (appointment: CalendarAppointment, doctorColor?: string) => {
     const baseColors = {
       blue: "bg-blue-100 border-blue-300 text-blue-800",
       pink: "bg-pink-100 border-pink-300 text-pink-800",
@@ -334,11 +741,23 @@ const DoctorScheduleTable: React.FC = () => {
       teal: "bg-teal-100 border-teal-300 text-teal-800",
     }
 
-    if (type === "initial assessment") {
+    // Status-based styling
+    if (appointment?.status === "completed") {
+      return "bg-green-100 border-green-400 text-green-800 ring-2 ring-green-200"
+    }
+    if (appointment?.status === "cancelled") {
+      return "bg-red-100 border-red-400 text-red-800 ring-2 ring-red-200"
+    }
+    if (appointment?.status === "no-show") {
+      return "bg-orange-100 border-orange-400 text-orange-800 ring-2 ring-orange-200"
+    }
+
+    // Type-based styling for scheduled appointments
+    if (appointment?.type === "initial assessment") {
       return "bg-blue-100 border-blue-400 text-blue-800 ring-2 ring-blue-200"
     }
-    if (type === "therapy session") {
-      return "bg-green-100 border-green-400 text-green-800 ring-2 ring-green-200"
+    if (appointment?.type === "therapy session") {
+      return "bg-purple-100 border-purple-400 text-purple-800 ring-2 ring-purple-200"
     }
 
     return baseColors[doctorColor as keyof typeof baseColors] || "bg-gray-100 border-gray-300 text-gray-800"
@@ -376,37 +795,11 @@ const DoctorScheduleTable: React.FC = () => {
     return Object.values(scheduleData[doctorName] || {}).filter(Boolean).length
   }
 
-  const handleBookAppointment = async () => {
-    if (!selectedSlot) return
-
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
-        },
-        body: JSON.stringify({
-          doctorName: selectedSlot.doctor,
-          timeSlot: selectedSlot.time,
-          date: selectedDate,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to book appointment")
-      }
-
-      toast.success("Appointment booked successfully")
-      fetchCalendarData()
-      setSelectedSlot(null)
-    } catch (error) {
-      console.error("Error booking appointment:", error)
-      toast.error("Failed to book appointment")
-    }
-  }
-
   const handleDeleteAppointment = async (appointmentId: string) => {
+    if (!confirm("Are you sure you want to delete this appointment?")) {
+      return
+    }
+
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/${appointmentId}`, {
         method: "DELETE",
@@ -431,6 +824,34 @@ const DoctorScheduleTable: React.FC = () => {
     setSelectedDate(newDate)
   }
 
+  // Get payment status icon
+  const getPaymentStatusIcon = (paymentStatus: string) => {
+    switch (paymentStatus) {
+      case "paid":
+        return <DollarSign className="w-3 h-3 text-green-600" />
+      case "pending":
+        return <AlertCircle className="w-3 h-3 text-yellow-600" />
+      case "refunded":
+        return <DollarSign className="w-3 h-3 text-red-600" />
+      default:
+        return <AlertCircle className="w-3 h-3 text-gray-400" />
+    }
+  }
+
+  // Get status icon
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "completed":
+        return <CheckCircle className="w-3 h-3 text-green-600" />
+      case "cancelled":
+        return <X className="w-3 h-3 text-red-600" />
+      case "no-show":
+        return <AlertCircle className="w-3 h-3 text-orange-600" />
+      default:
+        return <Clock className="w-3 h-3 text-blue-600" />
+    }
+  }
+
   if (loading) {
     return (
       <div className="p-8 text-center">
@@ -441,7 +862,7 @@ const DoctorScheduleTable: React.FC = () => {
   }
 
   return (
-    <div className="p-2 bg-gradient-to-br from-slate-50 to-blue-50 min-h-screen">
+    <div className="p-2 bg-gradient-to-br font-sans from-slate-50 to-blue-50 min-h-screen">
       <div className="max-w-full mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -452,7 +873,7 @@ const DoctorScheduleTable: React.FC = () => {
               </div>
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">Doctor Schedule</h1>
-                <p className="text-gray-600">Daily consultation schedule by doctor</p>
+                <p className="text-gray-600">Daily consultation schedule with status & payment tracking</p>
               </div>
             </div>
 
@@ -473,19 +894,31 @@ const DoctorScheduleTable: React.FC = () => {
             </div>
           </div>
 
-          {/* Legend */}
+          {/* Enhanced Legend */}
           <div className="flex flex-wrap gap-4 p-4 bg-white rounded-xl shadow-sm border">
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 bg-blue-100 border border-blue-300 rounded ring-2 ring-blue-200"></div>
-              <span className="text-sm text-gray-700">Initial Assessment</span>
+              <span className="text-sm text-black">Initial Assessment</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 bg-purple-100 border border-purple-300 rounded ring-2 ring-purple-200"></div>
+              <span className="text-sm text-black">Therapy Session</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 bg-green-100 border border-green-300 rounded ring-2 ring-green-200"></div>
-              <span className="text-sm text-gray-700">Therapy Session</span>
+              <span className="text-sm text-black">Completed</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <DollarSign className="w-4 h-4 text-green-600" />
+              <span className="text-sm text-black">Paid</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-yellow-600" />
+              <span className="text-sm text-black">Payment Pending</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 bg-gray-100 border border-gray-300 rounded border-dashed"></div>
-              <span className="text-sm text-gray-700">Available Slot</span>
+              <span className="text-sm text-black">Available Slot</span>
             </div>
           </div>
         </div>
@@ -504,7 +937,7 @@ const DoctorScheduleTable: React.FC = () => {
                     </div>
                   </th>
                   {doctors.map((doctor) => (
-                    <th key={doctor.name} className="p-4 text-center min-w-[180px]">
+                    <th key={doctor.name} className="p-4 text-center min-w-[200px]">
                       <div
                         className={`bg-gradient-to-r ${getDoctorHeaderColor(doctor.color)} rounded-lg p-3 text-white`}
                       >
@@ -531,7 +964,7 @@ const DoctorScheduleTable: React.FC = () => {
                     <td className="p-4 border-r border-gray-200 bg-slate-50 sticky left-0 z-10">
                       <div className="flex items-center gap-2">
                         <div className="w-3 h-3 bg-slate-400 rounded-full"></div>
-                        <span className="font-medium text-gray-700 text-sm">{formatTime(time)}</span>
+                        <span className="font-medium text-black text-sm">{formatTime(time)}</span>
                       </div>
                     </td>
 
@@ -546,29 +979,58 @@ const DoctorScheduleTable: React.FC = () => {
                         >
                           {appointment ? (
                             <div
-                              className={`p-3 rounded-lg border-2 transition-all hover:shadow-md ${getAppointmentTypeColor(appointment.type, doctor.color)}`}
+                              className={`p-3 rounded-lg border-2 transition-all hover:shadow-md ${getAppointmentTypeColor(appointment, doctor.color)}`}
                             >
                               <div className="flex items-start justify-between gap-2">
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-1 mb-1">
                                     <User className="w-3 h-3 flex-shrink-0" />
-                                    <p className="font-semibold text-xs truncate">{appointment.patientName}</p>
+                                    <p className="font-semibold text-xs truncate">{appointment?.patientName}</p>
                                   </div>
+
                                   <div className="flex items-center gap-2 mb-1">
                                     <span className="inline-block px-2 py-0.5 text-xs font-medium bg-white bg-opacity-60 rounded-full">
-                                      {appointment.type}
+                                      {appointment?.type?.substring(0, 8)}
                                     </span>
-                                    <span className="text-xs opacity-70">{appointment.duration}min</span>
+                                    <span className="text-xs opacity-70">{appointment?.duration}min</span>
                                   </div>
-                                  <div className="text-xs opacity-70">Status: {appointment.status}</div>
+
+                                  {/* Status and Payment Row */}
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <div className="flex items-center gap-1">
+                                      {getStatusIcon(appointment?.status)}
+                                      <span className="text-xs font-medium capitalize">{appointment?.status}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      {getPaymentStatusIcon(appointment?.payment?.status)}
+                                      <span className="text-xs">${appointment?.payment?.amount}</span>
+                                    </div>
+                                  </div>
+
+                                  {/* Sessions Progress */}
+                                  <div className="text-xs opacity-70">
+                                    Sessions: {appointment?.sessionsCompleted}/{appointment?.totalSessions}
+                                  </div>
                                 </div>
+
                                 <div className="flex flex-col gap-1">
+                                  <button
+                                    className="p-1 hover:bg-white hover:bg-opacity-60 rounded transition-colors"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleStatusClick(appointment)
+                                    }}
+                                    title="Update Status & Payment"
+                                  >
+                                    <CheckCircle className="w-3 h-3" />
+                                  </button>
                                   <button
                                     className="p-1 hover:bg-white hover:bg-opacity-60 rounded transition-colors"
                                     onClick={(e) => {
                                       e.stopPropagation()
                                       handleRescheduleClick(appointment)
                                     }}
+                                    title="Reschedule"
                                   >
                                     <Edit3 className="w-3 h-3" />
                                   </button>
@@ -576,8 +1038,9 @@ const DoctorScheduleTable: React.FC = () => {
                                     className="p-1 hover:bg-white hover:bg-opacity-60 rounded transition-colors"
                                     onClick={(e) => {
                                       e.stopPropagation()
-                                      handleDeleteAppointment(appointment.id)
+                                      handleDeleteAppointment(appointment?.id)
                                     }}
+                                    title="Delete"
                                   >
                                     <Trash2 className="w-3 h-3" />
                                   </button>
@@ -585,7 +1048,7 @@ const DoctorScheduleTable: React.FC = () => {
                               </div>
                             </div>
                           ) : (
-                            <div className="p-3 rounded-lg border-2 border-dashed border-gray-200 hover:border-blue-300 hover:bg-blue-25 transition-all min-h-[80px] flex items-center justify-center">
+                            <div className="p-3 rounded-lg border-2 border-dashed border-gray-200 hover:border-blue-300 hover:bg-blue-25 transition-all min-h-[100px] flex items-center justify-center">
                               <Plus className="w-5 h-5 text-gray-400" />
                             </div>
                           )}
@@ -607,19 +1070,22 @@ const DoctorScheduleTable: React.FC = () => {
             </h3>
             <div className="flex gap-3">
               {!scheduleData[selectedSlot.doctor]?.[selectedSlot.time] ? (
-                <button
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  onClick={handleBookAppointment}
-                >
+                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
                   Book Appointment
                 </button>
               ) : (
-                <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
-                  View Details
+                <button
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                  onClick={() => {
+                    const appointment = scheduleData[selectedSlot.doctor]?.[selectedSlot.time]
+                    if (appointment) handleStatusClick(appointment)
+                  }}
+                >
+                  Update Status
                 </button>
               )}
               <button
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                className="px-4 py-2 bg-gray-200 text-black rounded-lg hover:bg-gray-300 transition-colors"
                 onClick={() => setSelectedSlot(null)}
               >
                 Close
@@ -628,24 +1094,63 @@ const DoctorScheduleTable: React.FC = () => {
           </div>
         )}
 
-        {/* Doctor Statistics */}
+        {/* Enhanced Doctor Statistics */}
         <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {doctors.slice(0, 4).map((doctor) => (
-            <div key={doctor.name} className="p-4 bg-white rounded-xl shadow-sm border">
-              <div className="flex items-center gap-3">
-                <div className={`p-2 bg-gradient-to-r ${getDoctorHeaderColor(doctor.color)} rounded-lg`}>
-                  <UserCheck className="w-5 h-5 text-white" />
+          {doctors.slice(0, 4).map((doctor) => {
+            const doctorAppointments = Object.values(scheduleData[doctor.name] || {}).filter(
+              Boolean,
+            ) as CalendarAppointment[]
+            const completedCount = doctorAppointments.filter((apt) => apt.status === "completed").length
+            const paidCount = doctorAppointments.filter((apt) => apt.payment?.status === "paid").length
+            const totalRevenue = doctorAppointments
+              .filter((apt) => apt.payment?.status === "paid")
+              .reduce((sum, apt) => sum + apt.payment?.amount, 0)
+
+            return (
+              <div key={doctor.name} className="p-4 bg-white rounded-xl shadow-sm border">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className={`p-2 bg-gradient-to-r ${getDoctorHeaderColor(doctor.color)} rounded-lg`}>
+                    <UserCheck className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">{doctor.name}</p>
+                    <p className="text-xs text-gray-500">{doctor.specialty}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-600">{doctor.name}</p>
-                  <p className="text-xl font-bold text-gray-900">{getAppointmentCount(doctor.name)} patients</p>
-                  <p className="text-xs text-gray-500">{doctor.specialty}</p>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Total:</span>
+                    <span className="font-semibold">{getAppointmentCount(doctor.name)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Completed:</span>
+                    <span className="font-semibold text-green-600">{completedCount}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Paid:</span>
+                    <span className="font-semibold text-blue-600">{paidCount}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Revenue:</span>
+                    <span className="font-semibold text-green-600">${totalRevenue}</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
+
+      {/* Status Update Modal */}
+      <StatusUpdateModal
+        appointment={selectedAppointment!}
+        isOpen={showStatusModal}
+        onClose={() => {
+          setShowStatusModal(false)
+          setSelectedAppointment(null)
+        }}
+        onUpdate={handleAppointmentUpdate}
+      />
 
       {/* Reschedule Modal */}
       {showRescheduleModal && (
@@ -676,7 +1181,7 @@ const DoctorScheduleTable: React.FC = () => {
             <div className="p-6 space-y-6">
               {/* Current Appointment Info */}
               <div className="bg-gray-50 rounded-lg p-4">
-                <h4 className="text-sm font-medium text-gray-700 mb-2">Current Appointment</h4>
+                <h4 className="text-sm font-medium text-black mb-2">Current Appointment</h4>
                 <div className="text-sm text-gray-600">
                   <p>
                     Patient: <span className="font-medium">{selectedAppointment?.patientName}</span>
@@ -692,7 +1197,7 @@ const DoctorScheduleTable: React.FC = () => {
 
               {/* New Date Selection */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-black mb-2">
                   New Date <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -706,7 +1211,7 @@ const DoctorScheduleTable: React.FC = () => {
 
               {/* Time Selection */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-black mb-2">
                   New Time Slot <span className="text-red-500">*</span>
                 </label>
                 <select
@@ -734,8 +1239,8 @@ const DoctorScheduleTable: React.FC = () => {
               {/* End Time Display */}
               {rescheduleData.startTime && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">End Time (Auto-calculated)</label>
-                  <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-700">
+                  <label className="block text-sm font-medium text-black mb-2">End Time (Auto-calculated)</label>
+                  <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-black">
                     {rescheduleData.endTime}
                   </div>
                 </div>
@@ -743,9 +1248,7 @@ const DoctorScheduleTable: React.FC = () => {
 
               {/* Reason */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Reason for Rescheduling (Optional)
-                </label>
+                <label className="block text-sm font-medium text-black mb-2">Reason for Rescheduling (Optional)</label>
                 <textarea
                   value={rescheduleData.reason}
                   onChange={(e) => setRescheduleData((prev) => ({ ...prev, reason: e.target.value }))}
@@ -760,7 +1263,7 @@ const DoctorScheduleTable: React.FC = () => {
             <div className="bg-gray-50 px-6 py-4 flex items-center justify-end gap-3">
               <button
                 onClick={() => setShowRescheduleModal(false)}
-                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                className="px-4 py-2 text-black bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 Cancel
               </button>

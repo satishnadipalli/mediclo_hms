@@ -231,9 +231,10 @@ const PatientRegistrationForm = () => {
 
        const data = await response.json();
       console.log("Regsited successfullyu",data);
-      return;
+      // return;
 
       toast.success("Patient registered successfully!")
+      console.log("routeing")
       router.push("/dashboard")
     } catch (error) {
       console.error("Registration error:", error)
