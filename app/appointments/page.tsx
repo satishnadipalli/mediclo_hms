@@ -141,7 +141,7 @@ const AppointmentsPage: React.FC = () => {
                   <th className="pb-3 font-medium">Patient Name</th>
                   <th className="pb-3 font-medium">Doctor</th>
                   <th className="pb-3 font-medium">Parent Contact</th>
-                  <th className="pb-3 font-medium">Status</th>
+                  {/* <th className="pb-3 font-medium">Status</th> */}
                   <th className="pb-3 font-medium">Actions</th>
                   <th className="pb-3 font-medium">No.of Sessions</th>
                   <th className="pb-3 font-medium">Sessions Paid</th>
@@ -162,7 +162,7 @@ const AppointmentsPage: React.FC = () => {
                     </td>
                     <td className="py-4 text-[#456696]">{appointment.doctor}</td>
                     <td className="py-4 text-[#456696]">{appointment.parentContact}</td>
-                    <td className="py-4">
+                    {/* <td className="py-4">
                       <span
                         className={`px-3 py-1 rounded-full text-sm font-medium ${
                           appointment.status === "Confirmed"
@@ -174,7 +174,7 @@ const AppointmentsPage: React.FC = () => {
                       >
                         {appointment.status}
                       </span>
-                    </td>
+                    </td> */}
                     <td className="py-4">
                       {appointment.status === "Confirmed" ? (
                         <Link href={`/dashboard/appointments/${appointment.id}`}>
