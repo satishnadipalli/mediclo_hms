@@ -154,7 +154,7 @@ const AppointmentsPage: React.FC = () => {
                     <td className="py-4 text-[#456696]">{appointment.time}</td>
                     <td className="py-4 text-[#456696]">
                       <Link
-                        href={`/dashboard/patients/${appointment.patientId}`}
+                        href={`/hms/dashboard/patients/${appointment.patientId}`}
                         className="hover:underline"
                       >
                         {appointment.patientName}
@@ -177,7 +177,7 @@ const AppointmentsPage: React.FC = () => {
                     </td> */}
                     <td className="py-4">
                       {appointment.status === "Confirmed" ? (
-                        <Link href={`/dashboard/appointments/${appointment.id}`}>
+                        <Link href={`/hms/dashboard/appointments/${appointment.id}`}>
                           <button className="flex items-center gap-1 text-[#C83C92] font-medium">
                             <Eye className="w-4 h-4" />
                             Details

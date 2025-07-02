@@ -96,7 +96,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                   fill={getSvgColor("Dashboard")}
                 />
               </svg>
-              <Link href={'/dashboard'}><span>Dashboard</span></Link>
+              <Link href={'/hms/dashboard'}><span>Dashboard</span></Link>
             </li>
 
             {/* Patients */}
@@ -113,7 +113,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                 alt="Patients icon"
                 className={activeTab === "Patients" ? "text-white" : "text-[#456696]"}
             />
-            <Link href={'/patients'}><span>Patients</span></Link>
+            <Link href={'/hms/patients'}><span>Patients</span></Link>
             </li>
 
             {/* Appointments */}
@@ -130,7 +130,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                 alt="Appointments icon"
                 className={activeTab === "Appointments" ? "text-white" : "text-[#456696]"}
               />
-              <Link href={'/appointments'}><span>Appointments</span></Link>
+              <Link href={'/hms/appointments'}><span>Appointments</span></Link>
             </li>
 
             {/* Consultations - Only shown for doctors */}
@@ -162,7 +162,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                     fill={getSvgColor("Consultations")}
                   />
                 </svg>
-                <Link href={'/consultations'}><span>Consultations</span></Link>
+                <Link href={'/hms/consultations'}><span>Consultations</span></Link>
               </li>
             )}
           </ul>
