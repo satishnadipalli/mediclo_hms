@@ -142,7 +142,7 @@ const AppointmentsPage: React.FC = () => {
                   <th className="pb-3 font-medium">Doctor</th>
                   <th className="pb-3 font-medium">Parent Contact</th>
                   {/* <th className="pb-3 font-medium">Status</th> */}
-                  <th className="pb-3 font-medium">Actions</th>
+                  {/* <th className="pb-3 font-medium">Actions</th> */}
                   <th className="pb-3 font-medium">No.of Sessions</th>
                   <th className="pb-3 font-medium">Sessions Paid</th>
                 </tr>
@@ -153,12 +153,12 @@ const AppointmentsPage: React.FC = () => {
                     <td className="py-4 text-[#456696]">{appointment.date}</td>
                     <td className="py-4 text-[#456696]">{appointment.time}</td>
                     <td className="py-4 text-[#456696]">
-                      <Link
-                        href={`/hms/dashboard/patients/${appointment.patientId}`}
-                        className="hover:underline"
-                      >
+                      {/* <Link
+                        href={`/hms/dashboard/patients/${appointment.patientId}`} */}
+                        {/* className="hover:underline"
+                      > */}
                         {appointment.patientName}
-                      </Link>
+                      {/* </Link> */}
                     </td>
                     <td className="py-4 text-[#456696]">{appointment.doctor}</td>
                     <td className="py-4 text-[#456696]">{appointment.parentContact}</td>
@@ -175,14 +175,14 @@ const AppointmentsPage: React.FC = () => {
                         {appointment.status}
                       </span>
                     </td> */}
-                    <td className="py-4">
+                    {/* <td className="py-4">
                       {appointment.status === "Confirmed" ? (
-                        <Link href={`/hms/dashboard/appointments/${appointment.id}`}>
+                        // <Link href={`/hms/dashboard/appointments/${appointment.id}`}>
                           <button className="flex items-center gap-1 text-[#C83C92] font-medium">
                             <Eye className="w-4 h-4" />
                             Details
                           </button>
-                        </Link>
+                        // </Link>
                       ) : appointment.status === "Pending Confirmation" ? (
                         <div className="flex gap-2">
                           <button
@@ -207,7 +207,7 @@ const AppointmentsPage: React.FC = () => {
                       ) : (
                         <div className="text-gray-500">No actions available</div>
                       )}
-                    </td>
+                    </td> */}
                     <td className="py-4 text-[#456696]">{appointment.totalSessions}</td>
                     <td className="py-4 text-[#456696]">{appointment.sessionsPaid}</td>
                   </tr>

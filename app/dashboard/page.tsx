@@ -474,7 +474,7 @@ const ReceptionistDashboard = () => {
           Schedule an Appointment
         </button>
 
-        <Link href={"/hms/dashboard/registerPatient"}>
+        <Link href={"/dashboard/registerPatient"}>
           <button className="cursor-pointer flex items-center gap-2 bg-[#C83C92] text-white px-4 py-2 rounded-lg font-medium">
             <Plus className="w-5 h-5" />
             Register New Patient

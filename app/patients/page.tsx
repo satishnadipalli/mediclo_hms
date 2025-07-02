@@ -433,7 +433,7 @@ const PatientsPage: React.FC = () => {
           Export Patient List
         </button>
 
-        <Link href={"/hms/dashboard/registerPatient"}>
+        <Link href={"/dashboard/registerPatient"}>
           <button className="cursor-pointer flex items-center gap-2 bg-[#C83C92] text-white px-4 py-2 rounded-lg font-medium hover:bg-[#B8358A] transition-colors">
             <Plus className="w-5 h-5" />
             Register New Patient
@@ -487,7 +487,7 @@ const PatientsPage: React.FC = () => {
                   </td>
                   <td className="py-4 px-2">
                     <div className="flex gap-2">
-                      <Link href={`/hms/dashboard/patients/${patient.id}`}>
+                      <Link href={`/dashboard/patients/${patient.id}`}>
                         <button
                           className="p-2 bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors"
                           aria-label="View patient details"
@@ -495,7 +495,7 @@ const PatientsPage: React.FC = () => {
                           <UserRound className="w-4 h-4" />
                         </button>
                       </Link>
-                      <Link href={`/hms/dashboard/patients/${patient.id}/edit`}>
+                      <Link href={`/dashboard/patients/${patient.id}/edit`}>
                         <button
                           className="p-2 bg-purple-50 text-[#C83C92] rounded-md hover:bg-purple-100 transition-colors"
                           aria-label="Edit patient"
@@ -503,7 +503,7 @@ const PatientsPage: React.FC = () => {
                           <Edit className="w-4 h-4" />
                         </button>
                       </Link>
-                      <Link href={`/hms/dashboard/appointments/schedule/${patient.id}`}>
+                      <Link href={`/dashboard/appointments/schedule/${patient.id}`}>
                         <button
                           className="p-2 bg-green-50 text-green-600 rounded-md hover:bg-green-100 transition-colors"
                           aria-label="Schedule appointment"

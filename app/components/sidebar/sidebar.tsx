@@ -96,7 +96,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                   fill={getSvgColor("Dashboard")}
                 />
               </svg>
-              <Link href={'/hms/dashboard'}><span>Dashboard</span></Link>
+              <Link href={'/dashboard'}><span>Dashboard</span></Link>
             </li>
 
             {/* Patients */}
@@ -113,7 +113,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                 alt="Patients icon"
                 className={activeTab === "Patients" ? "text-white" : "text-[#456696]"}
             />
-            <Link href={'/hms/patients'}><span>Patients</span></Link>
+            <Link href={'/patients'}><span>Patients</span></Link>
             </li>
 
             {/* Appointments */}
@@ -130,7 +130,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                 alt="Appointments icon"
                 className={activeTab === "Appointments" ? "text-white" : "text-[#456696]"}
               />
-              <Link href={'/hms/appointments'}><span>Appointments</span></Link>
+              <Link href={'/appointments'}><span>Appointments</span></Link>
             </li>
 
             {/* Consultations - Only shown for doctors */}
@@ -162,7 +162,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                     fill={getSvgColor("Consultations")}
                   />
                 </svg>
-                <Link href={'/hms/consultations'}><span>Consultations</span></Link>
+                <Link href={'/consultations'}><span>Consultations</span></Link>
               </li>
             )}
           </ul>
@@ -189,7 +189,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
 
           {/* Settings */}
           <li>
-            <button className="w-full flex items-center space-x-3 px-4 py-3 text-[#667085] hover:bg-gray-200 rounded-lg transition">
+            {/* <button className="w-full flex items-center space-x-3 px-4 py-3 text-[#667085] hover:bg-gray-200 rounded-lg transition">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
                 <path
                   fillRule="evenodd"
@@ -205,7 +205,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                 />
               </svg>
               <span>Setting</span>
-            </button>
+            </button> */}
           </li>
         </ul>
       </div>
