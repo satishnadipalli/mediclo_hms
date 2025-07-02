@@ -1,7 +1,7 @@
 "use client"
 import React, { useState } from "react";
-import Navbar from "./navbar/page";
-import Sidebar from "./sidebar/page";
+import Navbar from "./navbar/navbar";
+import Sidebar from "./sidebar/sidebar";
 interface LayoutProps {
   children: React.ReactNode;
 }

@@ -54,7 +54,7 @@ const AppointmentSchedulingPage = () => {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [calendarData, setCalendarData] = useState<CalendarApiResponse["data"]>({})
-  const [availableDoctors, setAvailableDoctors] = useState<string[]>([])
+const [availableDoctors, setAvailableDoctors] = useState<Array<{ id: string; name: string }>>([]);
   const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([])
   const [services, setServices] = useState<Array<{ _id: string; name: string; price: number }>>([])
 

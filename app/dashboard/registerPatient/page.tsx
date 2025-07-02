@@ -150,7 +150,8 @@ const PatientRegistrationForm = () => {
         body: JSON.stringify({
           firstName: formData.childName,
           lastName: formData.lastName,
-          fullName: `${req.body.firstName} ${req.body.lastName}`,
+          // fullName: `${formData.firstName} ${formData.lastName}`,
+          fullName: `${formData.childName} ${formData.lastName}`, 
           dateOfBirth: formData.dateOfBirth,
           gender: formData.gender,
           childPhoto: formData.childPhoto,
