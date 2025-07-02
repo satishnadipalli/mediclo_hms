@@ -2,8 +2,11 @@
 const nextConfig = {
   output: "standalone",
   basePath: "/hms",
+  assetPrefix: '/hms',
+  trailingSlash: true,
   experimental: {
     serverActions: true,
+    outputFileTracingRoot: undefined,
   },
   eslint: {
     ignoreDuringBuilds: true,
