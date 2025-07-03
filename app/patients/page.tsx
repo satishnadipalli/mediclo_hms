@@ -254,7 +254,7 @@ const PatientsPage: React.FC = () => {
       setIsUpdatingPayment(true)
 
       const response = await fetch(
-        `http://localhost:5000/api/appointments/${selectedPatient.rawData.latestAppointment?.id}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/appointments/${selectedPatient.rawData.latestAppointment?.id}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
