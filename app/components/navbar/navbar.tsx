@@ -56,7 +56,7 @@ const Navbar: React.FC<NavbarProps> = ({ isOpen, setIsOpen }) => {
           <path d="M4 16C3.44772 16 3 16.4477 3 17C3 17.5523 3.44772 18 4 18H20C20.5523 18 21 17.5523 21 17C21 16.4477 20.5523 16 20 16H4Z" fill="#667085" />
         </svg>
       </button>
-      <h1 className='text-[#1E437A] font-bold text-2xl mr-150'>HMS</h1>
+      <h1 className='text-[#1E437A] font-bold text-2xl mr-150'>HMS - Hospital Management System</h1>
 
 
 
