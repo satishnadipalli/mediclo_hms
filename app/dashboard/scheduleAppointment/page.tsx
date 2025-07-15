@@ -47,16 +47,21 @@ interface Patient {
     relationship: string
     address?: string
   }
-  status: string
+  status: string,
+  documents: string[]
 }
 
 const AppointmentSchedulingPage = () => {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [calendarData, setCalendarData] = useState<CalendarApiResponse["data"]>({})
-const [availableDoctors, setAvailableDoctors] = useState<Array<{ id: string; name: string }>>([]);
+  const [availableDoctors, setAvailableDoctors] = useState<Array<{ id: string; name: string }>>([]);
   const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([])
   const [services, setServices] = useState<Array<{ _id: string; name: string; price: number }>>([])
+
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploadedUrls, setUploadedUrls] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
 
   const [formData, setFormData] = useState({
     doctor: "",
@@ -72,11 +77,16 @@ const [availableDoctors, setAvailableDoctors] = useState<Array<{ id: string; nam
     serviceId: "",
     paymentAmount: 0,
     paymentMethod: "cash",
-    consultationMode: "in-person", // Add this field
-    type: "initial assessment", // Add this field
-    consent: false, // Add this field
-    totalSessions: 1, // Add this field
-  })
+    consultationMode: "in-person",
+    type: "initial assessment",
+    consent: false,
+    totalSessions: 1,
+    documents: [] as string[], // ← Upload result will be pushed here
+  });
+
+
+
+
 
   const [patients, setPatients] = useState<Patient[]>([])
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null)
@@ -101,6 +111,66 @@ const [availableDoctors, setAvailableDoctors] = useState<Array<{ id: string; nam
       console.error("Error fetching services:", error)
     }
   }
+
+
+
+  const CLOUDINARY_UPLOAD_PRESET = "my_unsigned_preset";
+  const CLOUDINARY_CLOUD_NAME = "dlehbizfp"; // Replace with your cloud name
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const filesArray = Array.from(e.target.files);
+
+      setSelectedFiles((prev) => {
+        const all = [...prev, ...filesArray];
+        const unique = Array.from(new Map(all.map(f => [f.name, f])).values());
+        return unique;
+      });
+
+
+      console.log("Selected files:", [...selectedFiles, ...filesArray].map(f => f.name));
+    }
+  };
+
+
+
+const handleUpload = async () => {
+  setUploading(true);
+  const urls: string[] = [];
+
+  for (const file of selectedFiles) {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+
+    try {
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/upload`, {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (data.secure_url) {
+        urls.push(data.secure_url);
+      }
+    } catch (err) {
+      console.error("Upload failed for", file.name, err);
+    }
+  }
+
+  // ✅ Update formData.documents here
+  setFormData((prev) => ({
+    ...prev,
+    documents: [...prev.documents, ...urls],
+  }));
+
+  setUploadedUrls(urls); // optional, for preview
+  setUploading(false);
+  console.log("✅ All Uploaded URLs:", urls);
+};
+
+
+
 
   // Update the fetchCalendarData function
   const fetchCalendarData = async (selectedDate: string) => {
@@ -253,7 +323,7 @@ const [availableDoctors, setAvailableDoctors] = useState<Array<{ id: string; nam
       !formData.consent
     ) {
       console.log("dojdn")
-      console.log("doctor",formData.doctor," ","date",formData.appointmentDate," ","timeslot",formData.timeSlot," ","sid",formData.serviceId," ","consoet",formData.consent)
+      console.log("doctor", formData.doctor, " ", "date", formData.appointmentDate, " ", "timeslot", formData.timeSlot, " ", "sid", formData.serviceId, " ", "consoet", formData.consent)
       toast.error("Please fill in all required fields and provide consent")
       return
     }
@@ -265,7 +335,7 @@ const [availableDoctors, setAvailableDoctors] = useState<Array<{ id: string; nam
 
       const appointmentData = {
         patientId: selectedPatient?._id,
-        patientName: formData.patientName || selectedPatient?.firstName + " " + selectedPatient?.lastName ,
+        patientName: formData.patientName || selectedPatient?.firstName + " " + selectedPatient?.lastName,
         fatherName: formData.fatherName || formData.patientName,
         email: formData.email,
         phone: formData.phone,
@@ -282,7 +352,11 @@ const [availableDoctors, setAvailableDoctors] = useState<Array<{ id: string; nam
         paymentMethod: formData.paymentMethod,
         consent: formData.consent,
         totalSessions: formData.totalSessions,
+        documents: formData?.documents, 
       }
+
+      // console.log(appointmentData);
+      // return
 
       // console.log(appointmentData);
       // return;
@@ -302,7 +376,7 @@ const [availableDoctors, setAvailableDoctors] = useState<Array<{ id: string; nam
       }
 
       const result = await response.json()
-      console.log("successfully apointment created",result)
+      console.log("successfully apointment created", result)
       toast.success("Appointment scheduled successfully!")
 
       // Redirect back to dashboard
@@ -311,7 +385,7 @@ const [availableDoctors, setAvailableDoctors] = useState<Array<{ id: string; nam
       console.error("Error creating appointment:", error)
       toast.error(error instanceof Error ? error.message : "Failed to schedule appointment")
     } finally {
-      
+
       setLoading(false)
     }
   }
@@ -510,7 +584,7 @@ const [availableDoctors, setAvailableDoctors] = useState<Array<{ id: string; nam
               >
                 {showPatientSearch ? "Hide" : "Select Existing Patient"}
               </button>
-              <button
+              {/* <button
                 type="button"
                 onClick={() => {
                   setSelectedPatient(null)
@@ -529,7 +603,7 @@ const [availableDoctors, setAvailableDoctors] = useState<Array<{ id: string; nam
                 className="px-4 py-2 bg-green-100 text-green-600 rounded-lg hover:bg-green-200 transition-colors"
               >
                 Add New Patient
-              </button>
+              </button> */}
             </div>
           </div>
 
@@ -844,7 +918,7 @@ const [availableDoctors, setAvailableDoctors] = useState<Array<{ id: string; nam
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
-            <div>
+            {/* <div>
               <label className="block text-[#1E437A] mb-2" htmlFor="totalSessions">
                 Total Sessions Recommended
               </label>
@@ -859,7 +933,7 @@ const [availableDoctors, setAvailableDoctors] = useState<Array<{ id: string; nam
                 className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D]"
                 placeholder="Number of sessions"
               />
-            </div>
+            </div> */}
 
             <div>
               <label className="block text-[#1E437A] mb-2" htmlFor="paymentAmount">
@@ -952,20 +1026,25 @@ const [availableDoctors, setAvailableDoctors] = useState<Array<{ id: string; nam
         <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
           <h2 className="text-lg font-semibold text-[#1E437A] mb-4">Media</h2>
 
-          <div className="mb-4">
-            <label className="block text-[#1E437A] mb-2">Upload Files (Optional)</label>
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-              <div className="flex flex-col items-center justify-center">
-                <div className="bg-blue-100 p-3 rounded-full mb-4">
-                  <ImageIcon className="h-6 w-6 text-blue-500" />
-                </div>
-                <p className="text-gray-500 mb-4">Upload any Medical Records, Home Play Videos, etc.</p>
-                <button type="button" className="bg-blue-100 text-blue-500 px-6 py-2 rounded-lg font-medium">
-                  Add Files
-                </button>
-              </div>
-            </div>
+          <div className="p-4">
+            <input type="file" multiple onChange={handleFileChange} className="mb-2" />
+            <button
+              onClick={handleUpload}
+              disabled={uploading}
+              className="bg-blue-500 text-white px-4 py-2 rounded"
+            >
+              {uploading ? "Uploading..." : "Upload Files"}
+            </button>
+
+            <ul className="mt-4 text-sm">
+              {uploadedUrls.map((url, i) => (
+                <li key={i} style={{color:"black"}}>
+                  ✅ Document {i + 1}: <a href={url} target="_blank" className="text-blue-600 underline">View</a>
+                </li>
+              ))}
+            </ul>
           </div>
+
         </div>
       </form>
     </div>

@@ -22,6 +22,13 @@ export default function AdminLoginPage(): ReactElement {
   }, []);
 
 
+  useEffect(() => {
+    if (localStorage.getItem("receptionToken")) {
+      router.replace("/dashboard");
+    }
+  }, []);
+
+
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     console.log("Hello");
     e.preventDefault();

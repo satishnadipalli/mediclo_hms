@@ -6,10 +6,15 @@ interface LayoutProps {
   children: React.ReactNode;
 }
 
+interface UserDetails {
+  firstName: string
+  role: "therapist" | "receptionist" | "doctor" | string // adjust as per your use case
+}
+
 const Layout: React.FC<LayoutProps> = ({ children }) => {
     const [isOpen, setIsOpen] = useState(true); // Sidebar state
     const [userDetails, setUserDetails] = useState<UserDetails | null>(null);
-  
+
   
     // Load user from localStorage on client side
     useEffect(() => {
@@ -37,7 +42,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <div className="flex-1">
         {/* Navbar Component */}
         
-          <Navbar isOpen={isOpen} setIsOpen={setIsOpen}  userDetails={userDetails}/>
+          <Navbar  isOpen={isOpen} setIsOpen={setIsOpen} setUserDetails={setUserDetails} userDetails={userDetails}/>
         
         {/* Page Content */}
         <main>{children}</main>
