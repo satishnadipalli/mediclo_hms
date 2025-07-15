@@ -89,7 +89,7 @@ const [availableDoctors, setAvailableDoctors] = useState<Array<{ id: string; nam
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/services`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+          Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
         },
       })
 
@@ -109,7 +109,7 @@ const [availableDoctors, setAvailableDoctors] = useState<Array<{ id: string; nam
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/by-date?date=${selectedDate}`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+          Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
         },
       })
 
@@ -291,7 +291,7 @@ const [availableDoctors, setAvailableDoctors] = useState<Array<{ id: string; nam
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+          Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
         },
         body: JSON.stringify(appointmentData),
       })

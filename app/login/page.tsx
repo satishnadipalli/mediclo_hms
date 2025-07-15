@@ -2,6 +2,7 @@
 
 import { useState, useEffect, FormEvent, ReactElement } from "react";
 import { useRouter } from "next/navigation";
+import { NextResponse } from "next/server";
 
 export default function AdminLoginPage(): ReactElement {
   const [mounted, setMounted] = useState(false);
@@ -13,6 +14,13 @@ export default function AdminLoginPage(): ReactElement {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (localStorage.getItem("receptionToken")) {
+      router.replace("/dashboard");
+    }
+  }, []);
+
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     console.log("Hello");
@@ -41,15 +49,13 @@ export default function AdminLoginPage(): ReactElement {
       }: { token: string; user: { role: "therapist" | "receptionist" } } =
         await response.json();
 
-      console.log(user);
-
-      localStorage.setItem("adminToken", token);
-      localStorage.setItem("adminDetails", JSON.stringify(user));
+      localStorage.setItem("receptionToken", token);
+      localStorage.setItem("receptionDetails", JSON.stringify(user));
 
       if (user.role === "therapist") {
         router.push("/doctorDashboard");
       } else if (user.role === "receptionist") {
-        router.push("/dashboard");
+         window.location.replace("/hms/dashboard");
       } else {
         throw new Error("Unknown user role");
       }

@@ -145,7 +145,7 @@ const PatientRegistrationForm = () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+          Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
         },
         body: JSON.stringify({
           firstName: formData.childName,
@@ -200,7 +200,7 @@ const PatientRegistrationForm = () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+          Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
         },
         body: JSON.stringify({
           firstName: formData.childName,

@@ -429,7 +429,7 @@ const ReceptionistDashboard = () => {
   const router = useRouter()
 
   useEffect(() => {
-    const token = localStorage.getItem("adminToken")
+    const token = localStorage.getItem("receptionToken")
     if (!token) {
       router.push("/login")
       return
@@ -442,7 +442,7 @@ const ReceptionistDashboard = () => {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+          Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
         },
         body: JSON.stringify({ status: newStatus }),
       })
@@ -572,7 +572,7 @@ const DoctorScheduleTable: React.FC = () => {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+          Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
         },
         body: JSON.stringify(updates),
       })
@@ -637,7 +637,7 @@ const DoctorScheduleTable: React.FC = () => {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+            Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
           },
           body: JSON.stringify({
             date: rescheduleData.date,
@@ -678,7 +678,7 @@ const DoctorScheduleTable: React.FC = () => {
         `${process.env.NEXT_PUBLIC_API_URL}/api/appointments/calendar?date=${selectedDate}`,
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+            Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
           },
         },
       )
@@ -804,7 +804,7 @@ const DoctorScheduleTable: React.FC = () => {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/${appointmentId}`, {
         method: "DELETE",
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+          Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
         },
       })
 

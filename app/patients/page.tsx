@@ -196,7 +196,7 @@ const PatientsPage: React.FC = () => {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+          Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
         },
       })
 
