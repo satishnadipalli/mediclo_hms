@@ -881,9 +881,10 @@ const DoctorScheduleTable: React.FC = () => {
             <div className="flex items-center gap-4">
               <input
                 type="date"
+                style={{color:"black"}}
                 value={selectedDate}
                 onChange={(e) => handleDateChange(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-4 py-2 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <button
                 onClick={fetchCalendarData}

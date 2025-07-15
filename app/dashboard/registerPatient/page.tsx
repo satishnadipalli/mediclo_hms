@@ -183,7 +183,7 @@ const PatientRegistrationForm = () => {
       toast.success("Patient registered successfully!")
 
       // Redirect to schedule appointment with patient ID
-      router.push(`/dashboard/schedule-appointment?patientId=${result.data._id}`)
+      router.push("/dashboard/scheduleAppointment")
     } catch (error) {
       console.error("Registration error:", error)
       toast.error(error instanceof Error ? error.message : "Failed to register patient")
@@ -293,7 +293,7 @@ const PatientRegistrationForm = () => {
           <div className="space-y-6">
             {/* Child's Full Name */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Child's Full Name</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Child's First Name</label>
               <input
                 type="text"
                 name="childName"
@@ -489,7 +489,7 @@ const PatientRegistrationForm = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Parent's Email Address (Optional)
+                  Parent's Email Address
                 </label>
                 <input
                   type="email"
@@ -499,47 +499,6 @@ const PatientRegistrationForm = () => {
                   placeholder="Enter parent's email address here"
                   className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
                 />
-              </div>
-            </div>
-
-            {/* Upload Buttons */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Upload Parent Photo</label>
-                <label className="flex items-center justify-center gap-2 px-4 py-3 bg-pink-500 text-white rounded-lg hover:bg-pink-600 cursor-pointer font-medium">
-                  <Upload className="w-4 h-4" />
-                  Photo
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => handleFileUpload(e, "parentPhoto")}
-                    className="hidden"
-                  />
-                </label>
-                {parentPhotoPreview && (
-                  <div className="mt-2">
-                    <img
-                      src={parentPhotoPreview || "/placeholder.svg"}
-                      alt="Parent"
-                      className="w-16 h-16 object-cover rounded-lg"
-                    />
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Upload Aadhar Card</label>
-                <label className="flex items-center justify-center gap-2 px-4 py-3 bg-pink-500 text-white rounded-lg hover:bg-pink-600 cursor-pointer font-medium">
-                  <Upload className="w-4 h-4" />
-                  Aadhar Card
-                  <input
-                    type="file"
-                    accept="image/*,.pdf"
-                    onChange={(e) => handleFileUpload(e, "aadharCard")}
-                    className="hidden"
-                  />
-                </label>
-                {aadharCardPreview && <div className="mt-2 text-xs text-green-600">✓ File uploaded</div>}
               </div>
             </div>
 

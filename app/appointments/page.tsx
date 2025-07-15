@@ -108,10 +108,12 @@ const AppointmentsPage: React.FC = () => {
           />
         </div>
 
-        <button className="flex items-center gap-2 bg-[#C83C921A] text-[#C83C92] px-4 py-2 rounded-lg font-medium">
-          <Calendar className="w-5 h-5" />
-          Schedule an Appointment
-        </button>
+        <Link href={"/dashboard/scheduleAppointment"}>
+          <button className="flex items-center gap-2 bg-[#C83C921A] text-[#C83C92] px-4 py-2 rounded-lg font-medium">
+            <Calendar className="w-5 h-5" />
+            Schedule an Appointment
+          </button>
+        </Link>
       </div>
 
       <div className="bg-white rounded-lg border border-gray-200 p-6 flex-1">
@@ -155,9 +157,9 @@ const AppointmentsPage: React.FC = () => {
                     <td className="py-4 text-[#456696]">
                       {/* <Link
                         href={`/hms/dashboard/patients/${appointment.patientId}`} */}
-                        {/* className="hover:underline"
+                      {/* className="hover:underline"
                       > */}
-                        {appointment.patientName}
+                      {appointment.patientName}
                       {/* </Link> */}
                     </td>
                     <td className="py-4 text-[#456696]">{appointment.doctor}</td>
