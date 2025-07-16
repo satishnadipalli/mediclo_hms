@@ -21,9 +21,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
 
   useEffect(() => {
     const getUserRole = () => {
+      // This is where you'll get the role from your authentication token
       const token = localStorage.getItem("authToken")
       if (token) {
         try {
+          // Decode token (this depends on how your token is structured)
+          // For JWT, you might use jwt_decode or a similar library
           const userData = JSON.parse(atob(token.split(".")[1]))
           setUserRole(userData.role)
         } catch (error) {
@@ -38,6 +41,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
   const handleTabClick = (tab: string) => {
     setActiveTab(tab)
   }
+
+  // getSvgColor is no longer needed as Lucide icons use currentColor
+  // and will inherit the text color from the parent li element.
 
   return (
     <aside
