@@ -21,13 +21,11 @@ export default function AdminLoginPage(): ReactElement {
     }
   }, []);
 
-
   useEffect(() => {
     if (localStorage.getItem("receptionToken")) {
       router.replace("/dashboard");
     }
   }, []);
-
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     console.log("Hello");
@@ -45,7 +43,7 @@ export default function AdminLoginPage(): ReactElement {
       console.log(process.env.NEXT_PUBLIC_API_URL);
 
       if (!response.ok) {
-        console.log("success")
+        console.log("success");
         const errorData = await response.json();
         throw new Error(errorData.message || "Login failed");
       }
@@ -62,7 +60,7 @@ export default function AdminLoginPage(): ReactElement {
       if (user.role === "therapist") {
         router.push("/doctorDashboard");
       } else if (user.role === "receptionist") {
-         window.location.replace("/hms/dashboard");
+        window.location.replace("/hms/dashboard");
       } else {
         throw new Error("Unknown user role");
       }
