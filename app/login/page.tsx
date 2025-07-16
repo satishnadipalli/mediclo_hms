@@ -2,7 +2,7 @@
 
 import { useState, useEffect, type FormEvent, type ReactElement } from "react"
 import { useRouter } from "next/navigation"
-import { TriangleAlert } from "lucide-react" // Using Lucide React for icons
+import { TriangleAlert } from "lucide-react"
 
 export default function AdminLoginPage(): ReactElement {
   const [mounted, setMounted] = useState(false)
@@ -15,7 +15,7 @@ export default function AdminLoginPage(): ReactElement {
     setMounted(true)
   }, [])
 
-  // Duplicated useEffects from original code, keeping as is per instructions.
+
   useEffect(() => {
     if (localStorage.getItem("receptionToken")) {
       router.replace("/dashboard")
