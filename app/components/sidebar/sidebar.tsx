@@ -20,7 +20,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
   const [userRole, setUserRole] = useState<string>("")
 
   useEffect(() => {
-    // Get user role from token
     const getUserRole = () => {
       // This is where you'll get the role from your authentication token
       const token = localStorage.getItem("authToken")
