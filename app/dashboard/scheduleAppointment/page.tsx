@@ -1,63 +1,69 @@
-"use client"
-import type React from "react"
-import { useState, useEffect } from "react"
-import { Calendar, ChevronLeft, ImageIcon, Search } from "lucide-react"
-import { toast } from "react-toastify"
-import { useRouter } from "next/navigation"
+"use client";
+import type React from "react";
+import { useState, useEffect } from "react";
+import { Calendar, ChevronLeft, ImageIcon, Search } from "lucide-react";
+import { toast } from "react-toastify";
+import { useRouter } from "next/navigation";
 
 // Types for calendar API response
 interface CalendarAppointment {
-  id: string
-  patientId: string
-  doctorId: string
-  patientName: string
-  type: "initial assessment" | "therapy session"
-  status: "scheduled"
-  duration: number
+  id: string;
+  patientId: string;
+  doctorId: string;
+  patientName: string;
+  type: "initial assessment" | "therapy session";
+  status: "scheduled";
+  duration: number;
 }
 
 interface CalendarApiResponse {
-  success: boolean
+  success: boolean;
   data: {
     [doctorName: string]: {
-      [timeSlot: string]: CalendarAppointment | null
-    }
-  }
-  patients: Patient[]
+      [timeSlot: string]: CalendarAppointment | null;
+    };
+  };
+  patients: Patient[];
 }
 
 interface Patient {
-  _id: string
-  id: string
+  _id: string;
+  id: string;
   // Handle both old and new formats
-  childName?: string
-  fullName?: string
-  firstName?: string
-  lastname?: string
-  parentName?: string
-  contactNumber?: string
-  email: string
-  address?: string
-  childDOB?: string
-  childGender?: string
+  childName?: string;
+  fullName?: string;
+  firstName?: string;
+  lastname?: string;
+  parentName?: string;
+  contactNumber?: string;
+  email: string;
+  address?: string;
+  childDOB?: string;
+  childGender?: string;
   parentInfo?: {
-    name?: string
-    phone?: string
-    email?: string
-    relationship: string
-    address?: string
-  }
-  status: string,
-  documents: string[]
+    name?: string;
+    phone?: string;
+    email?: string;
+    relationship: string;
+    address?: string;
+  };
+  status: string;
+  documents: string[];
 }
 
 const AppointmentSchedulingPage = () => {
-  const router = useRouter()
-  const [loading, setLoading] = useState(false)
-  const [calendarData, setCalendarData] = useState<CalendarApiResponse["data"]>({})
-  const [availableDoctors, setAvailableDoctors] = useState<Array<{ id: string; name: string }>>([]);
-  const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([])
-  const [services, setServices] = useState<Array<{ _id: string; name: string; price: number }>>([])
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [calendarData, setCalendarData] = useState<CalendarApiResponse["data"]>(
+    {}
+  );
+  const [availableDoctors, setAvailableDoctors] = useState<
+    Array<{ id: string; name: string }>
+  >([]);
+  const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([]);
+  const [services, setServices] = useState<
+    Array<{ _id: string; name: string; price: number }>
+  >([]);
 
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadedUrls, setUploadedUrls] = useState<string[]>([]);
@@ -84,35 +90,32 @@ const AppointmentSchedulingPage = () => {
     documents: [] as string[], // ← Upload result will be pushed here
   });
 
-
-
-
-
-  const [patients, setPatients] = useState<Patient[]>([])
-  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null)
-  const [showPatientSearch, setShowPatientSearch] = useState(false)
-  const [patientSearchTerm, setPatientSearchTerm] = useState("")
-  const [filteredPatients, setFilteredPatients] = useState<Patient[]>([])
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [showPatientSearch, setShowPatientSearch] = useState(false);
+  const [patientSearchTerm, setPatientSearchTerm] = useState("");
+  const [filteredPatients, setFilteredPatients] = useState<Patient[]>([]);
 
   // Add this new function to fetch services
   const fetchServices = async () => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/services`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
-        },
-      })
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/services`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
+          },
+        }
+      );
 
       if (response.ok) {
-        const data = await response.json()
-        setServices(data.data || [])
+        const data = await response.json();
+        setServices(data.data || []);
       }
     } catch (error) {
-      console.error("Error fetching services:", error)
+      console.error("Error fetching services:", error);
     }
-  }
-
-
+  };
 
   const CLOUDINARY_UPLOAD_PRESET = "my_unsigned_preset";
   const CLOUDINARY_CLOUD_NAME = "dlehbizfp"; // Replace with your cloud name
@@ -123,82 +126,86 @@ const AppointmentSchedulingPage = () => {
 
       setSelectedFiles((prev) => {
         const all = [...prev, ...filesArray];
-        const unique = Array.from(new Map(all.map(f => [f.name, f])).values());
+        const unique = Array.from(
+          new Map(all.map((f) => [f.name, f])).values()
+        );
         return unique;
       });
 
-
-      console.log("Selected files:", [...selectedFiles, ...filesArray].map(f => f.name));
+      console.log(
+        "Selected files:",
+        [...selectedFiles, ...filesArray].map((f) => f.name)
+      );
     }
   };
 
+  const handleUpload = async () => {
+    setUploading(true);
+    const urls: string[] = [];
 
+    for (const file of selectedFiles) {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
 
-const handleUpload = async () => {
-  setUploading(true);
-  const urls: string[] = [];
+      try {
+        const res = await fetch(
+          `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/upload`,
+          {
+            method: "POST",
+            body: formData,
+          }
+        );
 
-  for (const file of selectedFiles) {
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
-
-    try {
-      const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/upload`, {
-        method: "POST",
-        body: formData,
-      });
-
-      const data = await res.json();
-      if (data.secure_url) {
-        urls.push(data.secure_url);
+        const data = await res.json();
+        if (data.secure_url) {
+          urls.push(data.secure_url);
+        }
+      } catch (err) {
+        console.error("Upload failed for", file.name, err);
       }
-    } catch (err) {
-      console.error("Upload failed for", file.name, err);
     }
-  }
 
-  // ✅ Update formData.documents here
-  setFormData((prev) => ({
-    ...prev,
-    documents: [...prev.documents, ...urls],
-  }));
+    // ✅ Update formData.documents here
+    setFormData((prev) => ({
+      ...prev,
+      documents: [...prev.documents, ...urls],
+    }));
 
-  setUploadedUrls(urls); // optional, for preview
-  setUploading(false);
-  console.log("✅ All Uploaded URLs:", urls);
-};
-
-
-
+    setUploadedUrls(urls); // optional, for preview
+    setUploading(false);
+    console.log("✅ All Uploaded URLs:", urls);
+  };
 
   // Update the fetchCalendarData function
   const fetchCalendarData = async (selectedDate: string) => {
-    if (!selectedDate) return
+    if (!selectedDate) return;
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/by-date?date=${selectedDate}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
-        },
-      })
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/appointments/by-date?date=${selectedDate}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
+          },
+        }
+      );
 
       if (!response.ok) {
-        throw new Error("Failed to fetch calendar data")
+        throw new Error("Failed to fetch calendar data");
       }
 
-      const apiResponse: CalendarApiResponse = await response.json()
+      const apiResponse: CalendarApiResponse = await response.json();
 
-      console.log("api response", apiResponse)
+      console.log("api response", apiResponse);
 
       if (apiResponse.success) {
-        setCalendarData(apiResponse.data)
+        setCalendarData(apiResponse.data);
 
         // Get all doctor IDs
-        const doctorIds = Object.keys(apiResponse.data)
+        const doctorIds = Object.keys(apiResponse.data);
 
         // Set available doctor IDs
-
 
         // 👉 Extract doctor name and id and set to setDoctDetails
         const doctorDetails = doctorIds.map((id) => ({
@@ -206,54 +213,56 @@ const handleUpload = async () => {
           name: apiResponse.data[id].name,
         }));
 
-        setAvailableDoctors(doctorDetails)
+        setAvailableDoctors(doctorDetails);
 
         // If patients exist, set them
         if (apiResponse.patients) {
-          setPatients(apiResponse.patients)
-          setFilteredPatients(apiResponse.patients)
+          setPatients(apiResponse.patients);
+          setFilteredPatients(apiResponse.patients);
         }
       }
     } catch (error) {
-      console.error("Error fetching calendar data:", error)
-      toast.error("Failed to fetch available doctors")
+      console.error("Error fetching calendar data:", error);
+      toast.error("Failed to fetch available doctors");
     }
-  }
+  };
 
   // Update useEffect to fetch data when date changes
   useEffect(() => {
     if (formData.appointmentDate) {
-      console.log("wokring")
-      fetchCalendarData(formData.appointmentDate)
+      console.log("wokring");
+      fetchCalendarData(formData.appointmentDate);
       // Reset doctor and time slot when date changes
       setFormData((prev) => ({
         ...prev,
         doctor: "",
         timeSlot: "",
-      }))
+      }));
     }
-  }, [formData.appointmentDate])
+  }, [formData.appointmentDate]);
 
   useEffect(() => {
     if (patientSearchTerm.trim() === "") {
-      setFilteredPatients(patients)
+      setFilteredPatients(patients);
     } else {
       const filtered = patients.filter((patient) => {
-        const childName = patient?.childName || patient?.fullName || ""
-        const parentName = patient?.parentName || patient?.parentInfo?.name || ""
-        const phone = patient?.contactNumber || patient?.parentInfo?.phone || ""
-        const patientId = patient?._id || patient?.id || ""
+        const childName = patient?.childName || patient?.fullName || "";
+        const parentName =
+          patient?.parentName || patient?.parentInfo?.name || "";
+        const phone =
+          patient?.contactNumber || patient?.parentInfo?.phone || "";
+        const patientId = patient?._id || patient?.id || "";
 
         return (
           childName.toLowerCase().includes(patientSearchTerm.toLowerCase()) ||
           parentName.toLowerCase().includes(patientSearchTerm.toLowerCase()) ||
           phone.includes(patientSearchTerm) ||
           patientId.toLowerCase().includes(patientSearchTerm.toLowerCase())
-        )
-      })
-      setFilteredPatients(filtered)
+        );
+      });
+      setFilteredPatients(filtered);
     }
-  }, [patientSearchTerm, patients])
+  }, [patientSearchTerm, patients]);
 
   // Update the existing useEffect for time slots
   useEffect(() => {
@@ -270,47 +279,55 @@ const handleUpload = async () => {
     }
   }, [formData.doctor, calendarData]);
 
-
   // Add useEffect to fetch services on component mount
   useEffect(() => {
-    fetchServices()
-  }, [])
+    fetchServices();
+  }, []);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target
+  const handleInputChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >
+  ) => {
+    const { name, value } = e.target;
     setFormData({
       ...formData,
       [name]: value,
-    })
-  }
+    });
+  };
 
   // Update the date input handler to trigger data fetch
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
+    const { name, value } = e.target;
     setFormData({
       ...formData,
       [name]: value,
-    })
-  }
+    });
+  };
 
   const calculateEndTime = (startTime: string): string => {
-    const [time, period] = startTime.split(" ")
-    const [hours, minutes] = time.split(":").map(Number)
+    const [time, period] = startTime.split(" ");
+    const [hours, minutes] = time.split(":").map(Number);
 
-    let totalMinutes = hours * 60 + minutes + 45 // 45 minutes duration
-    if (period === "PM" && hours !== 12) totalMinutes += 12 * 60
-    if (period === "AM" && hours === 12) totalMinutes -= 12 * 60
+    let totalMinutes = hours * 60 + minutes + 45; // 45 minutes duration
+    if (period === "PM" && hours !== 12) totalMinutes += 12 * 60;
+    if (period === "AM" && hours === 12) totalMinutes -= 12 * 60;
 
-    const endHours = Math.floor(totalMinutes / 60) % 24
-    const endMins = totalMinutes % 60
-    const endPeriod = endHours >= 12 ? "PM" : "AM"
-    const displayHours = endHours > 12 ? endHours - 12 : endHours === 0 ? 12 : endHours
+    const endHours = Math.floor(totalMinutes / 60) % 24;
+    const endMins = totalMinutes % 60;
+    const endPeriod = endHours >= 12 ? "PM" : "AM";
+    const displayHours =
+      endHours > 12 ? endHours - 12 : endHours === 0 ? 12 : endHours;
 
-    return `${displayHours.toString().padStart(2, "0")}:${endMins.toString().padStart(2, "0")} ${endPeriod}`
-  }
+    return `${displayHours.toString().padStart(2, "0")}:${endMins
+      .toString()
+      .padStart(2, "0")} ${endPeriod}`;
+  };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement> | React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault()
+  const handleSubmit = async (
+    e: React.FormEvent<HTMLFormElement> | React.MouseEvent<HTMLButtonElement>
+  ) => {
+    e.preventDefault();
 
     // console.log(formData);
 
@@ -322,20 +339,37 @@ const handleUpload = async () => {
       !formData.serviceId ||
       !formData.consent
     ) {
-      console.log("dojdn")
-      console.log("doctor", formData.doctor, " ", "date", formData.appointmentDate, " ", "timeslot", formData.timeSlot, " ", "sid", formData.serviceId, " ", "consoet", formData.consent)
-      toast.error("Please fill in all required fields and provide consent")
-      return
+      console.log("dojdn");
+      console.log(
+        "doctor",
+        formData.doctor,
+        " ",
+        "date",
+        formData.appointmentDate,
+        " ",
+        "timeslot",
+        formData.timeSlot,
+        " ",
+        "sid",
+        formData.serviceId,
+        " ",
+        "consoet",
+        formData.consent
+      );
+      toast.error("Please fill in all required fields and provide consent");
+      return;
     }
 
-    setLoading(true)
+    setLoading(true);
 
     try {
-      const endTime = calculateEndTime(formData.timeSlot)
+      const endTime = calculateEndTime(formData.timeSlot);
 
       const appointmentData = {
         patientId: selectedPatient?._id,
-        patientName: formData.patientName || selectedPatient?.firstName + " " + selectedPatient?.lastName,
+        patientName:
+          formData.patientName ||
+          selectedPatient?.firstName + " " + selectedPatient?.lastName,
         fatherName: formData.fatherName || formData.patientName,
         email: formData.email,
         phone: formData.phone,
@@ -352,8 +386,8 @@ const handleUpload = async () => {
         paymentMethod: formData.paymentMethod,
         consent: formData.consent,
         totalSessions: formData.totalSessions,
-        documents: formData?.documents, 
-      }
+        documents: formData?.documents,
+      };
 
       // console.log(appointmentData);
       // return
@@ -361,34 +395,40 @@ const handleUpload = async () => {
       // console.log(appointmentData);
       // return;
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
-        },
-        body: JSON.stringify(appointmentData),
-      })
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/appointments`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
+          },
+          body: JSON.stringify(appointmentData),
+        }
+      );
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || "Failed to create appointment")
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to create appointment");
       }
 
-      const result = await response.json()
-      console.log("successfully apointment created", result)
-      toast.success("Appointment scheduled successfully!")
+      const result = await response.json();
+      console.log("successfully apointment created", result);
+      toast.success("Appointment scheduled successfully!");
 
       // Redirect back to dashboard
-      router.push("/dashboard")
+      router.push("/dashboard");
     } catch (error) {
-      console.error("Error creating appointment:", error)
-      toast.error(error instanceof Error ? error.message : "Failed to schedule appointment")
+      console.error("Error creating appointment:", error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to schedule appointment"
+      );
     } finally {
-
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="p-6 max-w-[84%] mt-15 ml-70 mx-auto overflow-y-auto hide-scrollbar">
@@ -400,7 +440,9 @@ const handleUpload = async () => {
             Back
           </a>
         </div>
-        <h1 className="text-2xl font-bold text-[#245BA7]">Schedule an Appointment</h1>
+        <h1 className="text-2xl font-bold text-[#245BA7]">
+          Schedule an Appointment
+        </h1>
         <div className="flex items-center text-sm text-gray-500 mt-1">
           <span className="text-[#1E437A]">Dashboard</span>
           <span className="mx-2">›</span>
@@ -422,15 +464,18 @@ const handleUpload = async () => {
         </button>
       </div>
 
-
-
       {/* Appointment Information Section */}
       <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-        <h2 className="text-lg font-semibold text-[#1E437A] mb-4">Appointment Information</h2>
+        <h2 className="text-lg font-semibold text-[#1E437A] mb-4">
+          Appointment Information
+        </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
           <div>
-            <label className="block text-[#1E437A] mb-2" htmlFor="appointmentDate">
+            <label
+              className="block text-[#1E437A] mb-2"
+              htmlFor="appointmentDate"
+            >
               Date *
             </label>
             <div className="relative">
@@ -465,7 +510,11 @@ const handleUpload = async () => {
                 required
                 disabled={!formData.appointmentDate}
               >
-                <option value="">{!formData.appointmentDate ? "Select date first" : "Select doctor"}</option>
+                <option value="">
+                  {!formData.appointmentDate
+                    ? "Select date first"
+                    : "Select doctor"}
+                </option>
                 {availableDoctors.map((doctor) => (
                   <option key={doctor?.id} value={doctor?.id}>
                     {doctor?.name}
@@ -503,7 +552,11 @@ const handleUpload = async () => {
                 disabled={!formData.doctor}
                 required
               >
-                <option value="">{!formData.doctor ? "Select doctor first" : "Select time slot"}</option>
+                <option value="">
+                  {!formData.doctor
+                    ? "Select doctor first"
+                    : "Select time slot"}
+                </option>
                 {availableTimeSlots.map((timeSlot) => (
                   <option key={timeSlot} value={timeSlot}>
                     {timeSlot}
@@ -526,7 +579,9 @@ const handleUpload = async () => {
               </div>
             </div>
             {formData.doctor && availableTimeSlots.length === 0 && (
-              <p className="text-sm text-red-500 mt-1">No available slots for selected doctor</p>
+              <p className="text-sm text-red-500 mt-1">
+                No available slots for selected doctor
+              </p>
             )}
           </div>
           <div>
@@ -572,10 +627,14 @@ const handleUpload = async () => {
       <form onSubmit={handleSubmit}>
         {/* Patient Selection Section */}
         <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-          <h2 className="text-lg font-semibold text-[#1E437A] mb-4">Select Patient</h2>
+          <h2 className="text-lg font-semibold text-[#1E437A] mb-4">
+            Select Patient
+          </h2>
 
           <div className="mb-4">
-            <label className="block text-[#1E437A] mb-2">Choose Existing Patient or Add New</label>
+            <label className="block text-[#1E437A] mb-2">
+              Choose Existing Patient or Add New
+            </label>
             <div className="flex gap-4">
               <button
                 type="button"
@@ -618,7 +677,7 @@ const handleUpload = async () => {
                     placeholder="Search by Patient ID, Name, or Phone Number..."
                     value={patientSearchTerm}
                     onChange={(e) => setPatientSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
                   />
                 </div>
               </div>
@@ -630,12 +689,23 @@ const handleUpload = async () => {
                     <div
                       key={patient?._id}
                       onClick={() => {
-                        setSelectedPatient(patient)
-                        const childName = patient?.childName || patient?.fullName || ""
-                        const parentName = patient?.parentName || patient?.parentInfo?.name || ""
-                        const email = patient?.email || patient?.parentInfo?.email || ""
-                        const phone = patient?.contactNumber || patient?.parentInfo?.phone || ""
-                        const address = patient?.address || patient?.parentInfo?.address || ""
+                        setSelectedPatient(patient);
+                        const childName =
+                          patient?.childName || patient?.fullName || "";
+                        const parentName =
+                          patient?.parentName ||
+                          patient?.parentInfo?.name ||
+                          "";
+                        const email =
+                          patient?.email || patient?.parentInfo?.email || "";
+                        const phone =
+                          patient?.contactNumber ||
+                          patient?.parentInfo?.phone ||
+                          "";
+                        const address =
+                          patient?.address ||
+                          patient?.parentInfo?.address ||
+                          "";
 
                         setFormData({
                           ...formData,
@@ -644,30 +714,42 @@ const handleUpload = async () => {
                           email: email,
                           phone: phone,
                           address: address,
-                        })
-                        setShowPatientSearch(false)
-                        setPatientSearchTerm("")
+                        });
+                        setShowPatientSearch(false);
+                        setPatientSearchTerm("");
                       }}
                       className="p-3 border border-gray-100 rounded-lg hover:bg-gray-50 cursor-pointer"
                     >
                       <div className="flex justify-between items-start">
                         <div>
-                          <div className="font-medium text-gray-900">{patient?.childName || patient?.fullName || patient?.firstName + patient?.lastName}</div>
+                          <div className="font-medium text-gray-900">
+                            {patient?.childName ||
+                              patient?.fullName ||
+                              patient?.firstName + patient?.lastName}
+                          </div>
                           <div className="text-sm text-gray-600">
-                            Parent: {patient?.parentName || patient?.parentInfo?.name} | Phone:{" "}
-                            {patient?.contactNumber || patient?.parentInfo?.phone}
+                            Parent:{" "}
+                            {patient?.parentName || patient?.parentInfo?.name} |
+                            Phone:{" "}
+                            {patient?.contactNumber ||
+                              patient?.parentInfo?.phone}
                           </div>
                           <div className="text-xs text-gray-500">
-                            ID: {patient?._id} | Gender: {patient?.childGender || "Not specified"}
+                            ID: {patient?._id} | Gender:{" "}
+                            {patient?.childGender || "Not specified"}
                           </div>
                         </div>
-                        <div className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">{patient?.status}</div>
+                        <div className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                          {patient?.status}
+                        </div>
                       </div>
                     </div>
                   ))
                 ) : (
                   <div className="text-center py-4 text-gray-500">
-                    {patientSearchTerm ? "No patients found matching your search" : "No patients available"}
+                    {patientSearchTerm
+                      ? "No patients found matching your search"
+                      : "No patients available"}
                   </div>
                 )}
               </div>
@@ -677,10 +759,21 @@ const handleUpload = async () => {
           {selectedPatient && (
             <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
               <div className="text-sm text-green-800">
-                ✓ Selected: <strong>{selectedPatient?.childName || selectedPatient?.fullName || selectedPatient?.firstName + " " + selectedPatient?.lastName}</strong>
+                ✓ Selected:{" "}
+                <strong>
+                  {selectedPatient?.childName ||
+                    selectedPatient?.fullName ||
+                    selectedPatient?.firstName +
+                      " " +
+                      selectedPatient?.lastName}
+                </strong>
                 <div className="text-xs mt-1">
-                  Parent: {selectedPatient?.parentName || selectedPatient?.parentInfo?.name} | Phone:{" "}
-                  {selectedPatient?.contactNumber || selectedPatient?.parentInfo?.phone}
+                  Parent:{" "}
+                  {selectedPatient?.parentName ||
+                    selectedPatient?.parentInfo?.name}{" "}
+                  | Phone:{" "}
+                  {selectedPatient?.contactNumber ||
+                    selectedPatient?.parentInfo?.phone}
                 </div>
               </div>
             </div>
@@ -689,18 +782,26 @@ const handleUpload = async () => {
 
         {/* Patient Information Section */}
         <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-          <h2 className="text-lg font-semibold text-[#1E437A] mb-4">Patient Information</h2>
+          <h2 className="text-lg font-semibold text-[#1E437A] mb-4">
+            Patient Information
+          </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
             <div>
-              <label className="block text-[#1E437A] mb-2" htmlFor="patientName">
+              <label
+                className="block text-[#1E437A] mb-2"
+                htmlFor="patientName"
+              >
                 Patient Name *
               </label>
               <input
                 type="text"
                 id="patientName"
                 name="patientName"
-                value={formData.patientName || selectedPatient?.firstName + " " + selectedPatient?.lastName}
+                value={
+                  formData.patientName ||
+                  selectedPatient?.firstName + " " + selectedPatient?.lastName
+                }
                 onChange={handleInputChange}
                 className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D]"
                 placeholder="Enter patient name"
@@ -759,10 +860,16 @@ const handleUpload = async () => {
 
             {selectedPatient && (
               <div>
-                <label className="block text-[#1E437A] mb-2">Parent/Guardian Name</label>
+                <label className="block text-[#1E437A] mb-2">
+                  Parent/Guardian Name
+                </label>
                 <input
                   type="text"
-                  value={selectedPatient?.parentName || selectedPatient?.parentInfo?.name || ""}
+                  value={
+                    selectedPatient?.parentName ||
+                    selectedPatient?.parentInfo?.name ||
+                    ""
+                  }
                   readOnly
                   className="w-full p-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
                 />
@@ -788,10 +895,15 @@ const handleUpload = async () => {
 
         {/* Medical Information Section */}
         <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-          <h2 className="text-lg font-semibold text-[#1E437A] mb-4">Medical Information</h2>
+          <h2 className="text-lg font-semibold text-[#1E437A] mb-4">
+            Medical Information
+          </h2>
 
           <div className="mb-4">
-            <label className="block text-[#1E437A] mb-2" htmlFor="primaryConcern">
+            <label
+              className="block text-[#1E437A] mb-2"
+              htmlFor="primaryConcern"
+            >
               Primary Concern
             </label>
             <div className="relative">
@@ -844,11 +956,16 @@ const handleUpload = async () => {
 
         {/* Consultation & Session Details Section */}
         <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-          <h2 className="text-lg font-semibold text-[#1E437A] mb-4">Consultation & Session Details</h2>
+          <h2 className="text-lg font-semibold text-[#1E437A] mb-4">
+            Consultation & Session Details
+          </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
             <div>
-              <label className="block text-[#1E437A] mb-2" htmlFor="consultationMode">
+              <label
+                className="block text-[#1E437A] mb-2"
+                htmlFor="consultationMode"
+              >
                 Consultation Mode *
               </label>
               <div className="relative">
@@ -936,7 +1053,10 @@ const handleUpload = async () => {
             </div> */}
 
             <div>
-              <label className="block text-[#1E437A] mb-2" htmlFor="paymentAmount">
+              <label
+                className="block text-[#1E437A] mb-2"
+                htmlFor="paymentAmount"
+              >
                 Payment Amount ($)
               </label>
               <input
@@ -954,7 +1074,10 @@ const handleUpload = async () => {
           </div>
 
           <div className="mb-4">
-            <label className="block text-[#1E437A] mb-2" htmlFor="paymentMethod">
+            <label
+              className="block text-[#1E437A] mb-2"
+              htmlFor="paymentMethod"
+            >
               Payment Method
             </label>
             <div className="relative">
@@ -990,7 +1113,9 @@ const handleUpload = async () => {
 
         {/* Consent & Legal Section */}
         <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-          <h2 className="text-lg font-semibold text-[#1E437A] mb-4">Consent & Legal</h2>
+          <h2 className="text-lg font-semibold text-[#1E437A] mb-4">
+            Consent & Legal
+          </h2>
 
           <div className="mb-4">
             <div className="flex items-start gap-3">
@@ -999,15 +1124,18 @@ const handleUpload = async () => {
                 id="consent"
                 name="consent"
                 checked={formData.consent}
-                onChange={(e) => setFormData({ ...formData, consent: e.target.checked })}
+                onChange={(e) =>
+                  setFormData({ ...formData, consent: e.target.checked })
+                }
                 className="mt-1 w-4 h-4 text-[#C83C92] border-gray-300 rounded focus:ring-[#C83C92]"
                 required
               />
               <label htmlFor="consent" className="text-sm text-gray-700">
                 <span className="font-medium">Patient Consent *</span>
                 <p className="mt-1 text-gray-600">
-                  I consent to the treatment and understand the terms and conditions. I authorize the healthcare
-                  provider to proceed with the recommended treatment plan.
+                  I consent to the treatment and understand the terms and
+                  conditions. I authorize the healthcare provider to proceed
+                  with the recommended treatment plan.
                 </p>
               </label>
             </div>
@@ -1016,8 +1144,8 @@ const handleUpload = async () => {
           <div className="text-xs text-gray-500 bg-gray-50 p-3 rounded-lg">
             <p className="font-medium mb-1">Privacy Notice:</p>
             <p>
-              Your personal information will be kept confidential and used only for medical purposes in accordance with
-              HIPAA regulations.
+              Your personal information will be kept confidential and used only
+              for medical purposes in accordance with HIPAA regulations.
             </p>
           </div>
         </div>
@@ -1027,7 +1155,12 @@ const handleUpload = async () => {
           <h2 className="text-lg font-semibold text-[#1E437A] mb-4">Media</h2>
 
           <div className="p-4">
-            <input type="file" multiple onChange={handleFileChange} className="mb-2" />
+            <input
+              type="file"
+              multiple
+              onChange={handleFileChange}
+              className="mb-2 text-black file:text-black"
+            />
             <button
               onClick={handleUpload}
               disabled={uploading}
@@ -1038,17 +1171,23 @@ const handleUpload = async () => {
 
             <ul className="mt-4 text-sm">
               {uploadedUrls.map((url, i) => (
-                <li key={i} style={{color:"black"}}>
-                  ✅ Document {i + 1}: <a href={url} target="_blank" className="text-blue-600 underline">View</a>
+                <li key={i} style={{ color: "black" }}>
+                  ✅ Document {i + 1}:{" "}
+                  <a
+                    href={url}
+                    target="_blank"
+                    className="text-blue-600 underline"
+                  >
+                    View
+                  </a>
                 </li>
               ))}
             </ul>
           </div>
-
         </div>
       </form>
     </div>
-  )
-}
+  );
+};
 
-export default AppointmentSchedulingPage
+export default AppointmentSchedulingPage;

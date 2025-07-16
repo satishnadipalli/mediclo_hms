@@ -1,19 +1,27 @@
-"use client"
-import type React from "react"
-import { useState } from "react"
-import { ChevronLeft, Upload, Calendar } from "lucide-react"
-import { useRouter } from "next/navigation"
-import { toast } from "react-toastify"
+"use client";
+import type React from "react";
+import { useState } from "react";
+import { ChevronLeft, Upload, Calendar } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { toast } from "react-toastify";
 
 const PatientRegistrationForm = () => {
-  const router = useRouter()
-  const [loading, setLoading] = useState(false)
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
 
   // File previews
-  const [childPhotoPreview, setChildPhotoPreview] = useState<string | null>(null)
-  const [parentPhotoPreview, setParentPhotoPreview] = useState<string | null>(null)
-  const [birthCertificatePreview, setBirthCertificatePreview] = useState<string | null>(null)
-  const [aadharCardPreview, setAadharCardPreview] = useState<string | null>(null)
+  const [childPhotoPreview, setChildPhotoPreview] = useState<string | null>(
+    null
+  );
+  const [parentPhotoPreview, setParentPhotoPreview] = useState<string | null>(
+    null
+  );
+  const [birthCertificatePreview, setBirthCertificatePreview] = useState<
+    string | null
+  >(null);
+  const [aadharCardPreview, setAadharCardPreview] = useState<string | null>(
+    null
+  );
 
   const [formData, setFormData] = useState({
     // Child's Information
@@ -43,219 +51,243 @@ const PatientRegistrationForm = () => {
       relation: "",
       phone: "",
     },
-  })
+  });
 
   // Calculate age when date of birth changes
   const calculateAge = (dateOfBirth: string) => {
-    if (!dateOfBirth) return ""
+    if (!dateOfBirth) return "";
 
-    const today = new Date()
-    const birthDate = new Date(dateOfBirth)
-    let age = today.getFullYear() - birthDate.getFullYear()
-    const monthDiff = today.getMonth() - birthDate.getMonth()
+    const today = new Date();
+    const birthDate = new Date(dateOfBirth);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
 
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-      age--
+    if (
+      monthDiff < 0 ||
+      (monthDiff === 0 && today.getDate() < birthDate.getDate())
+    ) {
+      age--;
     }
 
-    return age.toString()
-  }
+    return age.toString();
+  };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target
+  const handleInputChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >
+  ) => {
+    const { name, value } = e.target;
 
     if (name.startsWith("parentInfo.")) {
-      const field = name.split(".")[1]
+      const field = name.split(".")[1];
       setFormData({
         ...formData,
         parentInfo: {
           ...formData.parentInfo,
           [field]: value,
         },
-      })
+      });
     } else if (name.startsWith("emergencyContact.")) {
-      const field = name.split(".")[1]
+      const field = name.split(".")[1];
       setFormData({
         ...formData,
         emergencyContact: {
           ...formData.emergencyContact,
           [field]: value,
         },
-      })
+      });
     } else {
       setFormData({
         ...formData,
         [name]: value,
-      })
+      });
 
       // Auto-calculate age when date of birth changes
       if (name === "dateOfBirth") {
-        const calculatedAge = calculateAge(value)
+        const calculatedAge = calculateAge(value);
         setFormData((prev) => ({
           ...prev,
           dateOfBirth: value,
           age: calculatedAge,
-        }))
+        }));
       }
     }
-  }
+  };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, fileType: string) => {
-    const file = e.target.files?.[0]
+  const handleFileUpload = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    fileType: string
+  ) => {
+    const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader()
+      const reader = new FileReader();
       reader.onloadend = () => {
-        const result = reader.result as string
+        const result = reader.result as string;
 
         switch (fileType) {
           case "childPhoto":
-            setChildPhotoPreview(result)
-            setFormData((prev) => ({ ...prev, childPhoto: result }))
-            break
+            setChildPhotoPreview(result);
+            setFormData((prev) => ({ ...prev, childPhoto: result }));
+            break;
           case "birthCertificate":
-            setBirthCertificatePreview(result)
-            setFormData((prev) => ({ ...prev, birthCertificate: result }))
-            break
+            setBirthCertificatePreview(result);
+            setFormData((prev) => ({ ...prev, birthCertificate: result }));
+            break;
           case "parentPhoto":
-            setParentPhotoPreview(result)
+            setParentPhotoPreview(result);
             setFormData((prev) => ({
               ...prev,
               parentInfo: { ...prev.parentInfo, photo: result },
-            }))
-            break
+            }));
+            break;
           case "aadharCard":
-            setAadharCardPreview(result)
+            setAadharCardPreview(result);
             setFormData((prev) => ({
               ...prev,
               parentInfo: { ...prev.parentInfo, aadharCard: result },
-            }))
-            break
+            }));
+            break;
         }
-      }
-      reader.readAsDataURL(file)
+      };
+      reader.readAsDataURL(file);
     }
-  }
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    setLoading(true)
+    e.preventDefault();
+    setLoading(true);
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/patients/register`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
-        },
-        body: JSON.stringify({
-          firstName: formData.childName,
-          lastName: formData.lastName,
-          // fullName: `${formData.firstName} ${formData.lastName}`,
-          fullName: `${formData.childName} ${formData.lastName}`, 
-          dateOfBirth: formData.dateOfBirth,
-          gender: formData.gender,
-          childPhoto: formData.childPhoto,
-          birthCertificate: formData.birthCertificate,
-          parentInfo: {
-            name: formData.parentInfo.name,
-            phone: formData.parentInfo.phone,
-            email: formData.parentInfo.email,
-            relationship: formData.parentInfo.relationship,
-            address: formData.parentInfo.address,
-            photo: formData.parentInfo.photo,
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/patients/register`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
           },
-          emergencyContact: {
-            name: formData.emergencyContact.name,
-            relation: formData.emergencyContact.relation,
-            phone: formData.emergencyContact.phone,
-          },
-        }),
-      })
+          body: JSON.stringify({
+            firstName: formData.childName,
+            lastName: formData.lastName,
+            // fullName: `${formData.firstName} ${formData.lastName}`,
+            fullName: `${formData.childName} ${formData.lastName}`,
+            dateOfBirth: formData.dateOfBirth,
+            gender: formData.gender,
+            childPhoto: formData.childPhoto,
+            birthCertificate: formData.birthCertificate,
+            parentInfo: {
+              name: formData.parentInfo.name,
+              phone: formData.parentInfo.phone,
+              email: formData.parentInfo.email,
+              relationship: formData.parentInfo.relationship,
+              address: formData.parentInfo.address,
+              photo: formData.parentInfo.photo,
+            },
+            emergencyContact: {
+              name: formData.emergencyContact.name,
+              relation: formData.emergencyContact.relation,
+              phone: formData.emergencyContact.phone,
+            },
+          }),
+        }
+      );
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || "Failed to register patient")
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to register patient");
       }
 
-      
-      const result = await response.json()
-      console.log("Registed successfully",response)
-      toast.success("Patient registered successfully!")
+      const result = await response.json();
+      console.log("Registed successfully", response);
+      toast.success("Patient registered successfully!");
 
       // Redirect to schedule appointment with patient ID
-      router.push("/dashboard/scheduleAppointment")
+      router.push("/dashboard/scheduleAppointment");
     } catch (error) {
-      console.error("Registration error:", error)
-      toast.error(error instanceof Error ? error.message : "Failed to register patient")
+      console.error("Registration error:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to register patient"
+      );
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleRegisterLater = async () => {
-    setLoading(true)
+    setLoading(true);
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/patients/register`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
-        },
-        body: JSON.stringify({
-          firstName: formData.childName,
-          lastName: formData.lastName,
-          dateOfBirth: formData.dateOfBirth,
-          gender: formData.gender,
-          childPhoto: formData.childPhoto,
-          birthCertificate: formData.birthCertificate,
-          parentInfo: {
-            name: formData.parentInfo.name,
-            phone: formData.parentInfo.phone,
-            email: formData.parentInfo.email,
-            relationship: formData.parentInfo.relationship,
-            address: formData.parentInfo.address,
-            photo: formData.parentInfo.photo,
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/patients/register`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
           },
-          emergencyContact: {
-            name: formData.emergencyContact.name,
-            relation: formData.emergencyContact.relation,
-            phone: formData.emergencyContact.phone,
-          },
-        }),
-      })
+          body: JSON.stringify({
+            firstName: formData.childName,
+            lastName: formData.lastName,
+            dateOfBirth: formData.dateOfBirth,
+            gender: formData.gender,
+            childPhoto: formData.childPhoto,
+            birthCertificate: formData.birthCertificate,
+            parentInfo: {
+              name: formData.parentInfo.name,
+              phone: formData.parentInfo.phone,
+              email: formData.parentInfo.email,
+              relationship: formData.parentInfo.relationship,
+              address: formData.parentInfo.address,
+              photo: formData.parentInfo.photo,
+            },
+            emergencyContact: {
+              name: formData.emergencyContact.name,
+              relation: formData.emergencyContact.relation,
+              phone: formData.emergencyContact.phone,
+            },
+          }),
+        }
+      );
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || "Failed to register patient")
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to register patient");
       }
 
-       const data = await response.json();
-      console.log("Regsited successfullyu",data);
+      const data = await response.json();
+      console.log("Regsited successfullyu", data);
       // return;
 
-      toast.success("Patient registered successfully!")
-      console.log("routeing")
-      router.push("/dashboard")
+      toast.success("Patient registered successfully!");
+      console.log("routeing");
+      router.push("/dashboard");
     } catch (error) {
-      console.error("Registration error:", error)
-      toast.error(error instanceof Error ? error.message : "Failed to register patient")
+      console.error("Registration error:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to register patient"
+      );
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="p-6 mw-[85%] ml-[300px] mx-auto bg-gray-50 min-h-screen">
       {/* Header */}
       <div className="mb-6 pt-24 w-[95%]">
-        <div className="flex items-center text-blue-600 mb-3 cursor-pointer" onClick={() => router.back()}>
+        <div
+          className="flex items-center text-blue-600 mb-3 cursor-pointer"
+          onClick={() => router.back()}
+        >
           <ChevronLeft className="w-4 h-4 mr-1" />
           <span className="text-sm font-medium">Back</span>
         </div>
 
         <div className="flex items-center justify-between mb-2">
-          <h1 className="text-2xl font-bold text-gray-900">Register New Patient</h1>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Register New Patient
+          </h1>
           <div className="flex gap-3">
             <button
               onClick={handleRegisterLater}
@@ -272,7 +304,9 @@ const PatientRegistrationForm = () => {
               className="flex items-center gap-2 px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 disabled:opacity-50 font-medium"
             >
               <Calendar className="w-4 h-4" />
-              {loading ? "Registering..." : "Register & Schedule an Appointment"}
+              {loading
+                ? "Registering..."
+                : "Register & Schedule an Appointment"}
             </button>
           </div>
         </div>
@@ -285,15 +319,23 @@ const PatientRegistrationForm = () => {
       </div>
 
       {/* Form */}
-      <form id="patient-form" onSubmit={handleSubmit} className="space-y-6 w-[95%]">
+      <form
+        id="patient-form"
+        onSubmit={handleSubmit}
+        className="space-y-6 w-[95%]"
+      >
         {/* Child's Information */}
         <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-6">Child's Information</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-6">
+            Child's Information
+          </h2>
 
           <div className="space-y-6">
             {/* Child's Full Name */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Child's First Name</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Child's First Name
+              </label>
               <input
                 type="text"
                 name="childName"
@@ -301,13 +343,15 @@ const PatientRegistrationForm = () => {
                 onChange={handleInputChange}
                 placeholder="Enter child's full name here"
                 required
-                className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+                className="w-full px-3 py-3 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
               />
             </div>
 
             {/* Child's Last Name */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Child's Last Name</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Child's Last Name
+              </label>
               <input
                 type="text"
                 name="lastName"
@@ -315,14 +359,16 @@ const PatientRegistrationForm = () => {
                 onChange={handleInputChange}
                 placeholder="Enter child's last name here"
                 required
-                className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+                className="w-full px-3 py-3 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
               />
             </div>
 
             {/* Date of Birth and Age */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Date of Birth</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Date of Birth
+                </label>
                 <div className="relative">
                   <input
                     type="date"
@@ -330,13 +376,15 @@ const PatientRegistrationForm = () => {
                     value={formData.dateOfBirth}
                     onChange={handleInputChange}
                     required
-                    className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+                    className="w-full px-3 py-3 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
                   />
                   <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Age</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Age
+                </label>
                 <input
                   type="text"
                   name="age"
@@ -351,13 +399,15 @@ const PatientRegistrationForm = () => {
             {/* Gender and Upload Buttons */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Gender</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Gender
+                </label>
                 <select
                   name="gender"
                   value={formData.gender}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+                  className="w-full px-3 py-3 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
                 >
                   <option value="">Select child's gender</option>
                   <option value="male">Male</option>
@@ -367,7 +417,9 @@ const PatientRegistrationForm = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Upload Child Photo</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Upload Child Photo
+                </label>
                 <label className="flex items-center justify-center gap-2 px-4 py-3 bg-pink-500 text-white rounded-lg hover:bg-pink-600 cursor-pointer font-medium">
                   <Upload className="w-4 h-4" />
                   Photo
@@ -390,7 +442,9 @@ const PatientRegistrationForm = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Upload Birth Certificate</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Upload Birth Certificate
+                </label>
                 <label className="flex items-center justify-center gap-2 px-4 py-3 bg-pink-500 text-white rounded-lg hover:bg-pink-600 cursor-pointer font-medium">
                   <Upload className="w-4 h-4" />
                   Birth certificate
@@ -401,7 +455,11 @@ const PatientRegistrationForm = () => {
                     className="hidden"
                   />
                 </label>
-                {birthCertificatePreview && <div className="mt-2 text-xs text-green-600">✓ File uploaded</div>}
+                {birthCertificatePreview && (
+                  <div className="mt-2 text-xs text-green-600">
+                    ✓ File uploaded
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -409,12 +467,16 @@ const PatientRegistrationForm = () => {
 
         {/* Emergency Contact Information */}
         <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-6">Emergency Contact Information</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-6">
+            Emergency Contact Information
+          </h2>
 
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Emergency Contact Name</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Emergency Contact Name
+                </label>
                 <input
                   type="text"
                   name="emergencyContact.name"
@@ -422,11 +484,13 @@ const PatientRegistrationForm = () => {
                   onChange={handleInputChange}
                   placeholder="Enter emergency contact name"
                   required
-                  className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+                  className="w-full px-3 py-3 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Relation</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Relation
+                </label>
                 <input
                   type="text"
                   name="emergencyContact.relation"
@@ -434,13 +498,15 @@ const PatientRegistrationForm = () => {
                   onChange={handleInputChange}
                   placeholder="Enter relation (e.g., Uncle, Aunt)"
                   required
-                  className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+                  className="w-full px-3 py-3 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Emergency Contact Phone</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Emergency Contact Phone
+              </label>
               <input
                 type="tel"
                 name="emergencyContact.phone"
@@ -448,7 +514,7 @@ const PatientRegistrationForm = () => {
                 onChange={handleInputChange}
                 placeholder="Enter emergency contact phone number"
                 required
-                className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+                className="w-full px-3 py-3 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
               />
             </div>
           </div>
@@ -456,12 +522,16 @@ const PatientRegistrationForm = () => {
 
         {/* Parent's Information */}
         <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-6">Parent's Information</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-6">
+            Parent's Information
+          </h2>
 
           <div className="space-y-6">
             {/* Parent/Guardian Name */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Parent/Guardian Name</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Parent/Guardian Name
+              </label>
               <input
                 type="text"
                 name="parentInfo.name"
@@ -469,14 +539,16 @@ const PatientRegistrationForm = () => {
                 onChange={handleInputChange}
                 placeholder="Enter parent's full name here"
                 required
-                className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+                className="w-full px-3 py-3 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
               />
             </div>
 
             {/* Contact Number and Email */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Parent's Contact Number</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Parent's Contact Number
+                </label>
                 <input
                   type="tel"
                   name="parentInfo.phone"
@@ -484,7 +556,7 @@ const PatientRegistrationForm = () => {
                   onChange={handleInputChange}
                   placeholder="Enter parent's contact number here"
                   required
-                  className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+                  className="w-full px-3 py-3 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
                 />
               </div>
               <div>
@@ -497,14 +569,16 @@ const PatientRegistrationForm = () => {
                   value={formData.parentInfo.email}
                   onChange={handleInputChange}
                   placeholder="Enter parent's email address here"
-                  className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+                  className="w-full px-3 py-3 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
                 />
               </div>
             </div>
 
             {/* Address */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Address
+              </label>
               <textarea
                 name="parentInfo.address"
                 value={formData.parentInfo.address}
@@ -512,14 +586,14 @@ const PatientRegistrationForm = () => {
                 placeholder="Enter full address here..."
                 rows={4}
                 required
-                className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500 resize-none"
+                className="w-full px-3 py-3 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500 resize-none"
               />
             </div>
           </div>
         </div>
       </form>
     </div>
-  )
-}
+  );
+};
 
-export default PatientRegistrationForm
+export default PatientRegistrationForm;
