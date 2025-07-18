@@ -34,14 +34,14 @@ interface CalendarAppointment {
   patientName: string
   type: "initial assessment" | "therapy session" | "follow-up" | "other"
   status:
-    | "scheduled"
-    | "rescheduled"
-    | "cancelled"
-    | "no-show"
-    | "pending-assignment"
-    | "pending_confirmation"
-    | "converted"
-    | "completed"
+  | "scheduled"
+  | "rescheduled"
+  | "cancelled"
+  | "no-show"
+  | "pending-assignment"
+  | "pending_confirmation"
+  | "converted"
+  | "completed"
   duration: number
   // Payment information
   payment: {
@@ -185,10 +185,10 @@ const StatusUpdateModal: React.FC<{
   if (!isOpen || !appointment) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
         {/* Modal Header */}
-        <div className="bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-4">
+        <div className="bg-gradient-to-r bg-[#C83C92] px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-white bg-opacity-20 rounded-lg">
@@ -335,7 +335,7 @@ const StatusUpdateModal: React.FC<{
             />
           </div>
           {/* Sessions Completed */}
-          
+
           {/* Notes */}
           <div>
             <label className="block text-sm font-medium text-black mb-2">Notes</label>
@@ -361,7 +361,7 @@ const StatusUpdateModal: React.FC<{
           <button
             onClick={handleUpdate}
             disabled={isUpdating || validationErrors.length > 0}
-            className="px-6 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 disabled:opacity-50 transition-colors flex items-center gap-2"
+            className="px-6 py-2 bg-gradient-to-r bg-[#C83C92] text-white rounded-lg disabled:opacity-50 transition-colors flex items-center gap-2"
           >
             {isUpdating ? (
               <>
@@ -512,10 +512,10 @@ const RescheduleModal: React.FC<{
   if (!isOpen || !appointment) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
         {/* Modal Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
+        <div className="bg-gradient-to-r bg-[#C83C92] px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-white bg-opacity-20 rounded-lg">
@@ -532,20 +532,23 @@ const RescheduleModal: React.FC<{
           </div>
         </div>
         {/* Modal Body */}
-        <div className="p-6 space-y-6">
+        <div className="p-6 space-y-3 -mt-3">
           {/* Current Appointment Info */}
-          <div className="bg-gray-50 rounded-lg p-4">
+          <div className="bg-gray-50 rounded-lg p-4=">
             <h4 className="text-sm font-medium text-black mb-2">Current Appointment</h4>
             <div className="text-sm text-gray-600">
-              <p>
-                Patient: <span className="font-medium">{appointment?.patientName}</span>
-              </p>
-              <p>
-                Type: <span className="font-medium">{appointment?.type}</span>
-              </p>
-              <p>
-                Duration: <span className="font-medium">{appointment?.duration} minutes</span>
-              </p>
+              <div className="flex justify-between">
+                <p>
+                  Patient: <span className="font-medium">{appointment?.patientName}</span>
+                </p>
+                <p>
+                  <span className="font-medium">{appointment?.type}</span>
+                </p>
+                <p>
+                  <span className="font-medium">{appointment?.duration} minutes</span>
+                </p>
+              </div>
+
             </div>
           </div>
           {/* New Date Selection */}
@@ -635,7 +638,7 @@ const RescheduleModal: React.FC<{
           <button
             onClick={handleRescheduleSubmit}
             disabled={!rescheduleData.date || !rescheduleData.startTime || loadingSlots}
-            className="px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="px-6 py-2 bg-gradient-to-r bg-[#C83C92] text-white rounded-lg  disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             Reschedule Appointment
           </button>
@@ -1284,7 +1287,7 @@ const DoctorScheduleTable: React.FC = () => {
             )
           })}
         </div>
-        
+
       </div>
 
       {/* Status Update Modal */}
