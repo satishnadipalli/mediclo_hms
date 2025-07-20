@@ -520,7 +520,7 @@ const AppointmentsEnhancedPage: React.FC = () => {
             </div>
             <div>
               <p className="text-sm text-gray-600">Revenue</p>
-              <p className="text-xl font-bold text-green-600">${summary.totalRevenue}</p>
+              <p className="text-xl font-bold text-green-600">₹{summary.totalRevenue}</p>
             </div>
           </div>
         </div>
@@ -713,7 +713,7 @@ const AppointmentsEnhancedPage: React.FC = () => {
                   <td className="px-6 py-4">
                     <div>
                       <div className="font-medium text-[#456696]">{appointment.serviceId.name}</div>
-                      <div className="text-sm text-gray-500">${appointment.serviceId.price}</div>
+                      <div className="text-sm text-gray-500">₹{appointment.serviceId.price}</div>
                     </div>
                   </td>
                   <td className="px-6 py-4">
@@ -735,7 +735,7 @@ const AppointmentsEnhancedPage: React.FC = () => {
                         {appointment.payment.status}
                       </span>
                       <div className="text-xs text-gray-500">
-                        $
+                        ₹
                         {appointment.payment.status === "partial"
                           ? appointment.payment.paidAmount
                           : appointment.payment.amount}
@@ -898,7 +898,7 @@ const AppointmentDetailsModal: React.FC<{
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Service</label>
                 <div className="text-[#456696] font-medium">{appointment.serviceId.name}</div>
-                <div className="text-sm text-gray-500">${appointment.serviceId.price}</div>
+                <div className="text-sm text-gray-500">₹{appointment.serviceId.price}</div>
               </div>
             </div>
             <div className="space-y-4">
@@ -948,8 +948,8 @@ const AppointmentDetailsModal: React.FC<{
                 {appointment.payment.status}
               </span>
               <div className="text-sm text-gray-500 mt-1">
-                Amount: ${appointment.payment.amount} | Method: {appointment.payment.method}
-                {appointment.payment.status === "partial" && <div>Paid: ${appointment.payment.paidAmount}</div>}
+                Amount: ₹{appointment.payment.amount} | Method: {appointment.payment.method}
+                {appointment.payment.status === "partial" && <div>Paid: ₹{appointment.payment.paidAmount}</div>}
               </div>
             </div>
           </div>

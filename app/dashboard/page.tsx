@@ -315,8 +315,7 @@ const StatusUpdateModal: React.FC<{
               >
                 <option value="not_specified">Not Specified</option>
                 <option value="cash">Cash</option>
-                <option value="card">Card</option>
-                <option value="insurance">Insurance</option>
+                <option value="upi">Upi</option>
               </select>
             </div>
           </div>
@@ -1153,7 +1152,7 @@ const DoctorScheduleTable: React.FC = () => {
                                     </div>
                                     <div className="flex items-center gap-1">
                                       {getPaymentStatusIcon(appointment?.payment?.status)}
-                                      <span className="text-xs">${appointment?.payment?.amount}</span>
+                                      <span className="text-xs">₹{appointment?.payment?.amount}</span>
                                     </div>
                                   </div>
                                   {/* Sessions Progress */}
@@ -1280,7 +1279,7 @@ const DoctorScheduleTable: React.FC = () => {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Revenue:</span>
-                    <span className="font-semibold text-green-600">${totalRevenue}</span>
+                    <span className="font-semibold text-green-600">₹{totalRevenue}</span>
                   </div>
                 </div>
               </div>

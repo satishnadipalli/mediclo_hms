@@ -552,7 +552,7 @@ const AppointmentSchedulingPage = () => {
                 <option value="">Select a service</option>
                 {services.map((service) => (
                   <option key={service._id} value={service._id}>
-                    {service.name} - ${service.price}
+                    {service.name} - ₹{service.price}
                   </option>
                 ))}
               </select>
@@ -751,7 +751,7 @@ const AppointmentSchedulingPage = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
             <div>
               <label className="block text-[#1E437A] mb-2" htmlFor="paymentAmount">
-                Payment Amount ($)
+                Payment Amount (₹)
               </label>
               <input
                 type="number"

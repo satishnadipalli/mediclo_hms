@@ -363,7 +363,7 @@ const PatientsEnhancedPage: React.FC = () => {
             </div>
             <div>
               <p className="text-sm text-black text-gray-600">Total Revenue</p>
-              <p className="text-xl font-bold text-green-600">${paymentSummary.totalRevenue}</p>
+              <p className="text-xl font-bold text-green-600">₹{paymentSummary.totalRevenue}</p>
             </div>
           </div>
         </div>
@@ -489,11 +489,11 @@ const PatientsEnhancedPage: React.FC = () => {
                     <div className="space-y-1">
                       <div className="text-sm text-black">
                         <span className="font-medium text-gray-800">Owed:</span>{" "}
-                        <span className="text-red-600">${patient.totalOwed}</span>
+                        <span className="text-red-600">₹{patient.totalOwed}</span>
                       </div>
                       <div className="text-sm text-black">
                         <span className="font-medium text-gray-800">Paid:</span>{" "}
-                        <span className="text-green-600">${patient.totalPaid}</span>
+                        <span className="text-green-600">₹{patient.totalPaid}</span>
                       </div>
                       {patient.pendingPayments > 0 && (
                         <div className="text-xs text-orange-600">
@@ -676,7 +676,7 @@ const PaymentModal: React.FC<{
             </div>
             <div>
               <span className="font-medium text-gray-800">Total Owed:</span>{" "}
-              <span className="text-red-600 font-medium text-gray-800">${totalOwed}</span>
+              <span className="text-red-600 font-medium text-gray-800">₹{totalOwed}</span>
             </div>
             <div>
               <span className="font-medium text-gray-800">Pending Appointments:</span> {pendingAppointments.length}
@@ -709,12 +709,12 @@ const PaymentModal: React.FC<{
                         </div>
                         {appointment.payment.status === "partial" && (
                           <div className="text-xs text-orange-600">
-                            Paid: ${appointment.payment.paidAmount} of ${appointment.payment.amount}
+                            Paid: ₹{appointment.payment.paidAmount} of ₹{appointment.payment.amount}
                           </div>
                         )}
                       </div>
                       <div className="text-right">
-                        <div className="font-medium text-gray-800 text-sm text-black">${remaining}</div>
+                        <div className="font-medium text-gray-800 text-sm text-black">₹{remaining}</div>
                         <div className="text-xs text-gray-500">remaining</div>
                       </div>
                     </div>
@@ -773,7 +773,7 @@ const PaymentModal: React.FC<{
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] text-black"
                 placeholder="Enter amount"
               />
-              <div className="text-xs text-gray-500 mt-1">Selected total: ${calculateSelectedTotal()}</div>
+              <div className="text-xs text-gray-500 mt-1">Selected total: ₹{calculateSelectedTotal()}</div>
             </div>
             <div>
               <label className="block text-sm text-black font-medium text-gray-800 text-[#1E437A] mb-2">Payment Method</label>
@@ -805,7 +805,7 @@ const PaymentModal: React.FC<{
             ) : (
               <>
                 <CreditCard className="w-4 h-4" />
-                Process Payment (${paymentAmount})
+                Process Payment (₹{paymentAmount})
               </>
             )}
           </button>
@@ -884,11 +884,11 @@ const AppointmentsDetailModal: React.FC<{
             </div>
             <div>
               <span className="font-medium text-gray-800">Total Paid:</span>{" "}
-              <span className="text-green-600">${patient.totalPaid}</span>
+              <span className="text-green-600">₹{patient.totalPaid}</span>
             </div>
             <div>
               <span className="font-medium text-gray-800">Amount Owed:</span>{" "}
-              <span className="text-red-600">${patient.totalOwed}</span>
+              <span className="text-red-600">₹{patient.totalOwed}</span>
             </div>
           </div>
         </div>
@@ -918,7 +918,7 @@ const AppointmentsDetailModal: React.FC<{
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-black">
                 <div>
-                  <span className="font-medium text-gray-800">Amount:</span> ${appointment.payment.amount}
+                  <span className="font-medium text-gray-800">Amount:</span> ₹{appointment.payment.amount}
                 </div>
                 <div>
                   <span className="font-medium text-gray-800">Payment Status:</span>{" "}
@@ -938,7 +938,7 @@ const AppointmentsDetailModal: React.FC<{
               </div>
               {appointment.payment.status === "partial" && (
                 <div className="mt-2 text-sm text-black text-orange-600">
-                  Paid: ${appointment.payment.paidAmount} of ${appointment.payment.amount}
+                  Paid: ₹{appointment.payment.paidAmount} of ₹{appointment.payment.amount}
                 </div>
               )}
             </div>

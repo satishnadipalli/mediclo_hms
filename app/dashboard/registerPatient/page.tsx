@@ -395,10 +395,10 @@ const PatientRegistrationForm = () => {
           <div className="space-y-6">
             {/* Father's Information */}
             <div className="border-b border-gray-200 pb-6">
-              <h3 className="text-md font-medium text-gray-800 mb-4">Father's Information</h3>
+              {/* <h3 className="text-md font-medium text-gray-800 mb-4">Father's Information</h3> */}
               {/* Father's Name */}
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Father's Name</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Father Name</label>
                 <input
                   type="text"
                   name="parentInfo.name"
@@ -411,7 +411,7 @@ const PatientRegistrationForm = () => {
               </div>
               {/* Father's Contact Number */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Father's Contact Number</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Father Contact Number</label>
                 <input
                   type="tel"
                   name="parentInfo.phone"
@@ -426,10 +426,10 @@ const PatientRegistrationForm = () => {
 
             {/* Mother's Information */}
             <div className="border-b border-gray-200 pb-6">
-              <h3 className="text-md font-medium text-gray-800 mb-4">Mother's Information</h3>
+              {/* <h3 className="text-md font-medium text-gray-800 mb-4">Mother's Information</h3> */}
               {/* Mother's Name */}
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Mother's Name</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Mother Name</label>
                 <input
                   type="text"
                   name="parentInfo.motherName"
@@ -442,7 +442,7 @@ const PatientRegistrationForm = () => {
               </div>
               {/* Mother's Contact Number */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Mother's Contact Number</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Mother Contact Number</label>
                 <input
                   type="tel"
                   name="parentInfo.motherPhone"
@@ -457,7 +457,7 @@ const PatientRegistrationForm = () => {
 
             {/* Email Address */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Parent's Email Address</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Parent Email Address <span className="text-gray-500">{"(Optional)"}</span></label>
               <input
                 type="email"
                 name="parentInfo.email"
