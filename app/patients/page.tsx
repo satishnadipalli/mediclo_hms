@@ -294,6 +294,7 @@ const PatientDetailsModal: React.FC<{
                           <User className="w-4 h-4" />
                           Patient Photo
                         </h5>
+                        <a to={patient?.photo?.url} target="_blank" onClick={console.log("Hello")}>
                         <div className="relative group">
                           <img
                             src={patient.photo.url || "/placeholder.svg"}
@@ -301,17 +302,15 @@ const PatientDetailsModal: React.FC<{
                             className="w-full h-48 object-cover rounded-lg border-2 border-gray-200 cursor-pointer hover:border-blue-300 transition-colors"
                             onClick={() => window.open(patient.photo!.url, '_blank')}
                           />
-                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-colors flex items-center justify-center">
-                            <ZoomIn className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                          </div>
-                          <a to={patient.photo.url} target="_blank">
+                          
                           <div className="absolute bottom-2 right-2 bg-white/90 rounded-full p-1">
                             
                               <Eye className="w-4 h-4 text-gray-600" />
                            
                           </div>
-                           </a>
+                          
                         </div>
+                         </a>
                       </div>
                     )}
 
@@ -322,20 +321,22 @@ const PatientDetailsModal: React.FC<{
                           <FileText className="w-4 h-4" />
                           Birth Certificate
                         </h5>
-                        <div className="relative group">
+                        <a a to={patient?.birthCertificate?.url}>
+                                                  <div className="relative group">
                           <img
                             src={patient.birthCertificate.url || "/placeholder.svg"}
                             alt="Birth Certificate"
                             className="w-full h-48 object-cover rounded-lg border-2 border-gray-200 cursor-pointer hover:border-green-300 transition-colors"
                             onClick={() => window.open(patient.birthCertificate!.url, '_blank')}
                           />
-                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-colors flex items-center justify-center">
+                          {/* <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-colors flex items-center justify-center">
                             <ZoomIn className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                          </div>
+                          </div> */}
                           <div className="absolute bottom-2 right-2 bg-white/90 rounded-full p-1">
                             <Eye className="w-4 h-4 text-gray-600" />
                           </div>
                         </div>
+                        </a>
                       </div>
                     )}
 
