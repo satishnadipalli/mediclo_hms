@@ -1,7 +1,7 @@
 "use client"
 import type React from "react"
 import { useState, useEffect } from "react"
-import { Calendar, ChevronLeft, Search, Plus, X } from "lucide-react"
+import { Calendar, ChevronLeft, Search, Plus, X, AlertTriangle } from "lucide-react"
 import { toast } from "react-toastify"
 import { useRouter } from "next/navigation"
 
@@ -38,7 +38,7 @@ interface Patient {
   email: string
   address?: string
   childDOB?: string
-  childGender?: string
+  gender?: string
   parentInfo?: {
     name?: string
     phone?: string
@@ -56,6 +56,10 @@ const AppointmentSchedulingPage = () => {
   const [availableDoctors, setAvailableDoctors] = useState<Array<{ id: string; name: string }>>([])
   const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([])
   const [services, setServices] = useState<Array<{ _id: string; name: string; price: number }>>([])
+
+  // New state for conflict detection
+  const [conflictingSlots, setConflictingSlots] = useState<string[]>([])
+  const [patientConflicts, setPatientConflicts] = useState<{ [timeSlot: string]: string }>({})
 
   // Updated form data to support multiple dates
   const [formData, setFormData] = useState({
@@ -88,6 +92,71 @@ const AppointmentSchedulingPage = () => {
   const [currentDateInput, setCurrentDateInput] = useState("")
   const [isMultipleAppointments, setIsMultipleAppointments] = useState(false)
 
+  // New function to check for patient conflicts across all doctors and dates
+  const checkPatientConflicts = (patientId: string, dates: string[], timeSlot: string) => {
+    if (!patientId || dates.length === 0 || !timeSlot) return []
+
+    const conflicts: Array<{ date: string; doctor: string; doctorName: string }> = []
+
+    dates.forEach((date) => {
+      // Check if we have calendar data for this date
+      Object.keys(calendarData).forEach((doctorId) => {
+        const doctorSlots = calendarData[doctorId]?.slots
+        if (doctorSlots && doctorSlots[timeSlot]) {
+          const appointment = doctorSlots[timeSlot]
+          if (appointment && appointment.patientId === patientId) {
+            conflicts.push({
+              date,
+              doctor: doctorId,
+              doctorName: calendarData[doctorId]?.name || doctorId,
+            })
+          }
+        }
+      })
+    })
+
+    return conflicts
+  }
+
+  // New function to get all patient conflicts for all time slots
+  const getAllPatientConflicts = (patientId: string, dates: string[]) => {
+    if (!patientId || dates.length === 0) return { conflictingSlots: [], conflicts: {} }
+
+    const conflictingSlots: string[] = []
+    const conflicts: { [timeSlot: string]: string } = {}
+
+    // Get all possible time slots from any doctor
+    const allTimeSlots = new Set<string>()
+    Object.values(calendarData).forEach((doctorData) => {
+      if (doctorData?.slots) {
+        Object.keys(doctorData.slots).forEach((slot) => allTimeSlots.add(slot))
+      }
+    })
+
+    allTimeSlots.forEach((timeSlot) => {
+      dates.forEach((date) => {
+        Object.keys(calendarData).forEach((doctorId) => {
+          const doctorSlots = calendarData[doctorId]?.slots
+          if (doctorSlots && doctorSlots[timeSlot]) {
+            const appointment = doctorSlots[timeSlot]
+            if (appointment && appointment.patientId === patientId) {
+              if (!conflictingSlots.includes(timeSlot)) {
+                conflictingSlots.push(timeSlot)
+                conflicts[timeSlot] = `Already booked with ${calendarData[doctorId]?.name || "another doctor"}`
+              }
+            }
+          }
+        })
+      })
+    })
+
+    return { conflictingSlots, conflicts }
+  }
+
+  // New state for field validation
+  const [fieldErrors, setFieldErrors] = useState<{ [key: string]: boolean }>({})
+  const [showValidation, setShowValidation] = useState(false)
+
   // Existing functions remain the same...
   const fetchServices = async () => {
     try {
@@ -117,7 +186,6 @@ const AppointmentSchedulingPage = () => {
         throw new Error("Failed to fetch calendar data")
       }
       const apiResponse: CalendarApiResponse = await response.json()
-
       if (apiResponse.success) {
         setCalendarData(apiResponse.data)
         const doctorIds = Object.keys(apiResponse.data)
@@ -126,7 +194,6 @@ const AppointmentSchedulingPage = () => {
           name: apiResponse.data[id].name,
         }))
         setAvailableDoctors(doctorDetails)
-
         if (apiResponse.patients) {
           setPatients(apiResponse.patients)
           setFilteredPatients(apiResponse.patients)
@@ -153,61 +220,74 @@ const AppointmentSchedulingPage = () => {
 
   useEffect(() => {
     if (patientSearchTerm.trim() === "") {
-      setFilteredPatients(patients);
+      setFilteredPatients(patients)
     } else {
       const filtered = patients.filter((patient) => {
         // Handle different ways child name might be stored
-        const firstName = patient?.firstName || "";
-        const lastName = patient?.lastName || "";
-        const fullName = patient?.fullName || `${firstName} ${lastName}`.trim();
-        const childName = patient?.childName || fullName || "";
-
+        const firstName = patient?.firstName || ""
+        const lastName = patient?.lastName || ""
+        const fullName = patient?.fullName || `${firstName} ${lastName}`.trim()
+        const childName = patient?.childName || fullName || ""
         // Handle parent information
-        const parentName = patient?.parentName || patient?.parentInfo?.name || "";
-        const motherName = patient?.parentInfo?.motherName || "";
-
+        const parentName = patient?.parentName || patient?.parentInfo?.name || ""
+        const motherName = patient?.parentInfo?.motherName || ""
         // Handle contact information
-        const phone = patient?.contactNumber || patient?.parentInfo?.phone || "";
-        const motherPhone = patient?.parentInfo?.motherPhone || "";
-
+        const phone = patient?.contactNumber || patient?.parentInfo?.phone || ""
+        const motherPhone = patient?.parentInfo?.motherPhone || ""
         // Handle patient ID
-        const patientId = patient?._id || patient?.id || "";
-
+        const patientId = patient?._id || patient?.id || ""
         // Search term in lowercase for case-insensitive search
-        const searchTerm = patientSearchTerm.toLowerCase();
-
+        const searchTerm = patientSearchTerm.toLowerCase()
         return (
           // Search in child names
           firstName.toLowerCase().includes(searchTerm) ||
           lastName.toLowerCase().includes(searchTerm) ||
           fullName.toLowerCase().includes(searchTerm) ||
           childName.toLowerCase().includes(searchTerm) ||
-
           // Search in parent names
-          parentName.toLowerCase().includes(searchTerm) ||
+          parentName
+            .toLowerCase()
+            .includes(searchTerm) ||
           motherName.toLowerCase().includes(searchTerm) ||
-
           // Search in phone numbers
           phone.includes(patientSearchTerm) ||
           motherPhone.includes(patientSearchTerm) ||
-
           // Search in patient ID
-          patientId.toLowerCase().includes(searchTerm)
-        );
-      });
-      setFilteredPatients(filtered);
+          patientId
+            .toLowerCase()
+            .includes(searchTerm)
+        )
+      })
+      setFilteredPatients(filtered)
     }
-  }, [patientSearchTerm, patients]);
+  }, [patientSearchTerm, patients])
 
+  // Updated useEffect to include conflict checking
   useEffect(() => {
     if (formData.doctor && calendarData[formData.doctor]) {
       const doctorSlots = calendarData[formData.doctor].slots
       const availableSlots = Object.keys(doctorSlots).filter((timeSlot) => doctorSlots[timeSlot] === null)
-      setAvailableTimeSlots(availableSlots)
+
+      // Check for patient conflicts if a patient is selected
+      if (selectedPatient && formData.appointmentDates.length > 0) {
+        const { conflictingSlots, conflicts } = getAllPatientConflicts(selectedPatient._id, formData.appointmentDates)
+        setConflictingSlots(conflictingSlots)
+        setPatientConflicts(conflicts)
+
+        // Filter out conflicting slots from available slots
+        const nonConflictingSlots = availableSlots.filter((slot) => !conflictingSlots.includes(slot))
+        setAvailableTimeSlots(nonConflictingSlots)
+      } else {
+        setAvailableTimeSlots(availableSlots)
+        setConflictingSlots([])
+        setPatientConflicts({})
+      }
     } else {
       setAvailableTimeSlots([])
+      setConflictingSlots([])
+      setPatientConflicts({})
     }
-  }, [formData.doctor, calendarData])
+  }, [formData.doctor, calendarData, selectedPatient, formData.appointmentDates])
 
   useEffect(() => {
     fetchServices()
@@ -256,20 +336,46 @@ const AppointmentSchedulingPage = () => {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement> | React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault()
 
-    if (
-      !formData.doctor ||
-      formData.appointmentDates.length === 0 ||
-      !formData.timeSlot ||
-      !formData.serviceId
-    ) {
-      toast.error("Please fill in all required fields and provide consent")
+    // Reset previous validation
+    setFieldErrors({})
+    setShowValidation(false)
+
+    // Check for conflicts before submitting
+    if (selectedPatient && formData.appointmentDates.length > 0 && formData.timeSlot) {
+      const conflicts = checkPatientConflicts(selectedPatient._id, formData.appointmentDates, formData.timeSlot)
+      if (conflicts.length > 0) {
+        toast.error(`Patient already has an appointment at ${formData.timeSlot} with ${conflicts[0].doctorName}`)
+        return
+      }
+    }
+
+    // Validation logic
+    const errors: { [key: string]: boolean } = {}
+
+    if (!formData.doctor) errors.doctor = true
+    if (formData.appointmentDates.length === 0) errors.appointmentDates = true
+    if (!formData.timeSlot) errors.timeSlot = true
+    if (!formData.serviceId) errors.serviceId = true
+    if (!formData.consultationMode) errors.consultationMode = true
+    if (!formData.type) errors.type = true
+
+    // Check if patient is selected or manual entry is provided
+    if (!selectedPatient && (!formData.patientName || !formData.phone || !formData.email)) {
+      if (!formData.patientName) errors.patientName = true
+      if (!formData.phone) errors.phone = true
+      if (!formData.email) errors.email = true
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors)
+      setShowValidation(true)
+      toast.error("Please fill in all required fields")
       return
     }
 
     setLoading(true)
     try {
       const endTime = calculateEndTime(formData.timeSlot)
-
       // Updated appointment data to include multiple dates
       const appointmentData = {
         patientId: selectedPatient?._id,
@@ -380,7 +486,6 @@ const AppointmentSchedulingPage = () => {
             <label className="block text-[#1E437A] mb-2">
               {isMultipleAppointments ? "Select Multiple Dates *" : "Date *"}
             </label>
-
             {isMultipleAppointments ? (
               <div>
                 {/* Add Date Input */}
@@ -404,7 +509,6 @@ const AppointmentSchedulingPage = () => {
                     Add
                   </button>
                 </div>
-
                 {/* Selected Dates Display */}
                 {formData.appointmentDates.length > 0 && (
                   <div className="space-y-2">
@@ -443,7 +547,11 @@ const AppointmentSchedulingPage = () => {
                     })
                   }
                   min={new Date().toISOString().split("T")[0]}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D]"
+                  className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] ${
+                    showValidation && fieldErrors.appointmentDates
+                      ? "border-[#C83C92] ring-2 ring-[#C83C92] ring-opacity-50 animate-pulse"
+                      : "border-gray-300"
+                  }`}
                   placeholder="Select appointment date"
                   required
                 />
@@ -465,7 +573,11 @@ const AppointmentSchedulingPage = () => {
                 name="doctor"
                 value={formData.doctor}
                 onChange={handleInputChange}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none"
+                className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none ${
+                  showValidation && fieldErrors.doctor
+                    ? "border-[#C83C92] ring-2 ring-[#C83C92] ring-opacity-50 animate-pulse"
+                    : "border-gray-300"
+                }`}
                 required
                 disabled={formData.appointmentDates.length === 0}
               >
@@ -505,7 +617,11 @@ const AppointmentSchedulingPage = () => {
                 name="timeSlot"
                 value={formData.timeSlot}
                 onChange={handleInputChange}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none"
+                className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none ${
+                  showValidation && fieldErrors.timeSlot
+                    ? "border-[#C83C92] ring-2 ring-[#C83C92] ring-opacity-50 animate-pulse"
+                    : "border-gray-300"
+                }`}
                 disabled={!formData.doctor}
                 required
               >
@@ -531,8 +647,29 @@ const AppointmentSchedulingPage = () => {
                 </svg>
               </div>
             </div>
-            {formData.doctor && availableTimeSlots.length === 0 && (
+
+            {/* Show conflict warnings */}
+            {formData.doctor && availableTimeSlots.length === 0 && !selectedPatient && (
               <p className="text-sm text-red-500 mt-1">No available slots for selected doctor</p>
+            )}
+
+            {/* Show patient conflict information */}
+            {selectedPatient && conflictingSlots.length > 0 && (
+              <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm">
+                    <p className="text-yellow-800 font-medium mb-1">Patient has conflicting appointments:</p>
+                    <ul className="text-yellow-700 space-y-1">
+                      {conflictingSlots.map((slot) => (
+                        <li key={slot} className="text-xs">
+                          • {slot} - {patientConflicts[slot]}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
 
@@ -546,7 +683,11 @@ const AppointmentSchedulingPage = () => {
                 name="serviceId"
                 value={formData.serviceId}
                 onChange={handleInputChange}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none"
+                className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none ${
+                  showValidation && fieldErrors.serviceId
+                    ? "border-[#C83C92] ring-2 ring-[#C83C92] ring-opacity-50 animate-pulse"
+                    : "border-gray-300"
+                }`}
                 required
               >
                 <option value="">Select a service</option>
@@ -642,7 +783,7 @@ const AppointmentSchedulingPage = () => {
                             {patient?.contactNumber || patient?.parentInfo?.phone}
                           </div>
                           <div className="text-xs text-gray-500">
-                            ID: {patient?._id} | Gender: {patient?.childGender || "Not specified"}
+                            ID: {patient?._id} | Gender: {patient?.gender || "Not specified"}
                           </div>
                         </div>
                         <div className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">{patient?.status}</div>
@@ -690,7 +831,11 @@ const AppointmentSchedulingPage = () => {
                   name="consultationMode"
                   value={formData.consultationMode}
                   onChange={handleInputChange}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none"
+                  className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none ${
+                    showValidation && fieldErrors.consultationMode
+                      ? "border-[#C83C92] ring-2 ring-[#C83C92] ring-opacity-50 animate-pulse"
+                      : "border-gray-300"
+                  }`}
                   required
                 >
                   <option value="in-person">In-Person</option>
@@ -723,7 +868,11 @@ const AppointmentSchedulingPage = () => {
                   name="type"
                   value={formData.type}
                   onChange={handleInputChange}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none"
+                  className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none ${
+                    showValidation && fieldErrors.type
+                      ? "border-[#C83C92] ring-2 ring-[#C83C92] ring-opacity-50 animate-pulse"
+                      : "border-gray-300"
+                  }`}
                   required
                 >
                   <option value="initial assessment">Initial Assessment</option>
@@ -765,7 +914,6 @@ const AppointmentSchedulingPage = () => {
                 placeholder="Enter payment amount"
                 onWheel={(e) => e.target.blur()} // 👈 Prevent scroll-based changes
               />
-
             </div>
           </div>
           <div className="mb-4">
@@ -813,8 +961,6 @@ const AppointmentSchedulingPage = () => {
             </button>
           </div>
         </div>
-
-
       </form>
     </div>
   )

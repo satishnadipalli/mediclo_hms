@@ -765,10 +765,10 @@ const PaymentModal: React.FC<{
               <label className="block text-sm text-black font-medium text-gray-800 text-[#1E437A] mb-2">Payment Amount</label>
               <input
                 type="number"
-                value={paymentAmount}
+                value={paymentAmount || calculateSelectedTotal() || 0}
                 onChange={(e) => setPaymentAmount(Number(e.target.value))}
                 max={calculateSelectedTotal()}
-                min={0}
+                // min={0}
                 step="0.01"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] text-black"
                 placeholder="Enter amount"
@@ -783,8 +783,8 @@ const PaymentModal: React.FC<{
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] text-black"
               >
                 <option value="cash">Cash</option>
-                <option value="card">Card</option>
-                <option value="insurance">Insurance</option>
+                <option value="card">Upi</option>
+                {/* <option value="insurance">Insurance</option> */}
               </select>
             </div>
           </div>
@@ -794,7 +794,7 @@ const PaymentModal: React.FC<{
         <div className="flex gap-3">
           <button
             onClick={handleSubmit}
-            disabled={isProcessing || selectedAppointments.length === 0 || paymentAmount <= 0}
+            disabled={isProcessing || selectedAppointments.length === 0}
             className="flex-1 bg-[#C83C92] text-white py-2 px-4 rounded-lg font-medium text-gray-800 hover:bg-[#B8358A] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {isProcessing ? (
