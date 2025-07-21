@@ -14,7 +14,11 @@ import {
   TrendingUp,
   Download,
   RefreshCw,
+  User,
+  FileText,
+  ZoomIn,
 } from "lucide-react"
+import Link from "next/link"
 
 // Enhanced interfaces for comprehensive appointment and payment management
 interface AppointmentDetails {
@@ -53,6 +57,15 @@ interface PatientWithAppointments {
   childDOB?: string
   gender?: string
   childGender?: string
+  // Added photo and birth certificate fields
+  photo?: {
+    url: string
+    public_id: string
+  } | null
+  birthCertificate?: {
+    url: string
+    public_id: string
+  } | null
   parentInfo?: {
     name: string
     phone: string
@@ -90,6 +103,303 @@ interface PaymentModalData {
   customAmount?: number
 }
 
+// Image Modal Component
+const ImageModal: React.FC<{
+  isOpen: boolean
+  onClose: () => void
+  imageUrl: string
+  title: string
+  type: "photo" | "certificate"
+}> = ({ isOpen, onClose, imageUrl, title, type }) => {
+  if (!isOpen) return null
+
+  return (
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl mx-4 overflow-hidden">
+        {/* Header */}
+        <div className="flex justify-between items-center p-4 border-b border-gray-200">
+          <div className="flex items-center gap-3">
+            {type === "photo" ? (
+              <User className="w-5 h-5 text-blue-600" />
+            ) : (
+              <FileText className="w-5 h-5 text-green-600" />
+            )}
+            <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+
+        {/* Image Container */}
+        <div className="p-6 flex justify-center items-center bg-gray-50 min-h-[400px]">
+          <img
+            src={imageUrl || "/placeholder.svg"}
+            alt={title}
+            className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-lg"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement
+              target.src = "/placeholder.svg?height=400&width=400&text=Image+Not+Found"
+            }}
+          />
+        </div>
+
+        {/* Footer */}
+        <div className="p-4 border-t border-gray-200 flex justify-end">
+          <button
+            onClick={onClose}
+            className="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Patient Details Modal Component
+const PatientDetailsModal: React.FC<{
+  patient: PatientWithAppointments
+  isOpen: boolean
+  onClose: () => void
+}> = ({ patient, isOpen, onClose }) => {
+  const [showImageModal, setShowImageModal] = useState(false)
+  const [selectedImage, setSelectedImage] = useState<{
+    url: string
+    title: string
+    type: "photo" | "certificate"
+  } | null>(null)
+
+  const openImageModal = (url: string, title: string, type: "photo" | "certificate") => {
+    setSelectedImage({ url, title, type })
+    setShowImageModal(true)
+  }
+
+  if (!isOpen) return null
+
+  const getPatientName = (patient: PatientWithAppointments): string => {
+    if (patient.firstName && patient.lastName) {
+      return `${patient.firstName} ${patient.lastName}`
+    }
+    return patient.fullName || patient.childName || "Unknown"
+  }
+
+  const getParentName = (patient: PatientWithAppointments): string => {
+    return patient.parentInfo?.name || patient.parentName || "N/A"
+  }
+
+  const calculateAge = (dateOfBirth: string): string => {
+    if (!dateOfBirth) return "N/A"
+    const today = new Date()
+    const birthDate = new Date(dateOfBirth)
+    let age = today.getFullYear() - birthDate.getFullYear()
+    const monthDiff = today.getMonth() - birthDate.getMonth()
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--
+    }
+    return `${age} years`
+  }
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-40 p-4">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
+          {/* Header */}
+          <div className="flex justify-between items-center p-6 border-b border-gray-200">
+            <div className="flex items-center gap-3">
+              {patient.photo?.url ? (
+                <img
+                  src={patient.photo.url || "/placeholder.svg"}
+                  alt="Patient"
+                  className="w-12 h-12 rounded-full object-cover border-2 border-blue-200"
+                />
+              ) : (
+                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                  <User className="w-6 h-6 text-blue-600" />
+                </div>
+              )}
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900">{getPatientName(patient)}</h3>
+                <p className="text-sm text-gray-600">Patient Details</p>
+              </div>
+            </div>
+            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+              <X className="w-6 h-6 text-gray-500" />
+            </button>
+          </div>
+
+          {/* Patient Information */}
+          <div className="p-6 space-y-6">
+            {/* Basic Information */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <h4 className="text-lg font-semibold text-gray-900 border-b pb-2">Basic Information</h4>
+                <div className="space-y-3">
+                  <div>
+                    <span className="text-sm font-medium text-gray-600">Full Name:</span>
+                    <p className="text-gray-900">{getPatientName(patient)}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-600">Date of Birth:</span>
+                    <p className="text-gray-900">
+                      {patient.dateOfBirth ? new Date(patient.dateOfBirth).toLocaleDateString() : "N/A"}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-600">Age:</span>
+                    <p className="text-gray-900">{calculateAge(patient.dateOfBirth || "")}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-600">Gender:</span>
+                    <p className="text-gray-900 capitalize">{patient.gender || patient.childGender || "N/A"}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h4 className="text-lg font-semibold text-gray-900 border-b pb-2">Parent Information</h4>
+                <div className="space-y-3">
+                  <div>
+                    <span className="text-sm font-medium text-gray-600">Parent Name:</span>
+                    <p className="text-gray-900">{getParentName(patient)}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-600">Contact:</span>
+                    <p className="text-gray-900">{patient.parentInfo?.phone || patient.contactNumber || "N/A"}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-600">Email:</span>
+                    <p className="text-gray-900">{patient.parentInfo?.email || patient.email || "N/A"}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-600">Address:</span>
+                    <p className="text-gray-900">{patient.parentInfo?.address || "N/A"}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Documents Section */}
+            {
+              (patient.photo?.url || patient.birthCertificate?.url) && (
+                <div className="space-y-4">
+                  <h4 className="text-lg font-semibold text-gray-900 border-b pb-2">Documents & Photos</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                    {/* Patient Photo */}
+                    {patient?.photo?.url && (
+                      <div className="space-y-3">
+                        <h5 className="font-medium text-gray-700 flex items-center gap-2">
+                          <User className="w-4 h-4" />
+                          Patient Photo
+                        </h5>
+                        <div className="relative group">
+                          <img
+                            src={patient.photo.url || "/placeholder.svg"}
+                            alt="Patient Photo"
+                            className="w-full h-48 object-cover rounded-lg border-2 border-gray-200 cursor-pointer hover:border-blue-300 transition-colors"
+                            onClick={() => window.open(patient.photo!.url, '_blank')}
+                          />
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-colors flex items-center justify-center">
+                            <ZoomIn className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </div>
+                          <a to={patient.photo.url} target="_blank">
+                          <div className="absolute bottom-2 right-2 bg-white/90 rounded-full p-1">
+                            
+                              <Eye className="w-4 h-4 text-gray-600" />
+                           
+                          </div>
+                           </a>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Birth Certificate */}
+                    {patient?.birthCertificate?.url && (
+                      <div className="space-y-3">
+                        <h5 className="font-medium text-gray-700 flex items-center gap-2">
+                          <FileText className="w-4 h-4" />
+                          Birth Certificate
+                        </h5>
+                        <div className="relative group">
+                          <img
+                            src={patient.birthCertificate.url || "/placeholder.svg"}
+                            alt="Birth Certificate"
+                            className="w-full h-48 object-cover rounded-lg border-2 border-gray-200 cursor-pointer hover:border-green-300 transition-colors"
+                            onClick={() => window.open(patient.birthCertificate!.url, '_blank')}
+                          />
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-colors flex items-center justify-center">
+                            <ZoomIn className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </div>
+                          <div className="absolute bottom-2 right-2 bg-white/90 rounded-full p-1">
+                            <Eye className="w-4 h-4 text-gray-600" />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                  </div>
+                </div>
+              )
+            }
+
+
+
+
+            {/* Appointment Summary */}
+            <div className="space-y-4">
+              <h4 className="text-lg font-semibold text-gray-900 border-b pb-2">Appointment Summary</h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-blue-50 rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-blue-600">{patient.totalAppointments}</div>
+                  <div className="text-sm text-blue-700">Total Appointments</div>
+                </div>
+                <div className="bg-green-50 rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-green-600">{patient.completedAppointments}</div>
+                  <div className="text-sm text-green-700">Completed</div>
+                </div>
+                <div className="bg-yellow-50 rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-yellow-600">{patient.pendingPayments}</div>
+                  <div className="text-sm text-yellow-700">Pending Payments</div>
+                </div>
+                <div className="bg-red-50 rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-red-600">₹{patient.totalOwed}</div>
+                  <div className="text-sm text-red-700">Amount Owed</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="p-6 border-t border-gray-200 flex justify-end">
+            <button
+              onClick={onClose}
+              className="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Image Modal */}
+      {showImageModal && selectedImage && (
+        <ImageModal
+          isOpen={showImageModal}
+          onClose={() => {
+            setShowImageModal(false)
+            setSelectedImage(null)
+          }}
+          imageUrl={selectedImage.url}
+          title={selectedImage.title}
+          type={selectedImage.type}
+        />
+      )}
+    </>
+  )
+}
+
 const PatientsEnhancedPage: React.FC = () => {
   const [patients, setPatients] = useState<PatientWithAppointments[]>([])
   const [loading, setLoading] = useState<boolean>(true)
@@ -107,6 +417,7 @@ const PatientsEnhancedPage: React.FC = () => {
   // Modal states
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [showAppointmentsModal, setShowAppointmentsModal] = useState(false)
+  const [showPatientDetailsModal, setShowPatientDetailsModal] = useState(false)
   const [selectedPatient, setSelectedPatient] = useState<PatientWithAppointments | null>(null)
   const [paymentModalData, setPaymentModalData] = useState<PaymentModalData | null>(null)
   const [isProcessingPayment, setIsProcessingPayment] = useState(false)
@@ -116,7 +427,6 @@ const PatientsEnhancedPage: React.FC = () => {
     try {
       setLoading(true)
       setError(null)
-
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/with-appointments`, {
         method: "GET",
         headers: {
@@ -130,6 +440,7 @@ const PatientsEnhancedPage: React.FC = () => {
       }
 
       const apiResponse = await response.json()
+
       if (!apiResponse.success) {
         throw new Error("API returned unsuccessful response")
       }
@@ -184,6 +495,12 @@ const PatientsEnhancedPage: React.FC = () => {
     return patient.parentInfo?.phone || patient.contactNumber || "N/A"
   }
 
+  // Open patient details modal
+  const openPatientDetailsModal = (patient: PatientWithAppointments) => {
+    setSelectedPatient(patient)
+    setShowPatientDetailsModal(true)
+  }
+
   // Open payment modal
   const openPaymentModal = (patient: PatientWithAppointments, type: "single" | "partial" | "full" = "single") => {
     setSelectedPatient(patient)
@@ -232,13 +549,10 @@ const PatientsEnhancedPage: React.FC = () => {
       }
 
       const result = await response.json()
-
       // Refresh data
       await fetchPatientsWithAppointments()
-
       // Show success message
       alert(`Payment of $${paymentData.paymentAmount} processed successfully!`)
-
       setShowPaymentModal(false)
       setPaymentModalData(null)
     } catch (error) {
@@ -462,10 +776,48 @@ const PatientsEnhancedPage: React.FC = () => {
               {filteredPatients.map((patient) => (
                 <tr key={patient._id} className="border-b hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4">
-                    <div>
-                      <div className="font-medium text-gray-800 text-[#456696]">{getPatientName(patient)}</div>
-                      <div className="text-sm text-black text-gray-500">Parent: {getParentName(patient)}</div>
-                      <div className="text-sm text-black text-gray-500">Contact: {getContactInfo(patient)}</div>
+                    <div className="flex items-center gap-3">
+                      {/* Patient Photo */}
+                      {patient.photo?.url ? (
+                        <img
+                          src={patient.photo.url || "/placeholder.svg"}
+                          alt="Patient"
+                          className="w-10 h-10 rounded-full object-cover border-2 border-gray-200 cursor-pointer hover:border-blue-300 transition-colors"
+                          onClick={() => openPatientDetailsModal(patient)}
+                        />
+                      ) : (
+                        <div
+                          className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center cursor-pointer hover:bg-gray-200 transition-colors"
+                          onClick={() => openPatientDetailsModal(patient)}
+                        >
+                          <User className="w-5 h-5 text-gray-400" />
+                        </div>
+                      )}
+                      <div>
+                        <div
+                          className="font-medium text-gray-800 text-[#456696] cursor-pointer hover:text-blue-600 transition-colors"
+                          onClick={() => openPatientDetailsModal(patient)}
+                        >
+                          {getPatientName(patient)}
+                        </div>
+                        <div className="text-sm text-black text-gray-500">Parent: {getParentName(patient)}</div>
+                        <div className="text-sm text-black text-gray-500">Contact: {getContactInfo(patient)}</div>
+                        {/* Document indicators */}
+                        <div className="flex items-center gap-2 mt-1">
+                          {patient.photo?.url && (
+                            <span className="inline-flex items-center gap-1 text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
+                              <User className="w-3 h-3" />
+                              Photo
+                            </span>
+                          )}
+                          {patient.birthCertificate?.url && (
+                            <span className="inline-flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded">
+                              <FileText className="w-3 h-3" />
+                              Certificate
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </td>
                   <td className="px-6 py-4">
@@ -517,6 +869,12 @@ const PatientsEnhancedPage: React.FC = () => {
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex gap-2">
+                      <button
+                        onClick={() => openPatientDetailsModal(patient)}
+                        className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200 transition-colors"
+                      >
+                        View Details
+                      </button>
                       {patient.pendingPayments > 0 && (
                         <>
                           <button
@@ -547,6 +905,18 @@ const PatientsEnhancedPage: React.FC = () => {
         )}
       </div>
 
+      {/* Patient Details Modal */}
+      {showPatientDetailsModal && selectedPatient && (
+        <PatientDetailsModal
+          patient={selectedPatient}
+          isOpen={showPatientDetailsModal}
+          onClose={() => {
+            setShowPatientDetailsModal(false)
+            setSelectedPatient(null)
+          }}
+        />
+      )}
+
       {/* Payment Modal */}
       {showPaymentModal && paymentModalData && (
         <PaymentModal
@@ -576,7 +946,7 @@ const PatientsEnhancedPage: React.FC = () => {
   )
 }
 
-// Payment Modal Component (same as before)
+// Payment Modal Component (keeping existing implementation)
 const PaymentModal: React.FC<{
   data: PaymentModalData
   isOpen: boolean
@@ -744,7 +1114,7 @@ const PaymentModal: React.FC<{
                   }}
                   className="mr-2 text-[#C83C92] focus:ring-[#C83C92]"
                 />
-                <span style={{color:"black"}}>Full Payment</span>
+                <span style={{ color: "black" }}>Full Payment</span>
               </label>
               <label className="flex items-center">
                 <input
@@ -755,20 +1125,20 @@ const PaymentModal: React.FC<{
                   onChange={(e) => setPaymentType(e.target.value as "full" | "partial")}
                   className="mr-2 text-[#C83C92] focus:ring-[#C83C92]"
                 />
-                <span style={{color:"black"}}>Partial Payment</span>
+                <span style={{ color: "black" }}>Partial Payment</span>
               </label>
             </div>
           </div>
-
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm text-black font-medium text-gray-800 text-[#1E437A] mb-2">Payment Amount</label>
+              <label className="block text-sm text-black font-medium text-gray-800 text-[#1E437A] mb-2">
+                Payment Amount
+              </label>
               <input
                 type="number"
                 value={paymentAmount || calculateSelectedTotal() || 0}
                 onChange={(e) => setPaymentAmount(Number(e.target.value))}
                 max={calculateSelectedTotal()}
-                // min={0}
                 step="0.01"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] text-black"
                 placeholder="Enter amount"
@@ -776,7 +1146,9 @@ const PaymentModal: React.FC<{
               <div className="text-xs text-gray-500 mt-1">Selected total: ₹{calculateSelectedTotal()}</div>
             </div>
             <div>
-              <label className="block text-sm text-black font-medium text-gray-800 text-[#1E437A] mb-2">Payment Method</label>
+              <label className="block text-sm text-black font-medium text-gray-800 text-[#1E437A] mb-2">
+                Payment Method
+              </label>
               <select
                 value={paymentMethod}
                 onChange={(e) => setPaymentMethod(e.target.value)}
@@ -784,7 +1156,6 @@ const PaymentModal: React.FC<{
               >
                 <option value="cash">Cash</option>
                 <option value="card">Upi</option>
-                {/* <option value="insurance">Insurance</option> */}
               </select>
             </div>
           </div>
@@ -822,7 +1193,7 @@ const PaymentModal: React.FC<{
   )
 }
 
-// Appointments Detail Modal Component (same as before)
+// Appointments Detail Modal Component (keeping existing implementation)
 const AppointmentsDetailModal: React.FC<{
   patient: PatientWithAppointments
   isOpen: boolean
@@ -944,7 +1315,6 @@ const AppointmentsDetailModal: React.FC<{
             </div>
           ))}
         </div>
-
         {patient.appointments.length === 0 && (
           <div className="text-center py-8 text-gray-500">No appointments found for this patient.</div>
         )}

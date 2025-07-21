@@ -2,7 +2,7 @@
 import type React from "react"
 
 import { useEffect, useState } from "react"
-import { ChevronDown, LogOut, User, Briefcase } from "lucide-react"
+import { ChevronDown, LogOut, User, Briefcase, Menu } from "lucide-react"
 import { useRouter } from "next/navigation" // Import useRouter for navigation
 
 interface NavbarProps {
@@ -46,7 +46,9 @@ const Navbar: React.FC<NavbarProps> = ({ isOpen, setIsOpen, userDetails, setUser
         isOpen && userDetails ? "w-[calc(100%-280px)] ml-[280px]" : "w-full ml-0"
       } h-16 flex items-center justify-between px-6 bg-white fixed top-0 z-10 border-b border-gray-200`}
     >
-      <h1 className="text-[#1E437A] font-bold text-2xl">Hospital Management System</h1>
+      
+      
+      <h1 className="text-[#1E437A] font-bold text-2xl flex items-center gap-10"> <div onClick={()=>setIsOpen(prev=>!prev)}><Menu color="purple"/></div> Hospital Management System</h1>
       <div className="flex items-center space-x-8 relative">
         <div
           className="flex items-center space-x-2 cursor-pointer"

@@ -34,14 +34,14 @@ interface CalendarAppointment {
   patientName: string
   type: "initial assessment" | "therapy session" | "follow-up" | "other"
   status:
-  | "scheduled"
-  | "rescheduled"
-  | "cancelled"
-  | "no-show"
-  | "pending-assignment"
-  | "pending_confirmation"
-  | "converted"
-  | "completed"
+    | "scheduled"
+    | "rescheduled"
+    | "cancelled"
+    | "no-show"
+    | "pending-assignment"
+    | "pending_confirmation"
+    | "converted"
+    | "completed"
   duration: number
   // Payment information
   payment: {
@@ -132,7 +132,6 @@ const StatusUpdateModal: React.FC<{
     if (status === "completed" && sessionsCompleted === 0) {
       errors.push("At least one session must be completed when marking as completed")
     }
-
     setValidationErrors(errors)
     return errors.length === 0
   }
@@ -142,7 +141,6 @@ const StatusUpdateModal: React.FC<{
       toast.error("Please fix the validation errors")
       return
     }
-
     setIsUpdating(true)
     try {
       const updates = {
@@ -155,7 +153,6 @@ const StatusUpdateModal: React.FC<{
         notes,
         sessionsCompleted,
       }
-
       await onUpdate(appointment?.id, updates)
       onClose()
       // Show success message based on status
@@ -334,7 +331,6 @@ const StatusUpdateModal: React.FC<{
             />
           </div>
           {/* Sessions Completed */}
-
           {/* Notes */}
           <div>
             <label className="block text-sm font-medium text-black mb-2">Notes</label>
@@ -433,7 +429,6 @@ const RescheduleModal: React.FC<{
   // Fetch available slots when date changes
   const fetchAvailableSlots = async (selectedDate: string, doctorId: string) => {
     if (!selectedDate || !doctorId) return
-
     setLoadingSlots(true)
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/by-date?date=${selectedDate}`, {
@@ -441,11 +436,9 @@ const RescheduleModal: React.FC<{
           Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
         },
       })
-
       if (!response.ok) {
         throw new Error("Failed to fetch availability")
       }
-
       const apiResponse = await response.json()
       if (apiResponse.success && apiResponse.data[doctorId]) {
         const doctorSlots = apiResponse.data[doctorId].slots
@@ -489,9 +482,7 @@ const RescheduleModal: React.FC<{
       toast.error("Please select date and time")
       return
     }
-
     if (!appointment) return
-
     try {
       await onReschedule(appointment.id, {
         date: rescheduleData.date,
@@ -547,7 +538,6 @@ const RescheduleModal: React.FC<{
                   <span className="font-medium">{appointment?.duration} minutes</span>
                 </p>
               </div>
-
             </div>
           </div>
           {/* New Date Selection */}
@@ -662,7 +652,6 @@ const ReceptionistDashboard = () => {
   }, [])
 
   const handleStatusUpdate = async (id: string, newStatus: string) => {
-
     console.log("zymy")
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/${id}/status`, {
@@ -688,7 +677,7 @@ const ReceptionistDashboard = () => {
   }
 
   return (
-    <div className="p-6 max-w-[84%] mt-15 ml-70 mx-auto hide-scrollbar">
+    <div className="p-6 max-w-[70%] mt-15 ml-70 mx-auto hide-scrollbar">
       <h1 className="text-2xl font-bold text-[#1E437A] mb-6">Hello, Receptionist!</h1>
       <div className="flex gap-4 mb-6">
         <button
@@ -742,7 +731,7 @@ const DoctorScheduleTable: React.FC = () => {
 
   // Enhanced appointment update handler - SINGLE APPOINTMENT UPDATE
   const handleAppointmentUpdate = async (appointmentId: string, updates: any) => {
-        console.log("sfkj")
+    console.log("sfkj")
     try {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/appointments/updateappointment/${appointmentId}`,
@@ -755,14 +744,11 @@ const DoctorScheduleTable: React.FC = () => {
           body: JSON.stringify(updates),
         },
       )
-
       if (!response.ok) {
         const errorData = await response.json()
         throw new Error(errorData.message || "Failed to update appointment")
       }
-
       const result = await response.json()
-
       // Update local state with the updated appointment data
       setScheduleData((prevData) => {
         const newData = { ...prevData }
@@ -788,7 +774,6 @@ const DoctorScheduleTable: React.FC = () => {
         })
         return newData
       })
-
       // Refresh the calendar to get latest data
       setTimeout(() => {
         fetchCalendarData()
@@ -810,12 +795,10 @@ const DoctorScheduleTable: React.FC = () => {
         },
         body: JSON.stringify(rescheduleData),
       })
-
       if (!response.ok) {
         const errorData = await response.json()
         throw new Error(errorData.message || "Failed to reschedule appointment")
       }
-
       setShowRescheduleModal(false)
       setSelectedAppointment(null)
       fetchCalendarData() // Refresh the calendar
@@ -844,23 +827,19 @@ const DoctorScheduleTable: React.FC = () => {
           },
         },
       )
-
       if (!response.ok) {
         throw new Error("Failed to fetch calendar data")
       }
-
       const apiResponse: CalendarApiResponse = await response.json()
       if (apiResponse.success) {
         setScheduleData(apiResponse.data)
         if (Object.keys(apiResponse.data).length === 0) {
           console.log("No calendar data available")
         }
-
         // Extract doctors and time slots from API response
         const doctorNames = Object.keys(apiResponse.data)
         const firstDoctorSlots = doctorNames.length > 0 ? Object.keys(apiResponse.data[doctorNames[0]]) : []
         setTimeSlots(firstDoctorSlots)
-
         // Create doctor objects with colors
         const doctorColors = ["blue", "pink", "green", "purple", "indigo", "orange", "teal"]
         const doctorsData = doctorNames.map((name, index) => ({
@@ -898,7 +877,6 @@ const DoctorScheduleTable: React.FC = () => {
       orange: "bg-orange-100 border-orange-300 text-orange-800",
       teal: "bg-teal-100 border-teal-300 text-teal-800",
     }
-
     // Status-based styling
     if (appointment?.status === "completed") {
       return "bg-green-100 border-green-400 text-green-800 ring-2 ring-green-200"
@@ -909,7 +887,6 @@ const DoctorScheduleTable: React.FC = () => {
     if (appointment?.status === "no-show") {
       return "bg-orange-100 border-orange-400 text-orange-800 ring-2 ring-orange-200"
     }
-
     // Type-based styling for scheduled appointments
     if (appointment?.type === "initial assessment") {
       return "bg-blue-100 border-blue-400 text-blue-800 ring-2 ring-blue-200"
@@ -917,7 +894,6 @@ const DoctorScheduleTable: React.FC = () => {
     if (appointment?.type === "therapy session") {
       return "bg-purple-100 border-purple-400 text-purple-800 ring-2 ring-purple-200"
     }
-
     return baseColors[doctorColor as keyof typeof baseColors] || "bg-gray-100 border-gray-300 text-gray-800"
   }
 
@@ -956,7 +932,6 @@ const DoctorScheduleTable: React.FC = () => {
     if (!confirm("Are you sure you want to delete this appointment?")) {
       return
     }
-
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/${appointmentId}`, {
         method: "DELETE",
@@ -964,11 +939,9 @@ const DoctorScheduleTable: React.FC = () => {
           Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
         },
       })
-
       if (!response.ok) {
         throw new Error("Failed to delete appointment")
       }
-
       toast.success("Appointment deleted successfully")
       fetchCalendarData()
     } catch (error) {
@@ -1019,7 +992,7 @@ const DoctorScheduleTable: React.FC = () => {
   }
 
   return (
-    <div className="p-2 bg-gradient-to-br font-sans from-slate-50 to-blue-50 min-h-screen">
+    <div className="p-2 bg-gradient-to-br font-sans from-slate-50 to-blue-50 min-h-screen ">
       <div className="max-w-full mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -1078,11 +1051,39 @@ const DoctorScheduleTable: React.FC = () => {
             </div>
           </div>
         </div>
-
-        {/* Schedule Table */}
+        {/* Schedule Table with Enhanced Horizontal Scroll */}
         <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
+          {/* Custom Scroll Container with Enhanced Styling */}
+          <div
+            className="overflow-x-auto scrollbar-smooth"
+            style={{
+              scrollBehavior: "smooth",
+              scrollbarWidth: "thin",
+              scrollbarColor: "#C83C92 #f1f5f9",
+            }}
+          >
+            <style jsx>{`
+              .scrollbar-smooth::-webkit-scrollbar {
+                height: 12px;
+              }
+              .scrollbar-smooth::-webkit-scrollbar-track {
+                background: #f1f5f9;
+                border-radius: 6px;
+                margin: 0 10px;
+              }
+              .scrollbar-smooth::-webkit-scrollbar-thumb {
+                background: linear-gradient(90deg, #C83C92, #9333ea);
+                border-radius: 6px;
+                border: 2px solid #f1f5f9;
+              }
+              .scrollbar-smooth::-webkit-scrollbar-thumb:hover {
+                background: linear-gradient(90deg, #a21e6b, #7c3aed);
+              }
+              .scrollbar-smooth::-webkit-scrollbar-corner {
+                background: #f1f5f9;
+              }
+            `}</style>
+            <table className="w-full ">
               {/* Table Header */}
               <thead>
                 <tr>
@@ -1210,8 +1211,13 @@ const DoctorScheduleTable: React.FC = () => {
               </tbody>
             </table>
           </div>
+          {/* Scroll Indicator */}
+          <div className="bg-gray-50 px-4 py-2 border-t border-gray-200">
+            <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
+              <span>← Scroll horizontally to view all doctors →</span>
+            </div>
+          </div>
         </div>
-
         {/* Selected Slot Info */}
         {selectedSlot && (
           <div className="mt-6 p-4 bg-white rounded-xl shadow-lg border border-blue-200">
@@ -1243,7 +1249,6 @@ const DoctorScheduleTable: React.FC = () => {
             </div>
           </div>
         )}
-
         {/* Enhanced Doctor Statistics */}
         <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {doctors.slice(0, 4).map((doctor) => {
@@ -1255,7 +1260,6 @@ const DoctorScheduleTable: React.FC = () => {
             const totalRevenue = doctorAppointments
               .filter((apt) => apt.payment?.status === "paid")
               .reduce((sum, apt) => sum + apt.payment?.amount, 0)
-
             return (
               <div key={doctor.name} className="p-4 bg-white rounded-xl shadow-sm border">
                 <div className="flex items-center gap-3 mb-3">
@@ -1289,9 +1293,7 @@ const DoctorScheduleTable: React.FC = () => {
             )
           })}
         </div>
-
       </div>
-
       {/* Status Update Modal */}
       <StatusUpdateModal
         appointment={selectedAppointment!}
@@ -1302,7 +1304,6 @@ const DoctorScheduleTable: React.FC = () => {
         }}
         onUpdate={handleAppointmentUpdate}
       />
-
       {/* Enhanced Reschedule Modal with Availability Checking */}
       <RescheduleModal
         appointment={selectedAppointment}
