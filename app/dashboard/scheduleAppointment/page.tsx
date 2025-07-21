@@ -763,7 +763,9 @@ const AppointmentSchedulingPage = () => {
                 step="0.01"
                 className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D]"
                 placeholder="Enter payment amount"
+                onWheel={(e) => e.target.blur()} // 👈 Prevent scroll-based changes
               />
+
             </div>
           </div>
           <div className="mb-4">
@@ -799,20 +801,20 @@ const AppointmentSchedulingPage = () => {
             </div>
           </div>
           <div className="flex mt-10 justify-end mb-6">
-        <button
-          className="flex items-center gap-2 bg-[#C83C92] text-white px-4 py-2 rounded-lg font-medium disabled:opacity-50"
-          onClick={handleSubmit}
-          disabled={loading}
-        >
-          <Calendar className="w-5 h-5" />
-          {loading
-            ? "Scheduling..."
-            : `Schedule ${formData.appointmentDates.length || 1} Appointment${formData.appointmentDates.length > 1 ? "s" : ""} & Send Notification`}
-        </button>
-      </div>
+            <button
+              className="flex items-center gap-2 bg-[#C83C92] text-white px-4 py-2 rounded-lg font-medium disabled:opacity-50"
+              onClick={handleSubmit}
+              disabled={loading}
+            >
+              <Calendar className="w-5 h-5" />
+              {loading
+                ? "Scheduling..."
+                : `Schedule ${formData.appointmentDates.length || 1} Appointment${formData.appointmentDates.length > 1 ? "s" : ""} & Send Notification`}
+            </button>
+          </div>
         </div>
 
-        
+
       </form>
     </div>
   )

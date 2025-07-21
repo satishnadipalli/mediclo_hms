@@ -116,7 +116,7 @@ const RescheduleAppointmentModal: React.FC<{
                     value={formData.reason}
                     onChange={handleInputChange}
                     className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-50 text-gray-700 min-h-32"
-                    placeholder="Enter reason for rescheduling..."
+                    placeholder=""
                   />
                 </div>
                 

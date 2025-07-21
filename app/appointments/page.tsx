@@ -743,14 +743,6 @@ const AppointmentsEnhancedPage: React.FC = () => {
                       </div>
                     </div>
                   </td>
-                  {/* <td className="px-6 py-4">
-                    <div className="text-sm">
-                      <div className="font-medium text-[#456696]">
-                        {appointment.sessionsCompleted}/{appointment.totalSessions}
-                      </div>
-                      <div className="text-xs text-gray-500">Paid: {appointment.sessionsPaid}</div>
-                    </div>
-                  </td> */}
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
                       <button

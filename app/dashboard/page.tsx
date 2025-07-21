@@ -1,7 +1,7 @@
 "use client"
 import type React from "react"
 import { useState, useEffect } from "react"
-import { Calendar, Plus, Clock, User, Edit3, Trash2, X, CheckCircle, DollarSign, AlertCircle } from "lucide-react"
+import { Calendar, Plus, Clock, User, Edit3, Trash2, X, CheckCircle, Banknote, AlertCircle } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { toast } from "react-toastify"
@@ -620,7 +620,7 @@ const RescheduleModal: React.FC<{
               style={{ color: "black" }}
               value={rescheduleData.reason}
               onChange={(e) => setRescheduleData((prev) => ({ ...prev, reason: e.target.value }))}
-              placeholder="Enter reason for rescheduling..."
+              placeholder=""
               rows={3}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
             />
@@ -662,6 +662,8 @@ const ReceptionistDashboard = () => {
   }, [])
 
   const handleStatusUpdate = async (id: string, newStatus: string) => {
+
+    console.log("zymy")
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/${id}/status`, {
         method: "PUT",
@@ -740,6 +742,7 @@ const DoctorScheduleTable: React.FC = () => {
 
   // Enhanced appointment update handler - SINGLE APPOINTMENT UPDATE
   const handleAppointmentUpdate = async (appointmentId: string, updates: any) => {
+        console.log("sfkj")
     try {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/appointments/updateappointment/${appointmentId}`,
@@ -982,11 +985,11 @@ const DoctorScheduleTable: React.FC = () => {
   const getPaymentStatusIcon = (paymentStatus: string) => {
     switch (paymentStatus) {
       case "paid":
-        return <DollarSign className="w-3 h-3 text-green-600" />
+        return <Banknote className="w-3 h-3 text-green-600" />
       case "pending":
         return <AlertCircle className="w-3 h-3 text-yellow-600" />
       case "refunded":
-        return <DollarSign className="w-3 h-3 text-red-600" />
+        return <Banknote className="w-3 h-3 text-red-600" />
       default:
         return <AlertCircle className="w-3 h-3 text-gray-400" />
     }
@@ -1062,7 +1065,7 @@ const DoctorScheduleTable: React.FC = () => {
               <span className="text-sm text-black">Completed</span>
             </div>
             <div className="flex items-center gap-2">
-              <DollarSign className="w-4 h-4 text-green-600" />
+              <Banknote className="w-4 h-4 text-green-600" />
               <span className="text-sm text-black">Paid</span>
             </div>
             <div className="flex items-center gap-2">
