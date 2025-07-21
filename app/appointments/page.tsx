@@ -571,12 +571,6 @@ const AppointmentsEnhancedPage: React.FC = () => {
             <RefreshCw className="w-4 h-4" />
             Refresh
           </button>
-          <Link href="/dashboard/scheduleAppointment">
-            <button className="flex items-center gap-2 bg-[#C83C92] text-white px-4 py-2 rounded-lg font-medium hover:bg-[#B8358A] transition-colors">
-              <Plus className="w-4 h-4" />
-              New Appointment
-            </button>
-          </Link>
         </div>
       </div>
 
