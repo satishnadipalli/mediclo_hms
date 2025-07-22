@@ -12,7 +12,7 @@ interface UserDetails {
 }
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
-    const [isOpen, setIsOpen] = useState(false); // Sidebar state
+    const [isOpen, setIsOpen] = useState(true); // Sidebar state
     const [userDetails, setUserDetails] = useState<UserDetails | null>(null);
 
   

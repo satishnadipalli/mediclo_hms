@@ -1087,7 +1087,7 @@ const DoctorScheduleTable: React.FC = () => {
               {/* Table Header */}
               <thead>
                 <tr>
-                  <th className="p-4 bg-gradient-to-r from-slate-600 to-slate-700 text-left sticky left-0 z-10 min-w-[120px]">
+                  <th className="p-4 bg-gradient-to-r from-slate-600 to-slate-700 text-left sticky left-0 z-8 min-w-[120px]">
                     <div className="flex items-center gap-2 text-white font-semibold">
                       <Clock className="w-5 h-5" />
                       Time
@@ -1117,7 +1117,7 @@ const DoctorScheduleTable: React.FC = () => {
                     className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${timeIndex % 2 === 0 ? "bg-gray-25" : "bg-white"}`}
                   >
                     {/* Time Column */}
-                    <td className="p-4 border-r border-gray-200 bg-slate-50 sticky left-0 z-10 min-w-[120px]">
+                    <td className="p-4 border-r border-gray-200 bg-slate-50 sticky left-0 z-8 min-w-[120px]">
                       <div className="flex items-center gap-2">
                         <div className="w-3 h-3 bg-slate-400 rounded-full"></div>
                         <span className="font-medium text-black text-sm">{formatTime(time)}</span>
@@ -1226,9 +1226,11 @@ const DoctorScheduleTable: React.FC = () => {
             </h3>
             <div className="flex gap-3">
               {!scheduleData[selectedSlot.doctor]?.[selectedSlot.time] ? (
-                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                <Link href={"/dashboard/scheduleAppointment"}>
+                  <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
                   Book Appointment
                 </button>
+                </Link>
               ) : (
                 <button
                   className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
