@@ -1,6 +1,7 @@
 "use client"
+
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import {
   Search,
   Calendar,
@@ -12,7 +13,6 @@ import {
   Download,
   RefreshCw,
   Eye,
-  Edit3,
   CheckCircle,
   XCircle,
   AlertCircle,
@@ -20,10 +20,38 @@ import {
   TrendingUp,
   CalendarDays,
   Stethoscope,
-  Plus,
   MoreHorizontal,
 } from "lucide-react"
-import Link from "next/link"
+
+// Toast notification system (simple implementation)
+const showToast = (message: string, type: "success" | "error" | "info" = "info") => {
+  // Create toast element
+  const toast = document.createElement("div")
+  toast.className = `fixed top-4 right-4 z-50 px-4 py-2 rounded-lg text-white font-medium transition-all duration-300 ${
+    type === "success" ? "bg-green-500" : type === "error" ? "bg-red-500" : "bg-blue-500"
+  }`
+  toast.textContent = message
+
+  // Add to DOM
+  document.body.appendChild(toast)
+
+  // Animate in
+  setTimeout(() => {
+    toast.style.transform = "translateX(0)"
+    toast.style.opacity = "1"
+  }, 100)
+
+  // Remove after 3 seconds
+  setTimeout(() => {
+    toast.style.transform = "translateX(100%)"
+    toast.style.opacity = "0"
+    setTimeout(() => {
+      if (document.body.contains(toast)) {
+        document.body.removeChild(toast)
+      }
+    }, 300)
+  }, 3000)
+}
 
 // Enhanced interfaces for comprehensive appointment management
 interface AppointmentDetails {
@@ -52,12 +80,12 @@ interface AppointmentDetails {
     price: number
   }
   type: "initial assessment" | "therapy session" | "follow-up" | "other"
-  status: "scheduled" | "completed" | "cancelled" | "no-show" | "rescheduled"
+  status: "scheduled" | "completed" | "cancelled" | "no-show" | "rescheduled" | "confirmed"
   consultationMode: "in-person" | "video-call" | "phone"
   payment: {
     amount: number
     status: "pending" | "paid" | "partial" | "refunded"
-    method: "cash" | "card" | "insurance" | "not_specified"
+    method: "cash" | "card" | "insurance" | "not_specified" | "upi"
     paidAmount?: number
   }
   totalSessions: number
@@ -88,9 +116,84 @@ interface FilterOptions {
   consultationMode: string
 }
 
+// Status dropdown component
+const StatusDropdown: React.FC<{
+  currentStatus: string
+  appointmentId: string
+  onStatusUpdate: (appointmentId: string, newStatus: string) => void
+  onClose: () => void
+  position: { x: number; y: number }
+}> = ({ currentStatus, appointmentId, onStatusUpdate, onClose, position }) => {
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  const statusOptions = [
+    { value: "scheduled", label: "Scheduled", color: "text-blue-600", icon: Clock },
+    { value: "confirmed", label: "Confirmed", color: "text-green-600", icon: CheckCircle },
+    { value: "completed", label: "Completed", color: "text-green-700", icon: CheckCircle },
+  ]
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        onClose()
+      }
+    }
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose()
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside)
+    document.addEventListener("keydown", handleEscape)
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+      document.removeEventListener("keydown", handleEscape)
+    }
+  }, [onClose])
+
+  const handleStatusSelect = (newStatus: string) => {
+    if (newStatus !== currentStatus) {
+      onStatusUpdate(appointmentId, newStatus)
+    }
+    onClose()
+  }
+
+  return (
+    <div
+      ref={dropdownRef}
+      className="fixed bg-white border border-gray-200 rounded-lg shadow-xl py-2 z-50 min-w-[160px] animate-in fade-in duration-200"
+      style={{
+        left: `${Math.min(position.x, window.innerWidth - 180)}px`,
+        top: `${Math.min(position.y, window.innerHeight - 250)}px`,
+      }}
+    >
+      <div className="px-3 py-2 text-xs font-medium text-gray-500 border-b border-gray-100">Update Status</div>
+      {statusOptions.map((option) => {
+        const IconComponent = option.icon
+        return (
+          <button
+            key={option.value}
+            onClick={() => handleStatusSelect(option.value)}
+            className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2 ${
+              option.value === currentStatus ? "bg-blue-50 font-medium" : ""
+            } ${option.color}`}
+          >
+            <IconComponent className="w-3 h-3" />
+            <span className="flex-1">{option.label}</span>
+            {option.value === currentStatus && <CheckCircle className="w-3 h-3 text-blue-600" />}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 const AppointmentsEnhancedPage: React.FC = () => {
   const [appointments, setAppointments] = useState<AppointmentDetails[]>([])
   const [loading, setLoading] = useState<boolean>(true)
+  const [updating, setUpdating] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState<string>("")
   const [filters, setFilters] = useState<FilterOptions>({
@@ -115,33 +218,53 @@ const AppointmentsEnhancedPage: React.FC = () => {
   const [selectedAppointment, setSelectedAppointment] = useState<AppointmentDetails | null>(null)
   const [showFilters, setShowFilters] = useState(false)
 
+  // Status dropdown states
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false)
+  const [statusDropdownData, setStatusDropdownData] = useState<{
+    appointmentId: string
+    currentStatus: string
+    position: { x: number; y: number }
+  } | null>(null)
+
+  // Double-click tracking
+  const [lastClickTime, setLastClickTime] = useState<{ [key: string]: number }>({})
+  const [clickTimeouts, setClickTimeouts] = useState<{ [key: string]: NodeJS.Timeout }>({})
+
   // Fetch appointments data
   const fetchAppointments = async () => {
     try {
       setLoading(true)
       setError(null)
 
+      const token = localStorage.getItem("receptionToken")
+      if (!token) {
+        throw new Error("Authentication token not found")
+      }
+
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
+          Authorization: `Bearer ${token}`,
         },
       })
 
       if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error("Authentication failed. Please login again.")
+        }
         throw new Error(`HTTP error! status: ${response.status}`)
       }
 
       const apiResponse = await response.json()
-      console.log(apiResponse);
-      
+      console.log("API Response:", apiResponse)
+
       if (!apiResponse.success) {
-        throw new Error("API returned unsuccessful response")
+        throw new Error(apiResponse.message || "API returned unsuccessful response")
       }
 
       // Transform the data to match our interface
-      const transformedAppointments = apiResponse.data.map((apt: any) => ({
+      const transformedAppointments = (apiResponse.data || []).map((apt: any) => ({
         _id: apt._id,
         id: apt._id,
         date: apt.date,
@@ -185,7 +308,9 @@ const AppointmentsEnhancedPage: React.FC = () => {
       calculateSummary(transformedAppointments)
     } catch (err) {
       console.error("Error fetching appointments:", err)
-      setError(err instanceof Error ? err.message : "Failed to fetch appointments")
+      const errorMessage = err instanceof Error ? err.message : "Failed to fetch appointments"
+      setError(errorMessage)
+      showToast(errorMessage, "error")
     } finally {
       setLoading(false)
     }
@@ -203,7 +328,7 @@ const AppointmentsEnhancedPage: React.FC = () => {
         if (apt.status === "completed") {
           acc.completedAppointments += 1
         }
-        if (apt.status === "scheduled" || apt.status === "rescheduled") {
+        if (apt.status === "scheduled" || apt.status === "rescheduled" || apt.status === "confirmed") {
           acc.pendingAppointments += 1
         }
         if (apt.status === "cancelled" || apt.status === "no-show") {
@@ -232,6 +357,140 @@ const AppointmentsEnhancedPage: React.FC = () => {
     setSummary(summary)
   }
 
+  // Handle status click (double-click detection)
+  const handleStatusClick = (event: React.MouseEvent, appointmentId: string, currentStatus: string) => {
+    event.preventDefault()
+    event.stopPropagation()
+
+    const now = Date.now()
+    const lastClick = lastClickTime[appointmentId] || 0
+    const timeDiff = now - lastClick
+
+    // Clear any existing timeout for this appointment
+    if (clickTimeouts[appointmentId]) {
+      clearTimeout(clickTimeouts[appointmentId])
+    }
+
+    if (timeDiff < 400) {
+      // Double click detected
+      const rect = (event.target as HTMLElement).getBoundingClientRect()
+      setStatusDropdownData({
+        appointmentId,
+        currentStatus,
+        position: {
+          x: rect.left,
+          y: rect.bottom + 5,
+        },
+      })
+      setShowStatusDropdown(true)
+      setLastClickTime({ ...lastClickTime, [appointmentId]: 0 }) // Reset
+    } else {
+      // Single click - set timeout to reset if no second click
+      setLastClickTime({ ...lastClickTime, [appointmentId]: now })
+      const timeout = setTimeout(() => {
+        setLastClickTime((prev) => ({ ...prev, [appointmentId]: 0 }))
+      }, 400)
+      setClickTimeouts({ ...clickTimeouts, [appointmentId]: timeout })
+    }
+  }
+
+  // Enhanced appointment status update function
+  const updateAppointmentStatus = async (appointmentId: string, newStatus: string) => {
+    try {
+      setUpdating(true)
+
+      const appointment = appointments.find((apt) => apt._id === appointmentId)
+      if (!appointment) {
+        throw new Error("Appointment not found")
+      }
+
+      // Prepare updates based on status
+      const updates: any = {
+        status: newStatus,
+      }
+
+      // Add specific logic for different statuses
+      if (newStatus === "completed") {
+        updates.sessionsCompleted = Math.min((appointment.sessionsCompleted || 0) + 1, appointment.totalSessions)
+        // Auto-set payment to paid if amount > 0 and currently pending
+        if (appointment.payment.amount > 0 && appointment.payment.status === "pending") {
+          updates.payment = {
+            ...appointment.payment,
+            status: "paid",
+          }
+        }
+      } else if (newStatus === "cancelled") {
+        updates.payment = {
+          ...appointment.payment,
+          status: "refunded",
+        }
+      }
+
+      const token = localStorage.getItem("receptionToken")
+      if (!token) {
+        throw new Error("Authentication token not found")
+      }
+
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/appointments/updateappointment/${appointmentId}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(updates),
+        },
+      )
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || "Failed to update appointment status")
+      }
+
+      // Update local state
+      setAppointments((prevAppointments) =>
+        prevAppointments.map((apt) =>
+          apt._id === appointmentId
+            ? {
+                ...apt,
+                status: newStatus as any,
+                ...(updates.sessionsCompleted && { sessionsCompleted: updates.sessionsCompleted }),
+                ...(updates.payment && { payment: { ...apt.payment, ...updates.payment } }),
+              }
+            : apt,
+        ),
+      )
+
+      // Show success message based on status
+      const statusMessages = {
+        completed: "Appointment marked as completed!",
+        cancelled: "Appointment cancelled successfully",
+        confirmed: "Appointment confirmed",
+        scheduled: "Appointment rescheduled",
+        "no-show": "Appointment marked as no-show",
+        rescheduled: "Appointment marked for rescheduling",
+      }
+
+      showToast(
+        statusMessages[newStatus as keyof typeof statusMessages] || "Appointment updated successfully",
+        "success",
+      )
+
+      // Recalculate summary
+      const updatedAppointments = appointments.map((apt) =>
+        apt._id === appointmentId ? { ...apt, status: newStatus as any } : apt,
+      )
+      calculateSummary(updatedAppointments)
+    } catch (error) {
+      console.error("Update error:", error)
+      const errorMessage = error instanceof Error ? error.message : "Failed to update appointment status"
+      showToast(errorMessage, "error")
+    } finally {
+      setUpdating(false)
+    }
+  }
+
   // Get patient display name
   const getPatientName = (appointment: AppointmentDetails): string => {
     return (
@@ -254,6 +513,8 @@ const AppointmentsEnhancedPage: React.FC = () => {
         return "bg-green-100 text-green-800 border-green-200"
       case "scheduled":
         return "bg-blue-100 text-blue-800 border-blue-200"
+      case "confirmed":
+        return "bg-emerald-100 text-emerald-800 border-emerald-200"
       case "rescheduled":
         return "bg-yellow-100 text-yellow-800 border-yellow-200"
       case "cancelled":
@@ -283,11 +544,15 @@ const AppointmentsEnhancedPage: React.FC = () => {
 
   // Format date
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    })
+    try {
+      return new Date(dateStr).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
+    } catch {
+      return dateStr
+    }
   }
 
   // Format time
@@ -301,71 +566,55 @@ const AppointmentsEnhancedPage: React.FC = () => {
     setShowDetailsModal(true)
   }
 
-  // Update appointment status
-  const updateAppointmentStatus = async (appointmentId: string, newStatus: string) => {
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/${appointmentId}/status`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
-        },
-        body: JSON.stringify({ status: newStatus }),
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to update appointment status")
-      }
-
-      // Refresh appointments
-      await fetchAppointments()
-      alert("Appointment status updated successfully!")
-    } catch (error) {
-      console.error("Error updating appointment status:", error)
-      alert("Failed to update appointment status")
-    }
-  }
-
   // Export appointments report
   const exportAppointmentsReport = () => {
-    const csvContent = [
-      [
-        "Date",
-        "Time",
-        "Patient Name",
-        "Therapist",
-        "Service",
-        "Type",
-        "Status",
-        "Payment Status",
-        "Amount",
-        "Contact",
-        "Mode",
-      ],
-      ...filteredAppointments.map((apt) => [
-        formatDate(apt.date),
-        apt.startTime,
-        getPatientName(apt),
-        apt.therapistId.fullName,
-        apt.serviceId.name,
-        apt.type,
-        apt.status,
-        apt.payment.status,
-        apt.payment.amount.toString(),
-        getContactInfo(apt),
-        apt.consultationMode,
-      ]),
-    ]
-      .map((row) => row.join(","))
-      .join("\n")
+    try {
+      const csvContent = [
+        [
+          "Date",
+          "Time",
+          "Patient Name",
+          "Therapist",
+          "Service",
+          "Type",
+          "Status",
+          "Payment Status",
+          "Amount",
+          "Contact",
+          "Mode",
+        ],
+        ...filteredAppointments.map((apt) => [
+          formatDate(apt.date),
+          apt.startTime,
+          getPatientName(apt),
+          apt.therapistId.fullName,
+          apt.serviceId.name,
+          apt.type,
+          apt.status,
+          apt.payment.status,
+          apt.payment.amount.toString(),
+          getContactInfo(apt),
+          apt.consultationMode,
+        ]),
+      ]
+        .map((row) => row.join(","))
+        .join("\n")
 
-    const blob = new Blob([csvContent], { type: "text/csv" })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `appointments-report-${new Date().toISOString().split("T")[0]}.csv`
-    a.click()
-    window.URL.revokeObjectURL(url)
+      const blob = new Blob([csvContent], { type: "text/csv" })
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `appointments-report-${new Date().toISOString().split("T")[0]}.csv`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+
+      showToast("Report exported successfully", "success")
+    } catch (error) {
+      console.error("Error exporting report:", error)
+      showToast("Failed to export report", "error")
+    }
   }
 
   // Filter appointments
@@ -420,6 +669,21 @@ const AppointmentsEnhancedPage: React.FC = () => {
     fetchAppointments()
   }, [])
 
+  // Close status dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      if (showStatusDropdown) {
+        setShowStatusDropdown(false)
+        setStatusDropdownData(null)
+      }
+    }
+
+    if (showStatusDropdown) {
+      document.addEventListener("click", handleClickOutside)
+      return () => document.removeEventListener("click", handleClickOutside)
+    }
+  }, [showStatusDropdown])
+
   if (loading) {
     return (
       <div className="p-6 max-w-[84%] mt-15 ml-70 mx-auto flex items-center justify-center min-h-[400px]">
@@ -450,6 +714,16 @@ const AppointmentsEnhancedPage: React.FC = () => {
 
   return (
     <div className="p-6 max-w-[84%] font-sans mt-15 ml-70 mx-auto overflow-y-auto hide-scrollbar">
+      {/* Loading overlay */}
+      {updating && (
+        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-40">
+          <div className="bg-white rounded-lg p-4 flex items-center gap-3 shadow-lg">
+            <div className="w-5 h-5 border-2 border-[#C83C92] border-t-transparent rounded-full animate-spin"></div>
+            <span className="text-[#1E437A]">Updating appointment...</span>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-[#1E437A] mb-2">Appointments Management</h1>
@@ -567,8 +841,9 @@ const AppointmentsEnhancedPage: React.FC = () => {
           <button
             onClick={fetchAppointments}
             className="flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-200 transition-colors"
+            disabled={loading}
           >
-            <RefreshCw className="w-4 h-4" />
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
             Refresh
           </button>
         </div>
@@ -587,10 +862,9 @@ const AppointmentsEnhancedPage: React.FC = () => {
               >
                 <option value="all">All Status</option>
                 <option value="scheduled">Scheduled</option>
+                <option value="confirmed">Confirmed</option>
                 <option value="completed">Completed</option>
                 <option value="cancelled">Cancelled</option>
-                <option value="no-show">No Show</option>
-                <option value="rescheduled">Rescheduled</option>
               </select>
             </div>
             <div>
@@ -654,11 +928,12 @@ const AppointmentsEnhancedPage: React.FC = () => {
       )}
 
       {/* Appointments Table */}
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-lg border pb-10 border-gray-200 overflow-hidden">
         <div className="p-6 border-b border-gray-200">
           <h2 className="text-xl font-semibold text-[#1E437A]">
             Appointments Overview ({filteredAppointments.length})
           </h2>
+          <p className="text-sm text-gray-600 mt-1">Double-click on any status to update it</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -670,7 +945,6 @@ const AppointmentsEnhancedPage: React.FC = () => {
                 <th className="px-6 py-4 font-medium">Service</th>
                 <th className="px-6 py-4 font-medium">Status</th>
                 <th className="px-6 py-4 font-medium">Payment</th>
-                {/* <th className="px-6 py-4 font-medium">Sessions</th> */}
                 <th className="px-6 py-4 font-medium">Actions</th>
               </tr>
             </thead>
@@ -707,16 +981,21 @@ const AppointmentsEnhancedPage: React.FC = () => {
                   <td className="px-6 py-4">
                     <div>
                       <div className="font-medium text-[#456696]">{appointment.serviceId.name}</div>
-                      <div className="text-sm text-gray-500">₹{appointment.serviceId.price}</div>
+                      {/* <div className="text-sm text-gray-500">₹{appointment.serviceId.price}</div> */}
                     </div>
                   </td>
                   <td className="px-6 py-4">
                     <span
-                      className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(appointment.status)}`}
+                      className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border cursor-pointer hover:shadow-md transition-all select-none ${getStatusColor(appointment.status)}`}
+                      onClick={(e) => handleStatusClick(e, appointment._id, appointment.status)}
+                      title="Double-click to change status"
                     >
                       {appointment.status === "completed" && <CheckCircle className="w-3 h-3 mr-1" />}
                       {appointment.status === "cancelled" && <XCircle className="w-3 h-3 mr-1" />}
                       {appointment.status === "scheduled" && <Clock className="w-3 h-3 mr-1" />}
+                      {appointment.status === "confirmed" && <CheckCircle className="w-3 h-3 mr-1" />}
+                      {appointment.status === "no-show" && <AlertCircle className="w-3 h-3 mr-1" />}
+                      {appointment.status === "rescheduled" && <Calendar className="w-3 h-3 mr-1" />}
                       {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
                     </span>
                   </td>
@@ -733,7 +1012,7 @@ const AppointmentsEnhancedPage: React.FC = () => {
                         {appointment.payment.status === "partial"
                           ? appointment.payment.paidAmount
                           : appointment.payment.amount}
-                        {appointment.payment.status === "partial" && ` / $${appointment.payment.amount}`}
+                        {appointment.payment.status === "partial" && ` / ₹${appointment.payment.amount}`}
                       </div>
                     </div>
                   </td>
@@ -767,9 +1046,6 @@ const AppointmentsEnhancedPage: React.FC = () => {
                               Cancel
                             </button>
                           )}
-                          {/* <button className="w-full text-left px-3 py-2 text-sm text-blue-600 hover:bg-blue-50">
-                            Reschedule
-                          </button> */}
                         </div>
                       </div>
                     </div>
@@ -787,6 +1063,20 @@ const AppointmentsEnhancedPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Status Dropdown */}
+      {showStatusDropdown && statusDropdownData && (
+        <StatusDropdown
+          currentStatus={statusDropdownData.currentStatus}
+          appointmentId={statusDropdownData.appointmentId}
+          onStatusUpdate={updateAppointmentStatus}
+          onClose={() => {
+            setShowStatusDropdown(false)
+            setStatusDropdownData(null)
+          }}
+          position={statusDropdownData.position}
+        />
+      )}
 
       {/* Appointment Details Modal */}
       {showDetailsModal && selectedAppointment && (
@@ -819,10 +1109,14 @@ const AppointmentDetailsModal: React.FC<{
         return "bg-green-100 text-green-800"
       case "scheduled":
         return "bg-blue-100 text-blue-800"
+      case "confirmed":
+        return "bg-emerald-100 text-emerald-800"
       case "cancelled":
         return "bg-red-100 text-red-800"
       case "no-show":
         return "bg-orange-100 text-orange-800"
+      case "rescheduled":
+        return "bg-yellow-100 text-yellow-800"
       default:
         return "bg-gray-100 text-gray-800"
     }
@@ -853,7 +1147,6 @@ const AppointmentDetailsModal: React.FC<{
             <XCircle className="w-6 h-6" />
           </button>
         </div>
-
         {/* Appointment Info */}
         <div className="space-y-6">
           {/* Basic Info */}
@@ -908,7 +1201,6 @@ const AppointmentDetailsModal: React.FC<{
               </div>
             </div>
           </div>
-
           {/* Status and Payment */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
@@ -933,7 +1225,6 @@ const AppointmentDetailsModal: React.FC<{
               </div>
             </div>
           </div>
-
           {/* Sessions Info */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Session Progress</label>
@@ -952,7 +1243,6 @@ const AppointmentDetailsModal: React.FC<{
               </div>
             </div>
           </div>
-
           {/* Additional Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
@@ -964,7 +1254,6 @@ const AppointmentDetailsModal: React.FC<{
               <span className="text-[#456696] capitalize">{appointment.consultationMode}</span>
             </div>
           </div>
-
           {/* Notes */}
           {appointment.notes && (
             <div>
@@ -973,7 +1262,6 @@ const AppointmentDetailsModal: React.FC<{
             </div>
           )}
         </div>
-
         {/* Action Buttons */}
         <div className="mt-6 flex gap-3">
           {appointment.status === "scheduled" && (
