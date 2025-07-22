@@ -182,16 +182,16 @@ const StatusUpdateModal: React.FC<{
   if (!isOpen || !appointment) return null
 
   return (
-    <div  className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-      <div  className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
         {/* Modal Header */}
-        <div  className="bg-gradient-to-r bg-[#C83C92] px-6 py-4">
-          <div  className="flex items-center justify-between">
-            <div  className="flex items-center gap-3">
-              <div  className="p-2 bg-white bg-opacity-20 rounded-lg">
+        <div className="bg-gradient-to-r bg-[#C83C92] px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-white bg-opacity-20 rounded-lg">
                 <CheckCircle className="w-5 h-5 text-white" />
               </div>
-              <div >
+              <div>
                 <h3 className="text-lg font-semibold text-white">Update Appointment</h3>
                 <p className="text-purple-100 text-sm">{appointment?.patientName}</p>
               </div>
@@ -202,11 +202,11 @@ const StatusUpdateModal: React.FC<{
           </div>
         </div>
         {/* Modal Body */}
-        <div  className="p-6 space-y-6 max-h-96 overflow-y-auto">
+        <div className="p-6 space-y-6 max-h-96 overflow-y-auto">
           {/* Validation Errors */}
           {validationErrors.length > 0 && (
-            <div  className="bg-red-50 border border-red-200 rounded-lg p-4">
-              <div  className="flex items-center gap-2 mb-2">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-2">
                 <AlertCircle className="w-4 h-4 text-red-600" />
                 <h4 className="text-sm font-medium text-red-800">Please fix the following errors:</h4>
               </div>
@@ -221,10 +221,10 @@ const StatusUpdateModal: React.FC<{
             </div>
           )}
           {/* Current Info */}
-          <div  className="bg-gray-50 rounded-lg p-4">
+          <div className="bg-gray-50 rounded-lg p-4">
             <h4 className="text-sm font-medium text-black mb-2">Appointment Details</h4>
-            <div  className="grid grid-cols-2 gap-4 text-sm text-gray-600">
-              <div >
+            <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
+              <div>
                 <p>
                   Patient: <span className="font-medium">{appointment?.patientName}</span>
                 </p>
@@ -235,7 +235,7 @@ const StatusUpdateModal: React.FC<{
                   Duration: <span className="font-medium">{appointment?.duration} min</span>
                 </p>
               </div>
-              <div >
+              <div>
                 <p>
                   Phone: <span className="font-medium">{appointment?.phone}</span>
                 </p>
@@ -252,7 +252,7 @@ const StatusUpdateModal: React.FC<{
             </div>
           </div>
           {/* Quick Actions */}
-          <div  className="flex gap-2">
+          <div className="flex gap-2">
             <button
               onClick={handleQuickComplete}
               className="flex-1 px-3 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors text-sm font-medium"
@@ -270,7 +270,7 @@ const StatusUpdateModal: React.FC<{
             </button>
           </div>
           {/* Status Update */}
-          <div >
+          <div>
             <label className="block text-sm font-medium text-black mb-2">
               Appointment Status <span className="text-red-500">*</span>
             </label>
@@ -288,8 +288,8 @@ const StatusUpdateModal: React.FC<{
             </select>
           </div>
           {/* Payment Status */}
-          <div  className="grid grid-cols-2 gap-4">
-            <div >
+          <div className="grid grid-cols-2 gap-4">
+            <div>
               <label className="block text-sm font-medium text-black mb-2">Payment Status</label>
               <select
                 style={{ color: "black" }}
@@ -302,7 +302,7 @@ const StatusUpdateModal: React.FC<{
                 <option value="refunded">Refunded</option>
               </select>
             </div>
-            <div >
+            <div>
               <label className="block text-sm font-medium text-black mb-2">Payment Method</label>
               <select
                 style={{ color: "black" }}
@@ -317,7 +317,7 @@ const StatusUpdateModal: React.FC<{
             </div>
           </div>
           {/* Payment Amount */}
-          <div >
+          <div>
             <label className="block text-sm font-medium text-black mb-2">Payment Amount</label>
             <input
               style={{ color: "black" }}
@@ -330,9 +330,8 @@ const StatusUpdateModal: React.FC<{
               placeholder="Enter amount"
             />
           </div>
-          {/* Sessions Completed */}
           {/* Notes */}
-          <div >
+          <div>
             <label className="block text-sm font-medium text-black mb-2">Notes</label>
             <textarea
               style={{ color: "black" }}
@@ -345,7 +344,7 @@ const StatusUpdateModal: React.FC<{
           </div>
         </div>
         {/* Modal Footer */}
-        <div  className="bg-gray-50 px-6 py-4 flex items-center justify-end gap-3">
+        <div className="bg-gray-50 px-6 py-4 flex items-center justify-end gap-3">
           <button
             onClick={onClose}
             disabled={isUpdating}
@@ -360,7 +359,7 @@ const StatusUpdateModal: React.FC<{
           >
             {isUpdating ? (
               <>
-                <div  className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                 Updating...
               </>
             ) : (
@@ -502,16 +501,16 @@ const RescheduleModal: React.FC<{
   if (!isOpen || !appointment) return null
 
   return (
-    <div  className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-      <div  className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
         {/* Modal Header */}
-        <div  className="bg-gradient-to-r bg-[#C83C92] px-6 py-4">
-          <div  className="flex items-center justify-between">
-            <div  className="flex items-center gap-3">
-              <div  className="p-2 bg-white bg-opacity-20 rounded-lg">
+        <div className="bg-gradient-to-r bg-[#C83C92] px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-white bg-opacity-20 rounded-lg">
                 <Calendar className="w-5 h-5 text-white" />
               </div>
-              <div >
+              <div>
                 <h3 className="text-lg font-semibold text-white">Reschedule Appointment</h3>
                 <p className="text-blue-100 text-sm">{appointment?.patientName}</p>
               </div>
@@ -522,12 +521,12 @@ const RescheduleModal: React.FC<{
           </div>
         </div>
         {/* Modal Body */}
-        <div  className="p-6 space-y-3 -mt-3">
+        <div className="p-6 space-y-3 -mt-3">
           {/* Current Appointment Info */}
-          <div  className="bg-gray-50 rounded-lg p-4=">
+          <div className="bg-gray-50 rounded-lg p-4">
             <h4 className="text-sm font-medium text-black mb-2">Current Appointment</h4>
-            <div  className="text-sm text-gray-600">
-              <div  className="flex justify-between">
+            <div className="text-sm text-gray-600">
+              <div className="flex justify-between">
                 <p>
                   Patient: <span className="font-medium">{appointment?.patientName}</span>
                 </p>
@@ -541,7 +540,7 @@ const RescheduleModal: React.FC<{
             </div>
           </div>
           {/* New Date Selection */}
-          <div >
+          <div>
             <label className="block text-sm font-medium text-black mb-2">
               New Date <span className="text-red-500">*</span>
             </label>
@@ -557,13 +556,13 @@ const RescheduleModal: React.FC<{
             />
           </div>
           {/* Time Selection */}
-          <div >
+          <div>
             <label className="block text-sm font-medium text-black mb-2">
               Available Time Slots <span className="text-red-500">*</span>
             </label>
             {loadingSlots ? (
-              <div  className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 flex items-center justify-center">
-                <div  className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-2"></div>
+              <div className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 flex items-center justify-center">
+                <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-2"></div>
                 <span className="text-gray-600">Loading available slots...</span>
               </div>
             ) : (
@@ -596,15 +595,15 @@ const RescheduleModal: React.FC<{
           </div>
           {/* End Time Display */}
           {rescheduleData.startTime && (
-            <div >
+            <div>
               <label className="block text-sm font-medium text-black mb-2">End Time (Auto-calculated)</label>
-              <div  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-black">
+              <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-black">
                 {rescheduleData.endTime}
               </div>
             </div>
           )}
           {/* Reason */}
-          <div >
+          <div>
             <label className="block text-sm font-medium text-black mb-2">Reason for Rescheduling (Optional)</label>
             <textarea
               style={{ color: "black" }}
@@ -617,7 +616,7 @@ const RescheduleModal: React.FC<{
           </div>
         </div>
         {/* Modal Footer */}
-        <div  className="bg-gray-50 px-6 py-4 flex items-center justify-end gap-3">
+        <div className="bg-gray-50 px-6 py-4 flex items-center justify-end gap-3">
           <button
             onClick={onClose}
             className="px-4 py-2 text-black bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
@@ -677,28 +676,31 @@ const ReceptionistDashboard = () => {
   }
 
   return (
-    <div  className="p-6 max-w-[85%]  mt-15 mx-auto ml-64 pl-22 hide-scrollbar">
-      <h1 className="text-2xl font-bold text-[#1E437A] mb-6">Hello, Receptionist!</h1>
-      <div  className="flex gap-4 mb-6">
-        <button
-          className="flex items-center gap-2 bg-[#C83C921A] text-[#C83C92] px-4 py-2 rounded-lg font-medium"
-          onClick={() => router.push("/dashboard/scheduleAppointment")}
-        >
-          <Calendar className="w-5 h-5" />
-          Schedule an Appointment
-        </button>
-        <Link href={"/dashboard/registerPatient"}>
-          <button className="cursor-pointer flex items-center gap-2 bg-[#C83C92] text-white px-4 py-2 rounded-lg font-medium">
-            <Plus className="w-5 h-5" />
-            Register New Patient
+    <div className="min-h-screen w-full">
+      {/* Fixed container that accounts for sidebar */}
+      <div className="ml-[300px]  w-[calc(100vw-300px)] p-6 pt-22 overflow-hidden">
+        <h1 className="text-2xl font-bold text-[#1E437A] mb-6">Hello, Receptionist!</h1>
+        <div className="flex gap-4 mb-6">
+          <button
+            className="flex items-center gap-2 bg-[#C83C921A] text-[#C83C92] px-4 py-2 rounded-lg font-medium"
+            onClick={() => router.push("/dashboard/scheduleAppointment")}
+          >
+            <Calendar className="w-5 h-5" />
+            Schedule an Appointment
           </button>
-        </Link>
-      </div>
-      <div  className="bg-white rounded-lg border border-gray-200 p-6 flex-1">
-        <div  className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold text-[#1E437A] ml-5">Doctor Schedule</h2>
+          <Link href={"/dashboard/registerPatient"}>
+            <button className="cursor-pointer flex items-center gap-2 bg-[#C83C92] text-white px-4 py-2 rounded-lg font-medium">
+              <Plus className="w-5 h-5" />
+              Register New Patient
+            </button>
+          </Link>
         </div>
-        <DoctorScheduleTable />
+        <div className="bg-white rounded-lg border border-gray-200 p-6 w-full overflow-hidden">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-semibold text-[#1E437A] ml-5">Doctor Schedule</h2>
+          </div>
+          <DoctorScheduleTable />
+        </div>
       </div>
     </div>
   )
@@ -709,11 +711,9 @@ const DoctorScheduleTable: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [selectedSlot, setSelectedSlot] = useState<{ doctor: string; time: string } | null>(null)
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0])
-
   // Status Update Modal State
   const [showStatusModal, setShowStatusModal] = useState(false)
   const [selectedAppointment, setSelectedAppointment] = useState<CalendarAppointment | null>(null)
-
   // Reschedule Modal State
   const [showRescheduleModal, setShowRescheduleModal] = useState(false)
 
@@ -863,7 +863,7 @@ const DoctorScheduleTable: React.FC = () => {
       "Dr. Staff User": "General Medicine",
       "Dr. satish test": "Cardiology",
     }
-    return specialtyMap[doctorName];
+    return specialtyMap[doctorName]
   }
 
   // Enhanced appointment styling with status and payment indicators
@@ -984,30 +984,30 @@ const DoctorScheduleTable: React.FC = () => {
 
   if (loading) {
     return (
-      <div  className="p-8 text-center">
-        <div  className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+      <div className="p-8 text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
         <p className="mt-4 text-gray-600">Loading calendar...</p>
       </div>
     )
   }
 
   return (
-    <div  style={{zIndex:100}} className="p-2 bg-gradient-to-br font-sans from-slate-50 to-blue-50 min-h-screen z-50 ">
-      <div  className="max-w-full mx-auto">
+    <div className="w-full bg-gradient-to-br font-sans from-slate-50 to-blue-50 min-h-screen overflow-hidden">
+      <div className="w-full p-2">
         {/* Header */}
-        <div  className="mb-8">
-          <div  className="flex items-center justify-between mb-4">
-            <div  className="flex items-center gap-3">
-              <div  className="p-3 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl">
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl">
                 <Stethoscope className="w-8 h-8 text-white" />
               </div>
-              <div >
+              <div>
                 <h1 className="text-3xl font-bold text-gray-900">Doctor Schedule</h1>
                 <p className="text-gray-600">Daily consultation schedule with status & payment tracking</p>
               </div>
             </div>
             {/* Date Selector */}
-            <div  className="flex items-center gap-4">
+            <div className="flex items-center gap-4">
               <input
                 type="date"
                 style={{ color: "black" }}
@@ -1024,38 +1024,38 @@ const DoctorScheduleTable: React.FC = () => {
             </div>
           </div>
           {/* Enhanced Legend */}
-          <div  className="flex flex-wrap gap-4 p-4 bg-white rounded-xl shadow-sm border">
-            <div  className="flex items-center gap-2">
-              <div  className="w-4 h-4 bg-blue-100 border border-blue-300 rounded ring-2 ring-blue-200"></div>
+          <div className="flex flex-wrap gap-4 p-4 bg-white rounded-xl shadow-sm border">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 bg-blue-100 border border-blue-300 rounded ring-2 ring-blue-200"></div>
               <span className="text-sm text-black">Initial Assessment</span>
             </div>
-            <div  className="flex items-center gap-2">
-              <div  className="w-4 h-4 bg-purple-100 border border-purple-300 rounded ring-2 ring-purple-200"></div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 bg-purple-100 border border-purple-300 rounded ring-2 ring-purple-200"></div>
               <span className="text-sm text-black">Therapy Session</span>
             </div>
-            <div  className="flex items-center gap-2">
-              <div  className="w-4 h-4 bg-green-100 border border-green-300 rounded ring-2 ring-green-200"></div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 bg-green-100 border border-green-300 rounded ring-2 ring-green-200"></div>
               <span className="text-sm text-black">Completed</span>
             </div>
-            <div  className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
               <Banknote className="w-4 h-4 text-green-600" />
               <span className="text-sm text-black">Paid</span>
             </div>
-            <div  className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
               <AlertCircle className="w-4 h-4 text-yellow-600" />
               <span className="text-sm text-black">Payment Pending</span>
             </div>
-            <div  className="flex items-center gap-2">
-              <div  className="w-4 h-4 bg-gray-100 border border-gray-300 rounded border-dashed"></div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 bg-gray-100 border border-gray-300 rounded border-dashed"></div>
               <span className="text-sm text-black">Available Slot</span>
             </div>
           </div>
         </div>
         {/* Schedule Table with Enhanced Horizontal Scroll */}
-        <div  className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden w-full">
           {/* Custom Scroll Container with Enhanced Styling */}
-          <div 
-            className="overflow-x-auto scrollbar-smooth"
+          <div
+            className="overflow-x-auto scrollbar-smooth w-full"
             style={{
               scrollBehavior: "smooth",
               scrollbarWidth: "thin",
@@ -1083,27 +1083,27 @@ const DoctorScheduleTable: React.FC = () => {
                 background: #f1f5f9;
               }
             `}</style>
-            <table className="w-full ">
+            <table className="w-full min-w-max">
               {/* Table Header */}
               <thead>
                 <tr>
-                  <th className="p-4 bg-gradient-to-r from-slate-600 to-slate-700 text-left sticky left-0 z-10">
-                    <div  className="flex items-center gap-2 text-white font-semibold">
+                  <th className="p-4 bg-gradient-to-r from-slate-600 to-slate-700 text-left sticky left-0 z-10 min-w-[120px]">
+                    <div className="flex items-center gap-2 text-white font-semibold">
                       <Clock className="w-5 h-5" />
                       Time
                     </div>
                   </th>
                   {doctors.map((doctor) => (
                     <th key={doctor.name} className="p-4 text-center min-w-[200px]">
-                      <div 
+                      <div
                         className={`bg-gradient-to-r ${getDoctorHeaderColor(doctor.color)} rounded-lg p-3 text-white`}
                       >
-                        <div  className="flex items-center justify-center gap-2 mb-1">
+                        <div className="flex items-center justify-center gap-2 mb-1">
                           <UserCheck className="w-5 h-5" />
                           <span className="font-semibold text-sm">{doctor.name}</span>
                         </div>
-                        <div  className="text-xs opacity-90">{doctor.specialty}</div>
-                        <div  className="text-xs opacity-75 mt-1">{getAppointmentCount(doctor.name)} appointments</div>
+                        <div className="text-xs opacity-90">{doctor.specialty}</div>
+                        <div className="text-xs opacity-75 mt-1">{getAppointmentCount(doctor.name)} appointments</div>
                       </div>
                     </th>
                   ))}
@@ -1117,9 +1117,9 @@ const DoctorScheduleTable: React.FC = () => {
                     className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${timeIndex % 2 === 0 ? "bg-gray-25" : "bg-white"}`}
                   >
                     {/* Time Column */}
-                    <td className="p-4 border-r border-gray-200 bg-slate-50 sticky left-0 z-10">
-                      <div  className="flex items-center gap-2">
-                        <div  className="w-3 h-3 bg-slate-400 rounded-full"></div>
+                    <td className="p-4 border-r border-gray-200 bg-slate-50 sticky left-0 z-10 min-w-[120px]">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-slate-400 rounded-full"></div>
                         <span className="font-medium text-black text-sm">{formatTime(time)}</span>
                       </div>
                     </td>
@@ -1129,42 +1129,42 @@ const DoctorScheduleTable: React.FC = () => {
                       return (
                         <td
                           key={`${doctor.name}-${time}`}
-                          className="p-2 border-r border-gray-100 cursor-pointer hover:bg-blue-50 transition-colors"
+                          className="p-2 border-r border-gray-100 cursor-pointer hover:bg-blue-50 transition-colors min-w-[200px]"
                           onClick={() => handleSlotClick(doctor.name, time)}
                         >
                           {appointment ? (
-                            <div 
+                            <div
                               className={`p-3 rounded-lg border-2 transition-all hover:shadow-md ${getAppointmentTypeColor(appointment, doctor.color)}`}
                             >
-                              <div  className="flex items-start justify-between gap-2">
-                                <div  className="flex-1 min-w-0">
-                                  <div  className="flex items-center gap-1 mb-1">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1 mb-1">
                                     <User className="w-3 h-3 flex-shrink-0" />
                                     <p className="font-semibold text-xs truncate">{appointment?.patientName}</p>
                                   </div>
-                                  <div  className="flex items-center gap-2 mb-1">
+                                  <div className="flex items-center gap-2 mb-1">
                                     <span className="inline-block px-2 py-0.5 text-xs font-medium bg-white bg-opacity-60 rounded-full">
                                       {appointment?.type?.substring(0, 8)}
                                     </span>
                                     <span className="text-xs opacity-70">{appointment?.duration}min</span>
                                   </div>
                                   {/* Status and Payment Row */}
-                                  <div  className="flex items-center gap-2 mb-1">
-                                    <div  className="flex items-center gap-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <div className="flex items-center gap-1">
                                       {getStatusIcon(appointment?.status)}
                                       <span className="text-xs font-medium capitalize">{appointment?.status}</span>
                                     </div>
-                                    <div  className="flex items-center gap-1">
+                                    <div className="flex items-center gap-1">
                                       {getPaymentStatusIcon(appointment?.payment?.status)}
                                       <span className="text-xs">₹{appointment?.payment?.amount}</span>
                                     </div>
                                   </div>
                                   {/* Sessions Progress */}
-                                  <div  className="text-xs opacity-70">
+                                  <div className="text-xs opacity-70">
                                     Sessions: {appointment?.sessionsCompleted}/{appointment?.totalSessions}
                                   </div>
                                 </div>
-                                <div  className="flex flex-col gap-1">
+                                <div className="flex flex-col gap-1">
                                   <button
                                     className="p-1 hover:bg-white hover:bg-opacity-60 rounded transition-colors"
                                     onClick={(e) => {
@@ -1199,7 +1199,7 @@ const DoctorScheduleTable: React.FC = () => {
                               </div>
                             </div>
                           ) : (
-                            <div  className="p-3 rounded-lg border-2 border-dashed border-gray-200 hover:border-blue-300 hover:bg-blue-25 transition-all min-h-[100px] flex items-center justify-center">
+                            <div className="p-3 rounded-lg border-2 border-dashed border-gray-200 hover:border-blue-300 hover:bg-blue-25 transition-all min-h-[100px] flex items-center justify-center">
                               <Plus className="w-5 h-5 text-gray-400" />
                             </div>
                           )}
@@ -1212,19 +1212,19 @@ const DoctorScheduleTable: React.FC = () => {
             </table>
           </div>
           {/* Scroll Indicator */}
-          <div  className="bg-gray-50 px-4 py-2 border-t border-gray-200">
-            <div  className="flex items-center justify-center gap-2 text-sm text-gray-500">
+          <div className="bg-gray-50 px-4 py-2 border-t border-gray-200">
+            <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
               <span>← Scroll horizontally to view all doctors →</span>
             </div>
           </div>
         </div>
         {/* Selected Slot Info */}
         {selectedSlot && (
-          <div  className="mt-6 p-4 bg-white rounded-xl shadow-lg border border-blue-200">
+          <div className="mt-6 p-4 bg-white rounded-xl shadow-lg border border-blue-200">
             <h3 className="font-semibold text-gray-900 mb-2">
               Selected: {selectedSlot.doctor} at {formatTime(selectedSlot.time)}
             </h3>
-            <div  className="flex gap-3">
+            <div className="flex gap-3">
               {!scheduleData[selectedSlot.doctor]?.[selectedSlot.time] ? (
                 <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
                   Book Appointment
@@ -1250,7 +1250,7 @@ const DoctorScheduleTable: React.FC = () => {
           </div>
         )}
         {/* Enhanced Doctor Statistics */}
-        <div  className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {doctors.slice(0, 4).map((doctor) => {
             const doctorAppointments = Object.values(scheduleData[doctor.name] || {}).filter(
               Boolean,
@@ -1261,30 +1261,30 @@ const DoctorScheduleTable: React.FC = () => {
               .filter((apt) => apt.payment?.status === "paid")
               .reduce((sum, apt) => sum + apt.payment?.amount, 0)
             return (
-              <div  key={doctor.name} className="p-4 bg-white rounded-xl shadow-sm border">
-                <div  className="flex items-center gap-3 mb-3">
-                  <div  className={`p-2 bg-gradient-to-r ${getDoctorHeaderColor(doctor.color)} rounded-lg`}>
+              <div key={doctor.name} className="p-4 bg-white rounded-xl shadow-sm border">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className={`p-2 bg-gradient-to-r ${getDoctorHeaderColor(doctor.color)} rounded-lg`}>
                     <UserCheck className="w-5 h-5 text-white" />
                   </div>
-                  <div >
+                  <div>
                     <p className="text-sm text-gray-600">{doctor.name}</p>
                     <p className="text-xs text-gray-500">{doctor.specialty}</p>
                   </div>
                 </div>
-                <div  className="space-y-2">
-                  <div  className="flex justify-between text-sm">
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Total:</span>
                     <span className="font-semibold">{getAppointmentCount(doctor.name)}</span>
                   </div>
-                  <div  className="flex justify-between text-sm">
+                  <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Completed:</span>
                     <span className="font-semibold text-green-600">{completedCount}</span>
                   </div>
-                  <div  className="flex justify-between text-sm">
+                  <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Paid:</span>
                     <span className="font-semibold text-blue-600">{paidCount}</span>
                   </div>
-                  <div  className="flex justify-between text-sm">
+                  <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Revenue:</span>
                     <span className="font-semibold text-green-600">₹{totalRevenue}</span>
                   </div>

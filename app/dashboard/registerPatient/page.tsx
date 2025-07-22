@@ -266,9 +266,9 @@ const PatientRegistrationForm = () => {
 
     // Validate file type
     const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"]
-    if (fileType === "birthCertificate") {
-      allowedTypes.push("application/pdf")
-    }
+    // if (fileType === "birthCertificate") {
+    //   allowedTypes.push("application/pdf")
+    // }
 
     if (!allowedTypes.includes(file.type)) {
       addToast({
@@ -508,7 +508,7 @@ const PatientRegistrationForm = () => {
 
   return (
     <ToastContext.Provider value={{ toasts, addToast, removeToast }}>
-      <div className="p-6 mw-[85%] ml-[300px] mx-auto bg-gray-50 min-h-screen">
+      <div className="p-6 mw-[85%] font-sans ml-[300px] mx-auto bg-gray-50 min-h-screen">
         {/* Toast container */}
         <div className="fixed top-4 right-4 z-50 space-y-2">
           {toasts.map((toast) => (
@@ -673,7 +673,7 @@ const PatientRegistrationForm = () => {
 
                 {/* Child Photo Upload */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Upload Child Photo</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Upload Child Photo {"(Imgae -jpg/jpeg, png)"}</label>
                   <label
                     className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg cursor-pointer font-medium transition-colors ${
                       uploadingPhoto ? "bg-gray-400 cursor-not-allowed" : "bg-pink-500 hover:bg-pink-600"
@@ -712,7 +712,7 @@ const PatientRegistrationForm = () => {
 
                 {/* Birth Certificate Upload */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Upload Birth Certificate</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Upload Birth Certificate {"(Imgae -jpg/jpeg, png)"}</label>
                   <label
                     className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg cursor-pointer font-medium transition-colors ${
                       uploadingBirthCert ? "bg-gray-400 cursor-not-allowed" : "bg-pink-500 hover:bg-pink-600"
