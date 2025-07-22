@@ -756,7 +756,7 @@ const DoctorScheduleTable: React.FC = () => {
   // Handle scroll left and right
   const handleScroll = (direction: "left" | "right") => {
     if (tableContainerRef.current) {
-      const scrollAmount = 500 // Adjust this value to control scroll distance
+      const scrollAmount = 600 // Adjust this value to control scroll distance
       const currentScroll = tableContainerRef.current.scrollLeft
       const newScroll = direction === "left" ? currentScroll - scrollAmount : currentScroll + scrollAmount
 

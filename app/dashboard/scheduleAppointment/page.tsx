@@ -1,6 +1,7 @@
 "use client"
+
 import type React from "react"
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, Suspense } from "react"
 import { Calendar, ChevronLeft, Search, Plus, X, AlertTriangle } from "lucide-react"
 import { toast } from "react-toastify"
 import { useRouter, useSearchParams } from "next/navigation"
@@ -49,29 +50,86 @@ interface Patient {
   status: string
 }
 
-const AppointmentSchedulingPage = () => {
+// Loading component for Suspense fallback
+const AppointmentSchedulingLoading = () => {
+  return (
+    <div className="p-6 max-w-[84%] mt-15 ml-70 mx-auto overflow-y-auto hide-scrollbar">
+      <div className="animate-pulse">
+        {/* Header skeleton */}
+        <div className="-mb-10">
+          <div className="flex items-center mb-2">
+            <div className="w-5 h-5 bg-gray-300 rounded mr-2"></div>
+            <div className="w-16 h-4 bg-gray-300 rounded"></div>
+          </div>
+          <div className="w-64 h-8 bg-gray-300 rounded mb-2"></div>
+          <div className="flex items-center">
+            <div className="w-20 h-4 bg-gray-300 rounded"></div>
+            <div className="w-4 h-4 bg-gray-300 rounded mx-2"></div>
+            <div className="w-32 h-4 bg-gray-300 rounded"></div>
+            <div className="w-4 h-4 bg-gray-300 rounded mx-2"></div>
+            <div className="w-40 h-4 bg-gray-300 rounded"></div>
+          </div>
+        </div>
+
+        {/* Actions skeleton */}
+        <div className="flex justify-end mb-6 mt-10">
+          <div className="w-80 h-10 bg-gray-300 rounded-lg"></div>
+        </div>
+
+        {/* Form sections skeleton */}
+        <div className="space-y-6">
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="w-48 h-6 bg-gray-300 rounded mb-4"></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="w-full h-12 bg-gray-300 rounded"></div>
+              <div className="w-full h-12 bg-gray-300 rounded"></div>
+              <div className="w-full h-12 bg-gray-300 rounded"></div>
+              <div className="w-full h-12 bg-gray-300 rounded"></div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="w-32 h-6 bg-gray-300 rounded mb-4"></div>
+            <div className="space-y-4">
+              <div className="w-full h-12 bg-gray-300 rounded"></div>
+              <div className="w-full h-32 bg-gray-300 rounded"></div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="w-56 h-6 bg-gray-300 rounded mb-4"></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="w-full h-12 bg-gray-300 rounded"></div>
+              <div className="w-full h-12 bg-gray-300 rounded"></div>
+              <div className="w-full h-12 bg-gray-300 rounded"></div>
+              <div className="w-full h-12 bg-gray-300 rounded"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Main component that uses useSearchParams
+const AppointmentSchedulingContent = () => {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [calendarData, setCalendarData] = useState<CalendarApiResponse["data"]>({})
   const [availableDoctors, setAvailableDoctors] = useState<Array<{ id: string; name: string }>>([])
   const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([])
   const [services, setServices] = useState<Array<{ _id: string; name: string; price: number }>>([])
-
   // New state for conflict detection
   const [conflictingSlots, setConflictingSlots] = useState<string[]>([])
   const [patientConflicts, setPatientConflicts] = useState<{ [timeSlot: string]: string }>({})
-
   const searchParams = useSearchParams()
   const slot = searchParams.get("slot")
   const date = searchParams.get("date")
   const doctorName = searchParams.get("doctorName")
-
   // Add refs to prevent infinite loops
   const autoFillExecuted = useRef(false)
   const initialDateSet = useRef(false)
-
   console.log(date, "date,slot", slot)
-
   // Updated form data to support multiple dates
   const [formData, setFormData] = useState({
     doctor: "",
@@ -92,23 +150,18 @@ const AppointmentSchedulingPage = () => {
     consent: false,
     totalSessions: 1,
   })
-
   const [patients, setPatients] = useState<Patient[]>([])
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null)
   const [showPatientSearch, setShowPatientSearch] = useState(false)
   const [patientSearchTerm, setPatientSearchTerm] = useState("")
   const [filteredPatients, setFilteredPatients] = useState<Patient[]>([])
-
   // New state for multiple dates
   const [currentDateInput, setCurrentDateInput] = useState("")
   const [isMultipleAppointments, setIsMultipleAppointments] = useState(false)
-
   // New function to check for patient conflicts across all doctors and dates
   const checkPatientConflicts = (patientId: string, dates: string[], timeSlot: string) => {
     if (!patientId || dates.length === 0 || !timeSlot) return []
-
     const conflicts: Array<{ date: string; doctor: string; doctorName: string }> = []
-
     dates.forEach((date) => {
       // Check if we have calendar data for this date
       Object.keys(calendarData).forEach((doctorId) => {
@@ -125,17 +178,13 @@ const AppointmentSchedulingPage = () => {
         }
       })
     })
-
     return conflicts
   }
-
   // New function to get all patient conflicts for all time slots
   const getAllPatientConflicts = (patientId: string, dates: string[]) => {
     if (!patientId || dates.length === 0) return { conflictingSlots: [], conflicts: {} }
-
     const conflictingSlots: string[] = []
     const conflicts: { [timeSlot: string]: string } = {}
-
     // Get all possible time slots from any doctor
     const allTimeSlots = new Set<string>()
     Object.values(calendarData).forEach((doctorData) => {
@@ -143,7 +192,6 @@ const AppointmentSchedulingPage = () => {
         Object.keys(doctorData.slots).forEach((slot) => allTimeSlots.add(slot))
       }
     })
-
     allTimeSlots.forEach((timeSlot) => {
       dates.forEach((date) => {
         Object.keys(calendarData).forEach((doctorId) => {
@@ -160,14 +208,11 @@ const AppointmentSchedulingPage = () => {
         })
       })
     })
-
     return { conflictingSlots, conflicts }
   }
-
   // New state for field validation
   const [fieldErrors, setFieldErrors] = useState<{ [key: string]: boolean }>({})
   const [showValidation, setShowValidation] = useState(false)
-
   // Existing functions remain the same...
   const fetchServices = async () => {
     try {
@@ -184,23 +229,18 @@ const AppointmentSchedulingPage = () => {
       console.error("Error fetching services:", error)
     }
   }
-
   const fetchCalendarData = async (selectedDate: string) => {
     if (!selectedDate) return
-
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/by-date?date=${selectedDate}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
         },
       })
-
       if (!response.ok) {
         throw new Error("Failed to fetch calendar data")
       }
-
       const apiResponse: CalendarApiResponse = await response.json()
-
       if (apiResponse.success) {
         setCalendarData(apiResponse.data)
         const doctorIds = Object.keys(apiResponse.data)
@@ -209,7 +249,6 @@ const AppointmentSchedulingPage = () => {
           name: apiResponse.data[id].name,
         }))
         setAvailableDoctors(doctorDetails)
-
         if (apiResponse.patients) {
           setPatients(apiResponse.patients)
           setFilteredPatients(apiResponse.patients)
@@ -220,11 +259,9 @@ const AppointmentSchedulingPage = () => {
       toast.error("Failed to fetch available doctors")
     }
   }
-
   // FIXED: Initial setup - only set date once from search params
   useEffect(() => {
     console.log("Initial setup useEffect:", { date, initialDateSet: initialDateSet.current })
-
     if (date && !initialDateSet.current && formData.appointmentDates.length === 0) {
       console.log("Setting initial date from search params:", date)
       initialDateSet.current = true
@@ -234,18 +271,15 @@ const AppointmentSchedulingPage = () => {
       }))
     }
   }, [date]) // Only depend on date from search params
-
   // FIXED: Fetch calendar data when appointment dates change (but not from auto-fill)
   useEffect(() => {
     console.log("Calendar data fetch useEffect:", {
       appointmentDatesLength: formData.appointmentDates.length,
       firstDate: formData.appointmentDates[0],
     })
-
     if (formData.appointmentDates.length > 0) {
       // Fetch calendar data for the first date to get available doctors
       fetchCalendarData(formData.appointmentDates[0])
-
       // Only reset doctor and timeSlot if this is not from auto-fill
       if (!autoFillExecuted.current) {
         setFormData((prev) => ({
@@ -256,7 +290,6 @@ const AppointmentSchedulingPage = () => {
       }
     }
   }, [formData.appointmentDates.join(",")]) // Use join to avoid array reference issues
-
   // FIXED: Auto-fill functionality - only run once when all conditions are met
   useEffect(() => {
     console.log("Auto-fill useEffect:", {
@@ -267,7 +300,6 @@ const AppointmentSchedulingPage = () => {
       autoFillExecuted: autoFillExecuted.current,
       appointmentDatesLength: formData.appointmentDates.length,
     })
-
     // Only proceed if we have the necessary search params, available doctors, and haven't executed auto-fill yet
     if (
       slot &&
@@ -279,7 +311,6 @@ const AppointmentSchedulingPage = () => {
     ) {
       console.log("Executing auto-fill...")
       autoFillExecuted.current = true
-
       // Find matching doctor by name (case-insensitive)
       const matchingDoctor = availableDoctors.find((doctor) => {
         const doctorNameLower = doctor.name.toLowerCase()
@@ -287,37 +318,30 @@ const AppointmentSchedulingPage = () => {
         console.log(`Comparing: "${doctorNameLower}" with "${searchNameLower}"`)
         return doctorNameLower.includes(searchNameLower) || searchNameLower.includes(doctorNameLower)
       })
-
       console.log("Matching doctor result:", matchingDoctor)
-
       if (matchingDoctor) {
         console.log("Found matching doctor, updating form data...")
-
         // Auto-fill the form data
         setFormData((prev) => ({
           ...prev,
           doctor: matchingDoctor.id, // Set the doctor
           timeSlot: slot, // Set the time slot
         }))
-
         // Show success message
         toast.success(
           `Auto-filled appointment details for ${matchingDoctor.name} on ${new Date(date).toLocaleDateString()} at ${slot}`,
         )
       } else {
         console.log("No matching doctor found, doing partial auto-fill...")
-
         // Still set slot if available, even if doctor doesn't match
         setFormData((prev) => ({
           ...prev,
           timeSlot: slot,
         }))
-
         toast.info("Partially auto-filled appointment details. Please select the doctor manually.")
       }
     }
   }, [slot, date, doctorName, availableDoctors.length]) // Simplified dependencies
-
   useEffect(() => {
     if (patientSearchTerm.trim() === "") {
       setFilteredPatients(patients)
@@ -328,21 +352,16 @@ const AppointmentSchedulingPage = () => {
         const lastName = patient?.lastName || ""
         const fullName = patient?.fullName || `${firstName} ${lastName}`.trim()
         const childName = patient?.childName || fullName || ""
-
         // Handle parent information
         const parentName = patient?.parentName || patient?.parentInfo?.name || ""
         const motherName = patient?.parentInfo?.motherName || ""
-
         // Handle contact information
         const phone = patient?.contactNumber || patient?.parentInfo?.phone || ""
         const motherPhone = patient?.parentInfo?.motherPhone || ""
-
         // Handle patient ID
         const patientId = patient?._id || patient?.id || ""
-
         // Search term in lowercase for case-insensitive search
         const searchTerm = patientSearchTerm.toLowerCase()
-
         return (
           // Search in child names
           firstName.toLowerCase().includes(searchTerm) ||
@@ -366,19 +385,16 @@ const AppointmentSchedulingPage = () => {
       setFilteredPatients(filtered)
     }
   }, [patientSearchTerm, patients])
-
   // Updated useEffect to include conflict checking
   useEffect(() => {
     if (formData.doctor && calendarData[formData.doctor]) {
       const doctorSlots = calendarData[formData.doctor].slots
       const availableSlots = Object.keys(doctorSlots).filter((timeSlot) => doctorSlots[timeSlot] === null)
-
       // Check for patient conflicts if a patient is selected
       if (selectedPatient && formData.appointmentDates.length > 0) {
         const { conflictingSlots, conflicts } = getAllPatientConflicts(selectedPatient._id, formData.appointmentDates)
         setConflictingSlots(conflictingSlots)
         setPatientConflicts(conflicts)
-
         // Filter out conflicting slots from available slots
         const nonConflictingSlots = availableSlots.filter((slot) => !conflictingSlots.includes(slot))
         setAvailableTimeSlots(nonConflictingSlots)
@@ -393,11 +409,9 @@ const AppointmentSchedulingPage = () => {
       setPatientConflicts({})
     }
   }, [formData.doctor, calendarData, selectedPatient, formData.appointmentDates])
-
   useEffect(() => {
     fetchServices()
   }, [])
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setFormData({
@@ -405,7 +419,6 @@ const AppointmentSchedulingPage = () => {
       [name]: value,
     })
   }
-
   // New function to add date
   const addDate = () => {
     if (currentDateInput && !formData.appointmentDates.includes(currentDateInput)) {
@@ -416,7 +429,6 @@ const AppointmentSchedulingPage = () => {
       setCurrentDateInput("")
     }
   }
-
   // New function to remove date
   const removeDate = (dateToRemove: string) => {
     setFormData({
@@ -424,31 +436,23 @@ const AppointmentSchedulingPage = () => {
       appointmentDates: formData.appointmentDates.filter((date) => date !== dateToRemove),
     })
   }
-
   const calculateEndTime = (startTime: string): string => {
     const [time, period] = startTime.split(" ")
     const [hours, minutes] = time.split(":").map(Number)
-
     let totalMinutes = hours * 60 + minutes + 45
-
     if (period === "PM" && hours !== 12) totalMinutes += 12 * 60
     if (period === "AM" && hours === 12) totalMinutes -= 12 * 60
-
     const endHours = Math.floor(totalMinutes / 60) % 24
     const endMins = totalMinutes % 60
     const endPeriod = endHours >= 12 ? "PM" : "AM"
     const displayHours = endHours > 12 ? endHours - 12 : endHours === 0 ? 12 : endHours
-
     return `${displayHours.toString().padStart(2, "0")}:${endMins.toString().padStart(2, "0")} ${endPeriod}`
   }
-
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement> | React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault()
-
     // Reset previous validation
     setFieldErrors({})
     setShowValidation(false)
-
     // Check for conflicts before submitting
     if (selectedPatient && formData.appointmentDates.length > 0 && formData.timeSlot) {
       const conflicts = checkPatientConflicts(selectedPatient._id, formData.appointmentDates, formData.timeSlot)
@@ -457,7 +461,6 @@ const AppointmentSchedulingPage = () => {
         return
       }
     }
-
     // Validation logic
     const errors: { [key: string]: boolean } = {}
     if (!formData.doctor) errors.doctor = true
@@ -466,26 +469,21 @@ const AppointmentSchedulingPage = () => {
     if (!formData.serviceId) errors.serviceId = true
     if (!formData.consultationMode) errors.consultationMode = true
     if (!formData.type) errors.type = true
-
     // Check if patient is selected or manual entry is provided
     if (!selectedPatient && (!formData.patientName || !formData.phone || !formData.email)) {
       if (!formData.patientName) errors.patientName = true
       if (!formData.phone) errors.phone = true
       if (!formData.email) errors.email = true
     }
-
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors)
       setShowValidation(true)
       toast.error("Please fill in all required fields")
       return
     }
-
     setLoading(true)
-
     try {
       const endTime = calculateEndTime(formData.timeSlot)
-
       // Updated appointment data to include multiple dates
       const appointmentData = {
         patientId: selectedPatient?._id,
@@ -507,7 +505,6 @@ const AppointmentSchedulingPage = () => {
         consent: formData.consent,
         totalSessions: formData.totalSessions,
       }
-
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/multiple`, {
         method: "POST",
         headers: {
@@ -516,12 +513,10 @@ const AppointmentSchedulingPage = () => {
         },
         body: JSON.stringify(appointmentData),
       })
-
       if (!response.ok) {
         const errorData = await response.json()
         throw new Error(errorData.error || "Failed to create appointments")
       }
-
       const result = await response.json()
       console.log("Successfully created appointments", result)
       toast.success(`${formData.appointmentDates.length} appointments scheduled successfully!`)
@@ -553,7 +548,6 @@ const AppointmentSchedulingPage = () => {
           <span>Schedule an Appointment</span>
         </div>
       </div>
-
       {/* Actions */}
       <div className="flex justify-end mb-6">
         <button
@@ -567,11 +561,9 @@ const AppointmentSchedulingPage = () => {
             : `Schedule ${formData.appointmentDates.length || 1} Appointment${formData.appointmentDates.length > 1 ? "s" : ""} & Send Notification`}
         </button>
       </div>
-
       {/* Appointment Information Section - Updated */}
       <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
         <h2 className="text-lg font-semibold text-[#1E437A] mb-4">Appointment Information</h2>
-
         {/* Multiple Appointments Toggle */}
         <div className="mb-4">
           <label className="flex items-center gap-2">
@@ -589,7 +581,6 @@ const AppointmentSchedulingPage = () => {
             <span className="text-[#1E437A] font-medium">Schedule Multiple Appointments</span>
           </label>
         </div>
-
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
           {/* Date Selection - Updated */}
           <div className="md:col-span-2">
@@ -619,7 +610,6 @@ const AppointmentSchedulingPage = () => {
                     Add
                   </button>
                 </div>
-
                 {/* Selected Dates Display */}
                 {formData.appointmentDates.length > 0 && (
                   <div className="space-y-2">
@@ -672,7 +662,6 @@ const AppointmentSchedulingPage = () => {
               </div>
             )}
           </div>
-
           {/* Rest of the form remains the same */}
           <div>
             <label className="block text-[#1E437A] mb-2" htmlFor="doctor">
@@ -717,7 +706,6 @@ const AppointmentSchedulingPage = () => {
               </div>
             </div>
           </div>
-
           <div>
             <label className="block text-[#1E437A] mb-2" htmlFor="timeSlot">
               Available Time Slots *
@@ -758,12 +746,10 @@ const AppointmentSchedulingPage = () => {
                 </svg>
               </div>
             </div>
-
             {/* Show conflict warnings */}
             {formData.doctor && availableTimeSlots.length === 0 && !selectedPatient && (
               <p className="text-sm text-red-500 mt-1">No available slots for selected doctor</p>
             )}
-
             {/* Show patient conflict information */}
             {selectedPatient && conflictingSlots.length > 0 && (
               <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
@@ -783,7 +769,6 @@ const AppointmentSchedulingPage = () => {
               </div>
             )}
           </div>
-
           <div>
             <label className="block text-[#1E437A] mb-2" htmlFor="serviceId">
               Select Service *
@@ -826,13 +811,11 @@ const AppointmentSchedulingPage = () => {
           </div>
         </div>
       </div>
-
       {/* Rest of the form sections remain exactly the same */}
       <form onSubmit={handleSubmit}>
         {/* Patient Selection Section - same as before */}
         <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
           <h2 className="text-lg font-semibold text-[#1E437A] mb-4">Select Patient</h2>
-
           <div className="mb-4">
             <label className="block text-[#1E437A] mb-2">Choose Existing Patient or Add New</label>
             <div className="flex gap-4">
@@ -845,7 +828,6 @@ const AppointmentSchedulingPage = () => {
               </button>
             </div>
           </div>
-
           {showPatientSearch && (
             <div className="border border-gray-200 rounded-lg p-4">
               <div className="mb-4">
@@ -860,7 +842,6 @@ const AppointmentSchedulingPage = () => {
                   />
                 </div>
               </div>
-
               <div className="max-h-60 overflow-y-auto space-y-2">
                 {filteredPatients.length > 0 ? (
                   filteredPatients.map((patient) => (
@@ -873,7 +854,6 @@ const AppointmentSchedulingPage = () => {
                         const email = patient?.email || patient?.parentInfo?.email || ""
                         const phone = patient?.contactNumber || patient?.parentInfo?.phone || ""
                         const address = patient?.address || patient?.parentInfo?.address || ""
-
                         setFormData({
                           ...formData,
                           patientName: childName,
@@ -912,7 +892,6 @@ const AppointmentSchedulingPage = () => {
               </div>
             </div>
           )}
-
           {selectedPatient && (
             <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
               <div className="text-sm text-green-800">
@@ -930,11 +909,9 @@ const AppointmentSchedulingPage = () => {
             </div>
           )}
         </div>
-
         {/* Consultation & Session Details Section - same as before */}
         <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
           <h2 className="text-lg font-semibold text-[#1E437A] mb-4">Consultation & Session Details</h2>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
             <div>
               <label className="block text-[#1E437A] mb-2" htmlFor="consultationMode">
@@ -973,7 +950,6 @@ const AppointmentSchedulingPage = () => {
                 </div>
               </div>
             </div>
-
             <div>
               <label className="block text-[#1E437A] mb-2" htmlFor="type">
                 Appointment Type *
@@ -1011,7 +987,6 @@ const AppointmentSchedulingPage = () => {
               </div>
             </div>
           </div>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
             <div>
               <label className="block text-[#1E437A] mb-2" htmlFor="paymentAmount">
@@ -1031,7 +1006,6 @@ const AppointmentSchedulingPage = () => {
               />
             </div>
           </div>
-
           <div className="mb-4">
             <label className="block text-[#1E437A] mb-2" htmlFor="paymentMethod">
               Payment Method
@@ -1064,7 +1038,6 @@ const AppointmentSchedulingPage = () => {
               </div>
             </div>
           </div>
-
           <div className="flex mt-10 justify-end mb-6">
             <button
               className="flex items-center gap-2 bg-[#C83C92] text-white px-4 py-2 rounded-lg font-medium disabled:opacity-50"
@@ -1080,6 +1053,15 @@ const AppointmentSchedulingPage = () => {
         </div>
       </form>
     </div>
+  )
+}
+
+// Main component wrapped with Suspense
+const AppointmentSchedulingPage = () => {
+  return (
+    <Suspense fallback={<AppointmentSchedulingLoading />}>
+      <AppointmentSchedulingContent />
+    </Suspense>
   )
 }
 
