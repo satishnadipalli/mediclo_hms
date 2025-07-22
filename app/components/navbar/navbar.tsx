@@ -44,7 +44,7 @@ const Navbar: React.FC<NavbarProps> = ({ isOpen, setIsOpen, userDetails, setUser
     <header
       className={`transition-all duration-300 ${
         isOpen && userDetails ? "w-[calc(100%-280px)] ml-[280px]" : "w-full ml-0"
-      } h-16 flex items-center justify-between px-6 bg-white fixed top-0 z-10 border-b border-gray-200 z-10`}
+      } h-16 flex items-center justify-between px-6 bg-white fixed top-0 z-10 border-b border-gray-200 z-40`}
     >
       
       
@@ -60,7 +60,7 @@ const Navbar: React.FC<NavbarProps> = ({ isOpen, setIsOpen, userDetails, setUser
           <div className="hidden md:flex flex-col">
             {userDetails ? (
               <>
-                <span className="text-sm font-semibold text-[#1A1C21]">{userDetails?.firstName?.toUpperCase()}</span>
+                {/* <span className="text-sm font-semibold text-[#1A1C21]">{userDetails?.firstName?.toUpperCase()}</span> */}
                 <span className="text-xs font-semibold text-[#667085]">{userDetails?.role?.toUpperCase()}</span>
               </>
             ) : (

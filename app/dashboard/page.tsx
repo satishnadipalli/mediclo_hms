@@ -1,7 +1,21 @@
 "use client"
+
 import type React from "react"
-import { useState, useEffect } from "react"
-import { Calendar, Plus, Clock, User, Edit3, Trash2, X, CheckCircle, Banknote, AlertCircle } from "lucide-react"
+import { useState, useEffect, useRef } from "react"
+import {
+  Calendar,
+  Plus,
+  Clock,
+  User,
+  Edit3,
+  Trash2,
+  X,
+  CheckCircle,
+  Banknote,
+  AlertCircle,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { toast } from "react-toastify"
@@ -158,6 +172,8 @@ const StatusUpdateModal: React.FC<{
       // Show success message based on status
       if (status === "completed") {
         toast.success(`Appointment completed! Session ${sessionsCompleted}/${appointment?.totalSessions} recorded.`)
+      } else if (status === "cancelled") {
+        toast.success("Appointment cancelled successfully")
       } else {
         toast.success("Appointment updated successfully")
       }
@@ -177,6 +193,12 @@ const StatusUpdateModal: React.FC<{
     if (paymentAmount > 0) {
       setPaymentStatus("paid")
     }
+  }
+
+  // Quick cancel function
+  const handleQuickCancel = () => {
+    setStatus("cancelled")
+    setPaymentStatus("refunded")
   }
 
   if (!isOpen || !appointment) return null
@@ -260,10 +282,7 @@ const StatusUpdateModal: React.FC<{
               Quick Complete Session
             </button>
             <button
-              onClick={() => {
-                setStatus("cancelled")
-                setPaymentStatus("refunded")
-              }}
+              onClick={handleQuickCancel}
               className="flex-1 px-3 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors text-sm font-medium"
             >
               Cancel Appointment
@@ -282,9 +301,7 @@ const StatusUpdateModal: React.FC<{
             >
               <option value="scheduled">Scheduled</option>
               <option value="completed">Completed</option>
-              <option value="cancelled">Cancelled</option>
-              <option value="no-show">No Show</option>
-              <option value="rescheduled">Rescheduled</option>
+              <option value="confirmed">Confirmed</option>
             </select>
           </div>
           {/* Payment Status */}
@@ -330,6 +347,22 @@ const StatusUpdateModal: React.FC<{
               placeholder="Enter amount"
             />
           </div>
+          {/* Sessions Completed - only show if not cancelled */}
+          {status !== "cancelled" && (
+            <div>
+              <label className="block text-sm font-medium text-black mb-2">Sessions Completed</label>
+              <input
+                style={{ color: "black" }}
+                type="number"
+                value={sessionsCompleted}
+                onChange={(e) => setSessionsCompleted(Number(e.target.value))}
+                min="0"
+                max={appointment?.totalSessions || 0}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                placeholder="Number of sessions completed"
+              />
+            </div>
+          )}
           {/* Notes */}
           <div>
             <label className="block text-sm font-medium text-black mb-2">Notes</label>
@@ -676,7 +709,7 @@ const ReceptionistDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen w-full">
+    <div className="min-h-screen w-full font-sans">
       {/* Fixed container that accounts for sidebar */}
       <div className="ml-[300px]  w-[calc(100vw-300px)] p-6 pt-22 overflow-hidden">
         <h1 className="text-2xl font-bold text-[#1E437A] mb-6">Hello, Receptionist!</h1>
@@ -716,6 +749,27 @@ const DoctorScheduleTable: React.FC = () => {
   const [selectedAppointment, setSelectedAppointment] = useState<CalendarAppointment | null>(null)
   // Reschedule Modal State
   const [showRescheduleModal, setShowRescheduleModal] = useState(false)
+  const router = useRouter()
+  // Reference to the table container for scrolling
+  const tableContainerRef = useRef<HTMLDivElement>(null)
+
+  // Handle scroll left and right
+  const handleScroll = (direction: "left" | "right") => {
+    if (tableContainerRef.current) {
+      const scrollAmount = 500 // Adjust this value to control scroll distance
+      const currentScroll = tableContainerRef.current.scrollLeft
+      const newScroll = direction === "left" ? currentScroll - scrollAmount : currentScroll + scrollAmount
+
+      console.log(`Scrolling ${direction}, current: ${currentScroll}, new: ${newScroll}`)
+
+      tableContainerRef.current.scrollTo({
+        left: newScroll,
+        behavior: "smooth",
+      })
+    } else {
+      console.log("tableContainerRef.current is null")
+    }
+  }
 
   // Handle status update click
   const handleStatusClick = (appointment: CalendarAppointment) => {
@@ -838,6 +892,7 @@ const DoctorScheduleTable: React.FC = () => {
         }
         // Extract doctors and time slots from API response
         const doctorNames = Object.keys(apiResponse.data)
+        console.log("apiresponse", apiResponse.data)
         const firstDoctorSlots = doctorNames.length > 0 ? Object.keys(apiResponse.data[doctorNames[0]]) : []
         setTimeSlots(firstDoctorSlots)
         // Create doctor objects with colors
@@ -847,6 +902,7 @@ const DoctorScheduleTable: React.FC = () => {
           specialty: getSpecialtyFromName(name),
           color: doctorColors[index % doctorColors.length],
         }))
+        console.log(doctorsData, "doljksfjadsfkklkjljlkj")
         setDoctors(doctorsData)
       }
     } catch (error) {
@@ -928,25 +984,39 @@ const DoctorScheduleTable: React.FC = () => {
     return Object.values(scheduleData[doctorName] || {}).filter(Boolean).length
   }
 
-  const handleDeleteAppointment = async (appointmentId: string) => {
-    if (!confirm("Are you sure you want to delete this appointment?")) {
+  // Fixed cancel appointment function
+  const handleCancelAppointment = async (appointmentId: string) => {
+    if (!confirm("Are you sure you want to cancel this appointment?")) {
       return
     }
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/${appointmentId}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
+      const updates = {
+        status: "cancelled",
+        payment: {
+          status: "refunded",
         },
-      })
-      if (!response.ok) {
-        throw new Error("Failed to delete appointment")
       }
-      toast.success("Appointment deleted successfully")
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/appointments/updateappointment/${appointmentId}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
+          },
+          body: JSON.stringify(updates),
+        },
+      )
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || "Failed to cancel appointment")
+      }
+      toast.success("Appointment cancelled successfully")
+      // Refresh the calendar to show updated data
       fetchCalendarData()
     } catch (error) {
-      console.error("Error deleting appointment:", error)
-      toast.error("Failed to delete appointment")
+      console.error("Cancel error:", error)
+      toast.error("Failed to cancel appointment")
     }
   }
 
@@ -980,6 +1050,11 @@ const DoctorScheduleTable: React.FC = () => {
       default:
         return <Clock className="w-3 h-3 text-blue-600" />
     }
+  }
+
+  function formatDateToDDMMYYYY(dateString: string) {
+    const [year, month, day] = dateString.split("-")
+    return `${day}-${month}-${year}`
   }
 
   if (loading) {
@@ -1051,170 +1126,219 @@ const DoctorScheduleTable: React.FC = () => {
             </div>
           </div>
         </div>
+        {console.log("selected slot and time", selectedSlot, selectedDate)}
+        {selectedSlot && (
+          <div className="mt-6 mb-4 p-4 bg-white rounded-xl shadow-lg border border-blue-200">
+            <h3 className="font-semibold text-gray-900 mb-2">
+              Selected: {selectedSlot.doctor} at {formatTime(selectedSlot.time)}
+            </h3>
+            <div className="flex gap-3">
+              {!scheduleData[selectedSlot.doctor]?.[selectedSlot.time] ? (
+                <Link
+                  href={`/dashboard/scheduleAppointment?slot=${selectedSlot?.time}&date=${selectedDate}&doctorName=${selectedSlot?.doctor}`}
+                >
+                  <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                    Book Appointment
+                  </button>
+                </Link>
+              ) : (
+                <button
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                  onClick={() => {
+                    const appointment = scheduleData[selectedSlot.doctor]?.[selectedSlot.time]
+                    if (appointment) handleStatusClick(appointment)
+                  }}
+                >
+                  Update Status
+                </button>
+              )}
+              <button
+                className="px-4 py-2 bg-gray-200 text-black rounded-lg hover:bg-gray-300 transition-colors"
+                onClick={() => setSelectedSlot(null)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
         {/* Schedule Table with Enhanced Horizontal Scroll */}
         <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden w-full">
-          {/* Custom Scroll Container with Enhanced Styling */}
-          <div
-            className="overflow-x-auto scrollbar-smooth w-full"
-            style={{
-              scrollBehavior: "smooth",
-              scrollbarWidth: "thin",
-              scrollbarColor: "#C83C92 #f1f5f9",
-            }}
-          >
-            <style jsx>{`
-              .scrollbar-smooth::-webkit-scrollbar {
-                height: 12px;
-              }
-              .scrollbar-smooth::-webkit-scrollbar-track {
-                background: #f1f5f9;
-                border-radius: 6px;
-                margin: 0 10px;
-              }
-              .scrollbar-smooth::-webkit-scrollbar-thumb {
-                background: linear-gradient(90deg, #C83C92, #9333ea);
-                border-radius: 6px;
-                border: 2px solid #f1f5f9;
-              }
-              .scrollbar-smooth::-webkit-scrollbar-thumb:hover {
-                background: linear-gradient(90deg, #a21e6b, #7c3aed);
-              }
-              .scrollbar-smooth::-webkit-scrollbar-corner {
-                background: #f1f5f9;
-              }
-            `}</style>
-            <table className="w-full min-w-max">
-              {/* Table Header */}
-              <thead>
-                <tr>
-                  <th className="p-4 bg-gradient-to-r from-slate-600 to-slate-700 text-left sticky left-0 z-8 min-w-[120px]">
-                    <div className="flex items-center gap-2 text-white font-semibold">
-                      <Clock className="w-5 h-5" />
-                      Time
-                    </div>
-                  </th>
-                  {doctors.map((doctor) => (
-                    <th key={doctor.name} className="p-4 text-center min-w-[200px]">
-                      <div
-                        className={`bg-gradient-to-r ${getDoctorHeaderColor(doctor.color)} rounded-lg p-3 text-white`}
-                      >
-                        <div className="flex items-center justify-center gap-2 mb-1">
-                          <UserCheck className="w-5 h-5" />
-                          <span className="font-semibold text-sm">{doctor.name}</span>
-                        </div>
-                        <div className="text-xs opacity-90">{doctor.specialty}</div>
-                        <div className="text-xs opacity-75 mt-1">{getAppointmentCount(doctor.name)} appointments</div>
+          {/* Table Container with Horizontal Scrollbar */}
+          <div className="w-full flex flex-col">
+            {/* Scroll Indicator */}
+            <div className="bg-gray-50 px-4 py-2 border-b border-gray-200 flex items-center justify-center">
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <span>← Scroll horizontally to view all doctors →</span>
+              </div>
+            </div>
+            {/* Custom Scroll Container */}
+            <div
+              ref={tableContainerRef}
+              className="overflow-x-auto w-full relative"
+              style={{
+                scrollBehavior: "smooth",
+                maxHeight: "70vh",
+                overflowY: "auto",
+              }}
+            >
+              <style jsx>{`
+                .sticky-header {
+                  position: sticky;
+                  top: 0;
+                  z-index: 10;
+                  background: white;
+                  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                }
+              `}</style>
+              <table className="w-full" style={{ minWidth: "1200px" }}>
+                {/* Sticky Table Header */}
+                <thead className="sticky-header">
+                  <tr>
+                    <th className="p-4 bg-gradient-to-r from-slate-600 to-slate-700 text-left sticky left-0 z-8 min-w-[120px]">
+                      <div className="flex items-center gap-2 text-white font-semibold">
+                        <Clock className="w-5 h-5" />
+                        Time
                       </div>
                     </th>
-                  ))}
-                </tr>
-              </thead>
-              {/* Table Body */}
-              <tbody>
-                {timeSlots.map((time, timeIndex) => (
-                  <tr
-                    key={time}
-                    className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${timeIndex % 2 === 0 ? "bg-gray-25" : "bg-white"}`}
-                  >
-                    {/* Time Column */}
-                    <td className="p-4 border-r border-gray-200 bg-slate-50 sticky left-0 z-8 min-w-[120px]">
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-slate-400 rounded-full"></div>
-                        <span className="font-medium text-black text-sm">{formatTime(time)}</span>
-                      </div>
-                    </td>
-                    {/* Doctor Columns */}
-                    {doctors.map((doctor) => {
-                      const appointment = scheduleData[doctor.name]?.[time]
-                      return (
-                        <td
-                          key={`${doctor.name}-${time}`}
-                          className="p-2 border-r border-gray-100 cursor-pointer hover:bg-blue-50 transition-colors min-w-[200px]"
-                          onClick={() => handleSlotClick(doctor.name, time)}
+                    {doctors.map((doctor) => (
+                      <th key={doctor.name} className="p-4 text-center min-w-[200px] bg-white">
+                        <div
+                          className={`bg-gradient-to-r ${getDoctorHeaderColor(doctor.color)} rounded-lg p-3 text-white`}
                         >
-                          {appointment ? (
-                            <div
-                              className={`p-3 rounded-lg border-2 transition-all hover:shadow-md ${getAppointmentTypeColor(appointment, doctor.color)}`}
-                            >
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-1 mb-1">
-                                    <User className="w-3 h-3 flex-shrink-0" />
-                                    <p className="font-semibold text-xs truncate">{appointment?.patientName}</p>
-                                  </div>
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <span className="inline-block px-2 py-0.5 text-xs font-medium bg-white bg-opacity-60 rounded-full">
-                                      {appointment?.type?.substring(0, 8)}
-                                    </span>
-                                    <span className="text-xs opacity-70">{appointment?.duration}min</span>
-                                  </div>
-                                  {/* Status and Payment Row */}
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <div className="flex items-center gap-1">
-                                      {getStatusIcon(appointment?.status)}
-                                      <span className="text-xs font-medium capitalize">{appointment?.status}</span>
+                          <div className="flex items-center justify-center gap-2 mb-1">
+                            <UserCheck className="w-5 h-5" />
+                            <span className="font-semibold text-sm whitespace-nowrap">{doctor.name}</span>
+                          </div>
+                          <div className="text-xs opacity-90">{doctor.specialty}</div>
+                          <div className="text-xs opacity-75 mt-1">{getAppointmentCount(doctor.name)} appointments</div>
+                        </div>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                {/* Table Body */}
+                <tbody>
+                  {timeSlots.map((time, timeIndex) => (
+                    <tr
+                      key={time}
+                      className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${
+                        timeIndex % 2 === 0 ? "bg-gray-25" : "bg-white"
+                      }`}
+                    >
+                      {/* Time Column */}
+                      <td className="p-4 border-r border-gray-200 bg-slate-50 sticky left-0 z-8 min-w-[120px]">
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 bg-slate-400 rounded-full"></div>
+                          <span className="font-medium text-black text-sm">{formatTime(time)}</span>
+                        </div>
+                      </td>
+                      {/* Doctor Columns */}
+                      {doctors.map((doctor) => {
+                        const appointment = scheduleData[doctor.name]?.[time]
+                        return (
+                          <td
+                            key={`${doctor.name}-${time}`}
+                            className="p-2 border-r border-gray-100 cursor-pointer hover:bg-blue-50 transition-colors min-w-[200px]"
+                            onClick={() => handleSlotClick(doctor.name, time)}
+                          >
+                            {appointment ? (
+                              <div
+                                className={`p-3 rounded-lg border-2 transition-all hover:shadow-md ${getAppointmentTypeColor(
+                                  appointment,
+                                  doctor.color,
+                                )}`}
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-1 mb-1">
+                                      <User className="w-3 h-3 flex-shrink-0" />
+                                      <p className="font-semibold text-xs truncate">{appointment?.patientName}</p>
                                     </div>
-                                    <div className="flex items-center gap-1">
-                                      {getPaymentStatusIcon(appointment?.payment?.status)}
-                                      <span className="text-xs">₹{appointment?.payment?.amount}</span>
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <span className="inline-block px-2 py-0.5 text-xs font-medium bg-white bg-opacity-60 rounded-full">
+                                        {appointment?.type?.substring(0, 8)}
+                                      </span>
+                                      <span className="text-xs opacity-70">{appointment?.duration}min</span>
+                                    </div>
+                                    {/* Status and Payment Row */}
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <div className="flex items-center gap-1">
+                                        {getStatusIcon(appointment?.status)}
+                                        <span className="text-xs font-medium capitalize">{appointment?.status}</span>
+                                      </div>
+                                      <div className="flex items-center gap-1">
+                                        {getPaymentStatusIcon(appointment?.payment?.status)}
+                                        <span className="text-xs">₹{appointment?.payment?.amount}</span>
+                                      </div>
+                                    </div>
+                                    {/* Sessions Progress */}
+                                    <div className="text-xs opacity-70">
+                                      Sessions: {appointment?.sessionsCompleted}/{appointment?.totalSessions}
                                     </div>
                                   </div>
-                                  {/* Sessions Progress */}
-                                  <div className="text-xs opacity-70">
-                                    Sessions: {appointment?.sessionsCompleted}/{appointment?.totalSessions}
+                                  <div className="flex flex-col gap-1">
+                                    <button
+                                      className="p-1 hover:bg-white hover:bg-opacity-60 rounded transition-colors"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleStatusClick(appointment)
+                                      }}
+                                      title="Update Status & Payment"
+                                    >
+                                      <CheckCircle className="w-3 h-3" />
+                                    </button>
+                                    <button
+                                      className="p-1 hover:bg-white hover:bg-opacity-60 rounded transition-colors"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleRescheduleClick(appointment)
+                                      }}
+                                      title="Reschedule"
+                                    >
+                                      <Edit3 className="w-3 h-3" />
+                                    </button>
+                                    <button
+                                      className="p-1 hover:bg-white hover:bg-opacity-60 rounded transition-colors"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleCancelAppointment(appointment?.id)
+                                      }}
+                                      title="Cancel Appointment"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </button>
                                   </div>
-                                </div>
-                                <div className="flex flex-col gap-1">
-                                  <button
-                                    className="p-1 hover:bg-white hover:bg-opacity-60 rounded transition-colors"
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      handleStatusClick(appointment)
-                                    }}
-                                    title="Update Status & Payment"
-                                  >
-                                    <CheckCircle className="w-3 h-3" />
-                                  </button>
-                                  <button
-                                    className="p-1 hover:bg-white hover:bg-opacity-60 rounded transition-colors"
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      handleRescheduleClick(appointment)
-                                    }}
-                                    title="Reschedule"
-                                  >
-                                    <Edit3 className="w-3 h-3" />
-                                  </button>
-                                  <button
-                                    className="p-1 hover:bg-white hover:bg-opacity-60 rounded transition-colors"
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      handleDeleteAppointment(appointment?.id)
-                                    }}
-                                    title="Delete"
-                                  >
-                                    <Trash2 className="w-3 h-3" />
-                                  </button>
                                 </div>
                               </div>
-                            </div>
-                          ) : (
-                            <div className="p-3 rounded-lg border-2 border-dashed border-gray-200 hover:border-blue-300 hover:bg-blue-25 transition-all min-h-[100px] flex items-center justify-center">
-                              <Plus className="w-5 h-5 text-gray-400" />
-                            </div>
-                          )}
-                        </td>
-                      )
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {/* Scroll Indicator */}
-          <div className="bg-gray-50 px-4 py-2 border-t border-gray-200">
-            <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
-              <span>← Scroll horizontally to view all doctors →</span>
+                            ) : (
+                              <div className="p-3 rounded-lg border-2 border-dashed border-gray-200 hover:border-blue-300 hover:bg-blue-25 transition-all min-h-[100px] flex items-center justify-center">
+                                <Plus className="w-5 h-5 text-gray-400" />
+                              </div>
+                            )}
+                          </td>
+                        )
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {/* Scroll Navigation Buttons */}
+            <div className="flex justify-between px-4 py-3 bg-gray-50 border-t border-gray-200">
+              <button
+                onClick={() => handleScroll("left")}
+                className="flex items-center justify-center gap-2 px-6 py-2 bg-gradient-to-r from-[#C83C92] to-purple-600 text-white rounded-lg hover:from-[#a21e6b] hover:to-purple-700 transition-colors shadow-md"
+              >
+                <ChevronLeft className="w-5 h-5" />
+                <span className="font-medium">Scroll Left</span>
+              </button>
+              <button
+                onClick={() => handleScroll("right")}
+                className="flex items-center justify-center gap-2 px-6 py-2 bg-gradient-to-r from-[#C83C92] to-purple-600 text-white rounded-lg hover:from-[#a21e6b] hover:to-purple-700 transition-colors shadow-md"
+              >
+                <span className="font-medium">Scroll Right</span>
+                <ChevronRight className="w-5 h-5" />
+              </button>
             </div>
           </div>
         </div>
@@ -1226,10 +1350,12 @@ const DoctorScheduleTable: React.FC = () => {
             </h3>
             <div className="flex gap-3">
               {!scheduleData[selectedSlot.doctor]?.[selectedSlot.time] ? (
-                <Link href={"/dashboard/scheduleAppointment"}>
+                <Link
+                  href={`/dashboard/scheduleAppointment?slot=${selectedSlot?.time}&date=${selectedDate}&doctorName=${selectedSlot?.doctor}`}
+                >
                   <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                  Book Appointment
-                </button>
+                    Book Appointment
+                  </button>
                 </Link>
               ) : (
                 <button
@@ -1253,7 +1379,8 @@ const DoctorScheduleTable: React.FC = () => {
         )}
         {/* Enhanced Doctor Statistics */}
         <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {doctors.slice(0, 4).map((doctor) => {
+          {doctors?.map((doctor) => {
+            console.log(doctors, "doctosdata")
             const doctorAppointments = Object.values(scheduleData[doctor.name] || {}).filter(
               Boolean,
             ) as CalendarAppointment[]

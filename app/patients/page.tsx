@@ -295,22 +295,22 @@ const PatientDetailsModal: React.FC<{
                           Patient Photo
                         </h5>
                         <a to={patient?.photo?.url} target="_blank" onClick={console.log("Hello")}>
-                        <div className="relative group">
-                          <img
-                            src={patient.photo.url || "/placeholder.svg"}
-                            alt="Patient Photo"
-                            className="w-full h-48 object-cover rounded-lg border-2 border-gray-200 cursor-pointer hover:border-blue-300 transition-colors"
-                            onClick={() => window.open(patient.photo!.url, '_blank')}
-                          />
-                          
-                          <div className="absolute bottom-2 right-2 bg-white/90 rounded-full p-1">
-                            
+                          <div className="relative group">
+                            <img
+                              src={patient.photo.url || "/placeholder.svg"}
+                              alt="Patient Photo"
+                              className="w-full h-48 object-cover rounded-lg border-2 border-gray-200 cursor-pointer hover:border-blue-300 transition-colors"
+                              onClick={() => window.open(patient.photo!.url, '_blank')}
+                            />
+
+                            <div className="absolute bottom-2 right-2 bg-white/90 rounded-full p-1">
+
                               <Eye className="w-4 h-4 text-gray-600" />
-                           
+
+                            </div>
+
                           </div>
-                          
-                        </div>
-                         </a>
+                        </a>
                       </div>
                     )}
 
@@ -322,20 +322,20 @@ const PatientDetailsModal: React.FC<{
                           Birth Certificate
                         </h5>
                         <a a to={patient?.birthCertificate?.url}>
-                                                  <div className="relative group">
-                          <img
-                            src={patient.birthCertificate.url || "/placeholder.svg"}
-                            alt="Birth Certificate"
-                            className="w-full h-48 object-cover rounded-lg border-2 border-gray-200 cursor-pointer hover:border-green-300 transition-colors"
-                            onClick={() => window.open(patient.birthCertificate!.url, '_blank')}
-                          />
-                          {/* <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-colors flex items-center justify-center">
+                          <div className="relative group">
+                            <img
+                              src={patient.birthCertificate.url || "/placeholder.svg"}
+                              alt="Birth Certificate"
+                              className="w-full h-48 object-cover rounded-lg border-2 border-gray-200 cursor-pointer hover:border-green-300 transition-colors"
+                              onClick={() => window.open(patient.birthCertificate!.url, '_blank')}
+                            />
+                            {/* <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-colors flex items-center justify-center">
                             <ZoomIn className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                           </div> */}
-                          <div className="absolute bottom-2 right-2 bg-white/90 rounded-full p-1">
-                            <Eye className="w-4 h-4 text-gray-600" />
+                            <div className="absolute bottom-2 right-2 bg-white/90 rounded-full p-1">
+                              <Eye className="w-4 h-4 text-gray-600" />
+                            </div>
                           </div>
-                        </div>
                         </a>
                       </div>
                     )}
@@ -553,7 +553,7 @@ const PatientsEnhancedPage: React.FC = () => {
       // Refresh data
       await fetchPatientsWithAppointments()
       // Show success message
-      alert(`Payment of $${paymentData.paymentAmount} processed successfully!`)
+      alert(`Payment of ₹${paymentData.paymentAmount} processed successfully!`)
       setShowPaymentModal(false)
       setPaymentModalData(null)
     } catch (error) {
@@ -985,7 +985,16 @@ const PaymentModal: React.FC<{
       setPaymentAmount(remaining)
       setPaymentType("full")
     }
-  }, [data])
+  }, [data]);
+
+  // ADD THIS NEW useEffect - This is the fix!
+  useEffect(() => {
+    // Only auto-update payment amount for full payments
+    if (paymentType === "full") {
+      const newTotal = calculateSelectedTotal()
+      setPaymentAmount(newTotal)
+    }
+  }, [selectedAppointments, paymentType])
 
   const handleAppointmentToggle = (appointmentId: string) => {
     setSelectedAppointments((prev) => {
@@ -1009,7 +1018,7 @@ const PaymentModal: React.FC<{
   }
 
   const handleSubmit = () => {
-    if (selectedAppointments.length === 0 || paymentAmount <= 0) {
+    if (selectedAppointments.length === 0) {
       alert("Please select appointments and enter a valid payment amount")
       return
     }
@@ -1117,7 +1126,8 @@ const PaymentModal: React.FC<{
                 />
                 <span style={{ color: "black" }}>Full Payment</span>
               </label>
-              <label className="flex items-center">
+
+              {/* <label className="flex items-center">
                 <input
                   type="radio"
                   name="paymentType"
@@ -1127,7 +1137,8 @@ const PaymentModal: React.FC<{
                   className="mr-2 text-[#C83C92] focus:ring-[#C83C92]"
                 />
                 <span style={{ color: "black" }}>Partial Payment</span>
-              </label>
+              </label> */}
+             
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">

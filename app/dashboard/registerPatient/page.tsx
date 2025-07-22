@@ -712,7 +712,7 @@ const PatientRegistrationForm = () => {
 
                 {/* Birth Certificate Upload */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Upload Birth Certificate {"(Imgae -jpg/jpeg, png)"}</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Upload Document {"(Imgae -jpg/jpeg, png)"}</label>
                   <label
                     className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg cursor-pointer font-medium transition-colors ${
                       uploadingBirthCert ? "bg-gray-400 cursor-not-allowed" : "bg-pink-500 hover:bg-pink-600"
@@ -726,7 +726,7 @@ const PatientRegistrationForm = () => {
                     ) : (
                       <>
                         <Upload className="w-4 h-4" />
-                        Birth certificate
+                        Document
                       </>
                     )}
                     <input

@@ -1,9 +1,9 @@
 "use client"
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Calendar, ChevronLeft, Search, Plus, X, AlertTriangle } from "lucide-react"
 import { toast } from "react-toastify"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 
 // Keep existing interfaces...
 interface CalendarAppointment {
@@ -60,6 +60,17 @@ const AppointmentSchedulingPage = () => {
   // New state for conflict detection
   const [conflictingSlots, setConflictingSlots] = useState<string[]>([])
   const [patientConflicts, setPatientConflicts] = useState<{ [timeSlot: string]: string }>({})
+
+  const searchParams = useSearchParams()
+  const slot = searchParams.get("slot")
+  const date = searchParams.get("date")
+  const doctorName = searchParams.get("doctorName")
+
+  // Add refs to prevent infinite loops
+  const autoFillExecuted = useRef(false)
+  const initialDateSet = useRef(false)
+
+  console.log(date, "date,slot", slot)
 
   // Updated form data to support multiple dates
   const [formData, setFormData] = useState({
@@ -176,16 +187,20 @@ const AppointmentSchedulingPage = () => {
 
   const fetchCalendarData = async (selectedDate: string) => {
     if (!selectedDate) return
+
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/by-date?date=${selectedDate}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
         },
       })
+
       if (!response.ok) {
         throw new Error("Failed to fetch calendar data")
       }
+
       const apiResponse: CalendarApiResponse = await response.json()
+
       if (apiResponse.success) {
         setCalendarData(apiResponse.data)
         const doctorIds = Object.keys(apiResponse.data)
@@ -194,6 +209,7 @@ const AppointmentSchedulingPage = () => {
           name: apiResponse.data[id].name,
         }))
         setAvailableDoctors(doctorDetails)
+
         if (apiResponse.patients) {
           setPatients(apiResponse.patients)
           setFilteredPatients(apiResponse.patients)
@@ -205,18 +221,102 @@ const AppointmentSchedulingPage = () => {
     }
   }
 
-  // Updated useEffect for multiple dates
+  // FIXED: Initial setup - only set date once from search params
   useEffect(() => {
+    console.log("Initial setup useEffect:", { date, initialDateSet: initialDateSet.current })
+
+    if (date && !initialDateSet.current && formData.appointmentDates.length === 0) {
+      console.log("Setting initial date from search params:", date)
+      initialDateSet.current = true
+      setFormData((prev) => ({
+        ...prev,
+        appointmentDates: [date],
+      }))
+    }
+  }, [date]) // Only depend on date from search params
+
+  // FIXED: Fetch calendar data when appointment dates change (but not from auto-fill)
+  useEffect(() => {
+    console.log("Calendar data fetch useEffect:", {
+      appointmentDatesLength: formData.appointmentDates.length,
+      firstDate: formData.appointmentDates[0],
+    })
+
     if (formData.appointmentDates.length > 0) {
       // Fetch calendar data for the first date to get available doctors
       fetchCalendarData(formData.appointmentDates[0])
-      setFormData((prev) => ({
-        ...prev,
-        doctor: "",
-        timeSlot: "",
-      }))
+
+      // Only reset doctor and timeSlot if this is not from auto-fill
+      if (!autoFillExecuted.current) {
+        setFormData((prev) => ({
+          ...prev,
+          doctor: "",
+          timeSlot: "",
+        }))
+      }
     }
-  }, [formData.appointmentDates])
+  }, [formData.appointmentDates.join(",")]) // Use join to avoid array reference issues
+
+  // FIXED: Auto-fill functionality - only run once when all conditions are met
+  useEffect(() => {
+    console.log("Auto-fill useEffect:", {
+      slot,
+      date,
+      doctorName,
+      availableDoctorsLength: availableDoctors.length,
+      autoFillExecuted: autoFillExecuted.current,
+      appointmentDatesLength: formData.appointmentDates.length,
+    })
+
+    // Only proceed if we have the necessary search params, available doctors, and haven't executed auto-fill yet
+    if (
+      slot &&
+      date &&
+      doctorName &&
+      availableDoctors.length > 0 &&
+      !autoFillExecuted.current &&
+      formData.appointmentDates.includes(date) // Make sure the date is already set
+    ) {
+      console.log("Executing auto-fill...")
+      autoFillExecuted.current = true
+
+      // Find matching doctor by name (case-insensitive)
+      const matchingDoctor = availableDoctors.find((doctor) => {
+        const doctorNameLower = doctor.name.toLowerCase()
+        const searchNameLower = doctorName.toLowerCase()
+        console.log(`Comparing: "${doctorNameLower}" with "${searchNameLower}"`)
+        return doctorNameLower.includes(searchNameLower) || searchNameLower.includes(doctorNameLower)
+      })
+
+      console.log("Matching doctor result:", matchingDoctor)
+
+      if (matchingDoctor) {
+        console.log("Found matching doctor, updating form data...")
+
+        // Auto-fill the form data
+        setFormData((prev) => ({
+          ...prev,
+          doctor: matchingDoctor.id, // Set the doctor
+          timeSlot: slot, // Set the time slot
+        }))
+
+        // Show success message
+        toast.success(
+          `Auto-filled appointment details for ${matchingDoctor.name} on ${new Date(date).toLocaleDateString()} at ${slot}`,
+        )
+      } else {
+        console.log("No matching doctor found, doing partial auto-fill...")
+
+        // Still set slot if available, even if doctor doesn't match
+        setFormData((prev) => ({
+          ...prev,
+          timeSlot: slot,
+        }))
+
+        toast.info("Partially auto-filled appointment details. Please select the doctor manually.")
+      }
+    }
+  }, [slot, date, doctorName, availableDoctors.length]) // Simplified dependencies
 
   useEffect(() => {
     if (patientSearchTerm.trim() === "") {
@@ -228,16 +328,21 @@ const AppointmentSchedulingPage = () => {
         const lastName = patient?.lastName || ""
         const fullName = patient?.fullName || `${firstName} ${lastName}`.trim()
         const childName = patient?.childName || fullName || ""
+
         // Handle parent information
         const parentName = patient?.parentName || patient?.parentInfo?.name || ""
         const motherName = patient?.parentInfo?.motherName || ""
+
         // Handle contact information
         const phone = patient?.contactNumber || patient?.parentInfo?.phone || ""
         const motherPhone = patient?.parentInfo?.motherPhone || ""
+
         // Handle patient ID
         const patientId = patient?._id || patient?.id || ""
+
         // Search term in lowercase for case-insensitive search
         const searchTerm = patientSearchTerm.toLowerCase()
+
         return (
           // Search in child names
           firstName.toLowerCase().includes(searchTerm) ||
@@ -323,13 +428,17 @@ const AppointmentSchedulingPage = () => {
   const calculateEndTime = (startTime: string): string => {
     const [time, period] = startTime.split(" ")
     const [hours, minutes] = time.split(":").map(Number)
+
     let totalMinutes = hours * 60 + minutes + 45
+
     if (period === "PM" && hours !== 12) totalMinutes += 12 * 60
     if (period === "AM" && hours === 12) totalMinutes -= 12 * 60
+
     const endHours = Math.floor(totalMinutes / 60) % 24
     const endMins = totalMinutes % 60
     const endPeriod = endHours >= 12 ? "PM" : "AM"
     const displayHours = endHours > 12 ? endHours - 12 : endHours === 0 ? 12 : endHours
+
     return `${displayHours.toString().padStart(2, "0")}:${endMins.toString().padStart(2, "0")} ${endPeriod}`
   }
 
@@ -351,7 +460,6 @@ const AppointmentSchedulingPage = () => {
 
     // Validation logic
     const errors: { [key: string]: boolean } = {}
-
     if (!formData.doctor) errors.doctor = true
     if (formData.appointmentDates.length === 0) errors.appointmentDates = true
     if (!formData.timeSlot) errors.timeSlot = true
@@ -374,8 +482,10 @@ const AppointmentSchedulingPage = () => {
     }
 
     setLoading(true)
+
     try {
       const endTime = calculateEndTime(formData.timeSlot)
+
       // Updated appointment data to include multiple dates
       const appointmentData = {
         patientId: selectedPatient?._id,
@@ -509,6 +619,7 @@ const AppointmentSchedulingPage = () => {
                     Add
                   </button>
                 </div>
+
                 {/* Selected Dates Display */}
                 {formData.appointmentDates.length > 0 && (
                   <div className="space-y-2">
@@ -721,6 +832,7 @@ const AppointmentSchedulingPage = () => {
         {/* Patient Selection Section - same as before */}
         <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
           <h2 className="text-lg font-semibold text-[#1E437A] mb-4">Select Patient</h2>
+
           <div className="mb-4">
             <label className="block text-[#1E437A] mb-2">Choose Existing Patient or Add New</label>
             <div className="flex gap-4">
@@ -748,6 +860,7 @@ const AppointmentSchedulingPage = () => {
                   />
                 </div>
               </div>
+
               <div className="max-h-60 overflow-y-auto space-y-2">
                 {filteredPatients.length > 0 ? (
                   filteredPatients.map((patient) => (
@@ -760,6 +873,7 @@ const AppointmentSchedulingPage = () => {
                         const email = patient?.email || patient?.parentInfo?.email || ""
                         const phone = patient?.contactNumber || patient?.parentInfo?.phone || ""
                         const address = patient?.address || patient?.parentInfo?.address || ""
+
                         setFormData({
                           ...formData,
                           patientName: childName,
@@ -820,6 +934,7 @@ const AppointmentSchedulingPage = () => {
         {/* Consultation & Session Details Section - same as before */}
         <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
           <h2 className="text-lg font-semibold text-[#1E437A] mb-4">Consultation & Session Details</h2>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
             <div>
               <label className="block text-[#1E437A] mb-2" htmlFor="consultationMode">
@@ -858,6 +973,7 @@ const AppointmentSchedulingPage = () => {
                 </div>
               </div>
             </div>
+
             <div>
               <label className="block text-[#1E437A] mb-2" htmlFor="type">
                 Appointment Type *
@@ -877,8 +993,6 @@ const AppointmentSchedulingPage = () => {
                 >
                   <option value="initial assessment">Initial Assessment</option>
                   <option value="follow-up">Follow-up</option>
-                  <option value="therapy session">Therapy Session</option>
-                  <option value="other">Other</option>
                 </select>
                 <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                   <svg
@@ -897,6 +1011,7 @@ const AppointmentSchedulingPage = () => {
               </div>
             </div>
           </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
             <div>
               <label className="block text-[#1E437A] mb-2" htmlFor="paymentAmount">
@@ -916,6 +1031,7 @@ const AppointmentSchedulingPage = () => {
               />
             </div>
           </div>
+
           <div className="mb-4">
             <label className="block text-[#1E437A] mb-2" htmlFor="paymentMethod">
               Payment Method
@@ -948,6 +1064,7 @@ const AppointmentSchedulingPage = () => {
               </div>
             </div>
           </div>
+
           <div className="flex mt-10 justify-end mb-6">
             <button
               className="flex items-center gap-2 bg-[#C83C92] text-white px-4 py-2 rounded-lg font-medium disabled:opacity-50"
