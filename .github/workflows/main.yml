@@ -22,9 +22,21 @@ jobs:
       - name: Deploy to EC2
         run: |
           ssh ubuntu@${{ secrets.EC2_HOST }} << 'EOF'
-            cd ~/hms
-            git pull origin main
-            npm install
-            npm run build    # ✅ Important for frontend apps
-            pm2 restart hms-app --update-env
+            set -e  # Stop on any error
+
+            cd ~/hms || { echo "❌ Failed to change directory"; exit 1; }
+
+            echo "📦 Pulling latest code..."
+            git pull origin main || { echo "❌ Git pull failed"; exit 1; }
+
+            echo "📦 Installing dependencies..."
+            npm install || { echo "❌ npm install failed"; exit 1; }
+
+            echo "🔧 Building app..."
+            npm run build || { echo "❌ Build failed. Skipping restart."; exit 0; }
+
+            echo "🚀 Restarting app with PM2..."
+            pm2 restart hms-app --update-env || { echo "❌ PM2 restart failed"; exit 1; }
+
+            echo "✅ Deployment completed successfully."
           EOF
