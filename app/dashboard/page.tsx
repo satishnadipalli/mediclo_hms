@@ -1,5 +1,4 @@
 "use client"
-
 import type React from "react"
 import { useState, useEffect, useRef } from "react"
 import {
@@ -408,7 +407,7 @@ const StatusUpdateModal: React.FC<{
   )
 }
 
-// Enhanced Reschedule Modal with availability checking
+// Enhanced Reschedule Modal with availability checking - SIMPLIFIED FOR DASHBOARD
 const RescheduleModal: React.FC<{
   appointment: CalendarAppointment | null
   isOpen: boolean
@@ -423,8 +422,7 @@ const RescheduleModal: React.FC<{
   })
   const [availableSlots, setAvailableSlots] = useState<string[]>([])
   const [loadingSlots, setLoadingSlots] = useState(false)
-  const [availableDoctors, setAvailableDoctors] = useState<Array<{ id: string; name: string }>>([])
-  const [selectedDoctorId, setSelectedDoctorId] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Predefined time slots
   const predefinedTimeSlots = [
@@ -497,17 +495,16 @@ const RescheduleModal: React.FC<{
         endTime: "",
         reason: "",
       })
-      setSelectedDoctorId(appointment.doctorId)
       setAvailableSlots([])
     }
   }, [appointment, isOpen])
 
-  // Fetch available slots when date or doctor changes
+  // Fetch available slots when date changes
   useEffect(() => {
-    if (rescheduleData.date && selectedDoctorId) {
-      fetchAvailableSlots(rescheduleData.date, selectedDoctorId)
+    if (rescheduleData.date && appointment?.doctorId) {
+      fetchAvailableSlots(rescheduleData.date, appointment.doctorId)
     }
-  }, [rescheduleData.date, selectedDoctorId])
+  }, [rescheduleData.date, appointment?.doctorId])
 
   const handleRescheduleSubmit = async () => {
     if (!rescheduleData.date || !rescheduleData.startTime) {
@@ -515,12 +512,23 @@ const RescheduleModal: React.FC<{
       return
     }
     if (!appointment) return
+
+    setIsSubmitting(true)
     try {
+      console.log("Dashboard reschedule - sending data:", {
+        appointmentId: appointment.id,
+        date: rescheduleData.date,
+        startTime: rescheduleData.startTime,
+        endTime: rescheduleData.endTime,
+        therapistId: appointment.doctorId,
+        reason: rescheduleData.reason,
+      })
+
       await onReschedule(appointment.id, {
         date: rescheduleData.date,
         startTime: rescheduleData.startTime,
         endTime: rescheduleData.endTime,
-        therapistId: selectedDoctorId,
+        therapistId: appointment.doctorId, // Keep same doctor
         reason: rescheduleData.reason,
       })
       onClose()
@@ -528,6 +536,8 @@ const RescheduleModal: React.FC<{
     } catch (error) {
       console.error("Error rescheduling:", error)
       toast.error("Failed to reschedule appointment")
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -537,7 +547,7 @@ const RescheduleModal: React.FC<{
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
         {/* Modal Header */}
-        <div className="bg-gradient-to-r bg-[#C83C92] px-6 py-4">
+        <div className="bg-gradient-to-r from-[#C83C92] to-purple-600 px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-white bg-opacity-20 rounded-lg">
@@ -545,7 +555,7 @@ const RescheduleModal: React.FC<{
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-white">Reschedule Appointment</h3>
-                <p className="text-blue-100 text-sm">{appointment?.patientName}</p>
+                <p className="text-purple-100 text-sm">{appointment?.patientName}</p>
               </div>
             </div>
             <button onClick={onClose} className="p-1 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors">
@@ -554,7 +564,7 @@ const RescheduleModal: React.FC<{
           </div>
         </div>
         {/* Modal Body */}
-        <div className="p-6 space-y-3 -mt-3">
+        <div className="p-6 space-y-4">
           {/* Current Appointment Info */}
           <div className="bg-gray-50 rounded-lg p-4">
             <h4 className="text-sm font-medium text-black mb-2">Current Appointment</h4>
@@ -566,12 +576,18 @@ const RescheduleModal: React.FC<{
                 <p>
                   <span className="font-medium">{appointment?.type}</span>
                 </p>
+              </div>
+              <div className="flex justify-between mt-1">
                 <p>
-                  <span className="font-medium">{appointment?.duration} minutes</span>
+                  Duration: <span className="font-medium">{appointment?.duration} minutes</span>
+                </p>
+                <p>
+                  Status: <span className="font-medium capitalize">{appointment?.status}</span>
                 </p>
               </div>
             </div>
           </div>
+
           {/* New Date Selection */}
           <div>
             <label className="block text-sm font-medium text-black mb-2">
@@ -585,9 +601,10 @@ const RescheduleModal: React.FC<{
                 setRescheduleData((prev) => ({ ...prev, date: e.target.value, startTime: "", endTime: "" }))
               }}
               min={new Date().toISOString().split("T")[0]}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
             />
           </div>
+
           {/* Time Selection */}
           <div>
             <label className="block text-sm font-medium text-black mb-2">
@@ -595,7 +612,7 @@ const RescheduleModal: React.FC<{
             </label>
             {loadingSlots ? (
               <div className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 flex items-center justify-center">
-                <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-2"></div>
+                <div className="w-4 h-4 border-2 border-purple-600 border-t-transparent rounded-full animate-spin mr-2"></div>
                 <span className="text-gray-600">Loading available slots...</span>
               </div>
             ) : (
@@ -612,7 +629,7 @@ const RescheduleModal: React.FC<{
                   }))
                 }}
                 disabled={!rescheduleData.date}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:bg-gray-100"
               >
                 <option value="">{!rescheduleData.date ? "Select date first" : "Select available time slot"}</option>
                 {availableSlots.map((slot) => (
@@ -626,6 +643,7 @@ const RescheduleModal: React.FC<{
               <p className="text-sm text-red-500 mt-1">No available slots for selected date</p>
             )}
           </div>
+
           {/* End Time Display */}
           {rescheduleData.startTime && (
             <div>
@@ -635,6 +653,7 @@ const RescheduleModal: React.FC<{
               </div>
             </div>
           )}
+
           {/* Reason */}
           <div>
             <label className="block text-sm font-medium text-black mb-2">Reason for Rescheduling (Optional)</label>
@@ -642,26 +661,38 @@ const RescheduleModal: React.FC<{
               style={{ color: "black" }}
               value={rescheduleData.reason}
               onChange={(e) => setRescheduleData((prev) => ({ ...prev, reason: e.target.value }))}
-              placeholder=""
+              placeholder="Enter reason for rescheduling..."
               rows={3}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none"
             />
           </div>
         </div>
+
         {/* Modal Footer */}
         <div className="bg-gray-50 px-6 py-4 flex items-center justify-end gap-3">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-black bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            disabled={isSubmitting}
+            className="px-4 py-2 text-black bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             onClick={handleRescheduleSubmit}
-            disabled={!rescheduleData.date || !rescheduleData.startTime || loadingSlots}
-            className="px-6 py-2 bg-gradient-to-r bg-[#C83C92] text-white rounded-lg  disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            disabled={!rescheduleData.date || !rescheduleData.startTime || loadingSlots || isSubmitting}
+            className="px-6 py-2 bg-gradient-to-r from-[#C83C92] to-purple-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
           >
-            Reschedule Appointment
+            {isSubmitting ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                Rescheduling...
+              </>
+            ) : (
+              <>
+                <Calendar className="w-4 h-4" />
+                Reschedule Appointment
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -744,12 +775,16 @@ const DoctorScheduleTable: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [selectedSlot, setSelectedSlot] = useState<{ doctor: string; time: string } | null>(null)
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0])
+
   // Status Update Modal State
   const [showStatusModal, setShowStatusModal] = useState(false)
   const [selectedAppointment, setSelectedAppointment] = useState<CalendarAppointment | null>(null)
+
   // Reschedule Modal State
   const [showRescheduleModal, setShowRescheduleModal] = useState(false)
+
   const router = useRouter()
+
   // Reference to the table container for scrolling
   const tableContainerRef = useRef<HTMLDivElement>(null)
 
@@ -759,9 +794,7 @@ const DoctorScheduleTable: React.FC = () => {
       const scrollAmount = 600 // Adjust this value to control scroll distance
       const currentScroll = tableContainerRef.current.scrollLeft
       const newScroll = direction === "left" ? currentScroll - scrollAmount : currentScroll + scrollAmount
-
       console.log(`Scrolling ${direction}, current: ${currentScroll}, new: ${newScroll}`)
-
       tableContainerRef.current.scrollTo({
         left: newScroll,
         behavior: "smooth",
@@ -838,21 +871,35 @@ const DoctorScheduleTable: React.FC = () => {
     }
   }
 
-  // Handle reschedule submission with availability checking
+  // Handle reschedule submission with availability checking - DASHBOARD VERSION
   const handleRescheduleSubmit = async (appointmentId: string, rescheduleData: any) => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/${appointmentId}/reschedule`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
-        },
-        body: JSON.stringify(rescheduleData),
+      console.log("Dashboard reschedule - calling API with:", {
+        appointmentId,
+        rescheduleData,
       })
+
+      // Use the dashboard-specific reschedule endpoint
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/appointments/${appointmentId}/dashboard-reschedule`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
+          },
+          body: JSON.stringify(rescheduleData),
+        },
+      )
+
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.message || "Failed to reschedule appointment")
+        throw new Error(errorData.error || errorData.message || "Failed to reschedule appointment")
       }
+
+      const result = await response.json()
+      console.log("Dashboard reschedule - API response:", result)
+
       setShowRescheduleModal(false)
       setSelectedAppointment(null)
       fetchCalendarData() // Refresh the calendar
@@ -1161,6 +1208,7 @@ const DoctorScheduleTable: React.FC = () => {
             </div>
           </div>
         )}
+
         {/* Schedule Table with Enhanced Horizontal Scroll */}
         <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden w-full">
           {/* Table Container with Horizontal Scrollbar */}
@@ -1342,6 +1390,7 @@ const DoctorScheduleTable: React.FC = () => {
             </div>
           </div>
         </div>
+
         {/* Selected Slot Info */}
         {selectedSlot && (
           <div className="mt-6 p-4 bg-white rounded-xl shadow-lg border border-blue-200">
@@ -1377,6 +1426,7 @@ const DoctorScheduleTable: React.FC = () => {
             </div>
           </div>
         )}
+
         {/* Enhanced Doctor Statistics */}
         <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {doctors?.map((doctor) => {
@@ -1389,6 +1439,7 @@ const DoctorScheduleTable: React.FC = () => {
             const totalRevenue = doctorAppointments
               .filter((apt) => apt.payment?.status === "paid")
               .reduce((sum, apt) => sum + apt.payment?.amount, 0)
+
             return (
               <div key={doctor.name} className="p-4 bg-white rounded-xl shadow-sm border">
                 <div className="flex items-center gap-3 mb-3">
@@ -1423,6 +1474,7 @@ const DoctorScheduleTable: React.FC = () => {
           })}
         </div>
       </div>
+
       {/* Status Update Modal */}
       <StatusUpdateModal
         appointment={selectedAppointment!}
@@ -1433,6 +1485,7 @@ const DoctorScheduleTable: React.FC = () => {
         }}
         onUpdate={handleAppointmentUpdate}
       />
+
       {/* Enhanced Reschedule Modal with Availability Checking */}
       <RescheduleModal
         appointment={selectedAppointment}

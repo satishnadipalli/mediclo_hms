@@ -1,5 +1,4 @@
 "use client"
-
 import type React from "react"
 import { useState, useEffect, useRef } from "react"
 import {
@@ -21,6 +20,8 @@ import {
   CalendarDays,
   Stethoscope,
   MoreHorizontal,
+  X,
+  Edit3,
 } from "lucide-react"
 
 // Toast notification system (simple implementation)
@@ -31,16 +32,13 @@ const showToast = (message: string, type: "success" | "error" | "info" = "info")
     type === "success" ? "bg-green-500" : type === "error" ? "bg-red-500" : "bg-blue-500"
   }`
   toast.textContent = message
-
   // Add to DOM
   document.body.appendChild(toast)
-
   // Animate in
   setTimeout(() => {
     toast.style.transform = "translateX(0)"
     toast.style.opacity = "1"
   }, 100)
-
   // Remove after 3 seconds
   setTimeout(() => {
     toast.style.transform = "translateX(100%)"
@@ -84,7 +82,7 @@ interface AppointmentDetails {
   consultationMode: "in-person" | "video-call" | "phone"
   payment: {
     amount: number
-    status: "pending" | "paid" | "partial" | "refunded"
+    status: "pending" | "paid" | "refunded"
     method: "cash" | "card" | "insurance" | "not_specified" | "upi"
     paidAmount?: number
   }
@@ -116,6 +114,362 @@ interface FilterOptions {
   consultationMode: string
 }
 
+// Enhanced Reschedule Modal Component with Payment Status Selection
+const RescheduleModal: React.FC<{
+  appointment: AppointmentDetails | null
+  isOpen: boolean
+  onClose: () => void
+  onReschedule: (appointmentId: string, rescheduleData: any) => void
+}> = ({ appointment, isOpen, onClose, onReschedule }) => {
+  const [rescheduleData, setRescheduleData] = useState({
+    date: "",
+    startTime: "",
+    endTime: "",
+    reason: "",
+    paymentStatus: "pending", // New field for payment status
+  })
+  const [availableSlots, setAvailableSlots] = useState<string[]>([])
+  const [loadingSlots, setLoadingSlots] = useState(false)
+  const [availableDoctors, setAvailableDoctors] = useState<Array<{ id: string; name: string }>>([])
+  const [selectedDoctorId, setSelectedDoctorId] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Predefined time slots
+  const predefinedTimeSlots = [
+    "09:15 AM",
+    "10:00 AM",
+    "10:45 AM",
+    "11:30 AM",
+    "12:15 PM",
+    "01:00 PM",
+    "01:45 PM",
+    "02:30 PM",
+    "03:15 PM",
+    "04:00 PM",
+    "04:45 PM",
+    "05:30 PM",
+    "06:15 PM",
+    "07:00 PM",
+  ]
+
+  // Calculate end time (45 minutes after start time)
+  const calculateEndTime = (startTime: string): string => {
+    const [time, period] = startTime.split(" ")
+    const [hours, minutes] = time.split(":").map(Number)
+    let totalMinutes = hours * 60 + minutes + 45
+    if (period === "PM" && hours !== 12) totalMinutes += 12 * 60
+    if (period === "AM" && hours === 12) totalMinutes -= 12 * 60
+    const endHours = Math.floor(totalMinutes / 60) % 24
+    const endMins = totalMinutes % 60
+    const endPeriod = endHours >= 12 ? "PM" : "AM"
+    const displayHours = endHours > 12 ? endHours - 12 : endHours === 0 ? 12 : endHours
+    return `${displayHours.toString().padStart(2, "0")}:${endMins.toString().padStart(2, "0")} ${endPeriod}`
+  }
+
+  // Fetch available slots when date changes
+  const fetchAvailableSlots = async (selectedDate: string, doctorId: string) => {
+    if (!selectedDate || !doctorId) return
+    setLoadingSlots(true)
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/by-date?date=${selectedDate}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
+        },
+      })
+      if (!response.ok) {
+        throw new Error("Failed to fetch availability")
+      }
+      const apiResponse = await response.json()
+      if (apiResponse.success && apiResponse.data[doctorId]) {
+        const doctorSlots = apiResponse.data[doctorId].slots
+        const availableSlots = Object.keys(doctorSlots).filter((timeSlot) => doctorSlots[timeSlot] === null)
+        setAvailableSlots(availableSlots)
+      } else {
+        setAvailableSlots([])
+      }
+    } catch (error) {
+      console.error("Error fetching available slots:", error)
+      showToast("Failed to fetch available slots", "error")
+      setAvailableSlots([])
+    } finally {
+      setLoadingSlots(false)
+    }
+  }
+
+  // Reset form when modal opens
+  useEffect(() => {
+    if (appointment && isOpen) {
+      // Determine default payment status based on original appointment
+      let defaultPaymentStatus = "pending"
+      if (appointment.payment.status === "refunded") {
+        // If it was refunded (meaning it was paid before cancellation), default to paid
+        defaultPaymentStatus = "paid"
+      } else if (appointment.payment.status === "pending") {
+        // If it was pending when cancelled, keep it pending
+        defaultPaymentStatus = "pending"
+      }
+
+      setRescheduleData({
+        date: "",
+        startTime: "",
+        endTime: "",
+        reason: "",
+        paymentStatus: defaultPaymentStatus,
+      })
+      setSelectedDoctorId(appointment.therapistId._id)
+      setAvailableSlots([])
+    }
+  }, [appointment, isOpen])
+
+  // Fetch available slots when date or doctor changes
+  useEffect(() => {
+    if (rescheduleData.date && selectedDoctorId) {
+      fetchAvailableSlots(rescheduleData.date, selectedDoctorId)
+    }
+  }, [rescheduleData.date, selectedDoctorId])
+
+  const handleRescheduleSubmit = async () => {
+    if (!rescheduleData.date || !rescheduleData.startTime) {
+      showToast("Please select date and time", "error")
+      return
+    }
+    if (!appointment) return
+
+    console.log("Modal reschedule data:", rescheduleData) // Debug log
+
+    setIsSubmitting(true)
+    try {
+      await onReschedule(appointment._id, {
+        date: rescheduleData.date,
+        startTime: rescheduleData.startTime,
+        endTime: rescheduleData.endTime,
+        therapistId: selectedDoctorId,
+        reason: rescheduleData.reason,
+        paymentStatus: rescheduleData.paymentStatus, // Make sure this is included
+      })
+      onClose()
+    } catch (error) {
+      console.error("Error rescheduling:", error)
+      // Don't show toast here as it's handled in the parent function
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  if (!isOpen || !appointment) return null
+
+  // Check if the appointment was originally paid (now refunded)
+  const wasOriginallyPaid = appointment.payment.status === "refunded"
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+        {/* Modal Header */}
+        <div className="bg-gradient-to-r from-[#C83C92] to-purple-600 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-white bg-opacity-20 rounded-lg">
+                <Calendar className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-white">Reschedule Appointment</h3>
+                <p className="text-purple-100 text-sm">{appointment?.patientName}</p>
+              </div>
+            </div>
+            <button onClick={onClose} className="p-1 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors">
+              <X className="w-5 h-5 text-white" />
+            </button>
+          </div>
+        </div>
+
+        {/* Modal Body */}
+        <div className="p-6 space-y-4 max-h-96 overflow-y-auto">
+          {/* Current Appointment Info */}
+          <div className="bg-gray-50 rounded-lg p-4">
+            <h4 className="text-sm font-medium text-black mb-2">Current Appointment</h4>
+            <div className="text-sm text-gray-600">
+              <div className="flex justify-between">
+                <p>
+                  Patient: <span className="font-medium">{appointment?.patientName}</span>
+                </p>
+                <p>
+                  <span className="font-medium">{appointment?.type}</span>
+                </p>
+              </div>
+              <div className="flex justify-between mt-1">
+                <p>
+                  Therapist: <span className="font-medium">{appointment?.therapistId.fullName}</span>
+                </p>
+                <p>
+                  <span className="font-medium">45 minutes</span>
+                </p>
+              </div>
+              <div className="flex justify-between mt-1">
+                <p>
+                  Payment:{" "}
+                  <span
+                    className={`font-medium ${appointment?.payment.status === "refunded" ? "text-red-600" : "text-yellow-600"}`}
+                  >
+                    {appointment?.payment.status} (₹{appointment?.payment.amount})
+                  </span>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Payment Status Selection */}
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <h4 className="text-sm font-medium text-black mb-2 flex items-center gap-2">
+              <IndianRupee className="w-4 h-4 text-yellow-600" />
+              Payment Status for Rescheduled Appointment
+            </h4>
+            <p className="text-xs text-gray-600 mb-3">
+              {wasOriginallyPaid
+                ? "This appointment was paid before cancellation. Choose the payment status for the rescheduled appointment:"
+                : "This appointment was not paid before cancellation. Choose the payment status for the rescheduled appointment:"}
+            </p>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="paymentStatus"
+                  value="paid"
+                  checked={rescheduleData.paymentStatus === "paid"}
+                  onChange={(e) => setRescheduleData((prev) => ({ ...prev, paymentStatus: e.target.value }))}
+                  className="text-green-600 focus:ring-green-500"
+                />
+                <span className="text-sm text-black">
+                  Paid - {wasOriginallyPaid ? "Keep as paid (refund was processed)" : "Mark as paid"}
+                </span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="paymentStatus"
+                  value="pending"
+                  checked={rescheduleData.paymentStatus === "pending"}
+                  onChange={(e) => setRescheduleData((prev) => ({ ...prev, paymentStatus: e.target.value }))}
+                  className="text-yellow-600 focus:ring-yellow-500"
+                />
+                <span className="text-sm text-black">
+                  Pending - {wasOriginallyPaid ? "Require new payment" : "Keep as pending"}
+                </span>
+              </label>
+            </div>
+          </div>
+
+          {/* New Date Selection */}
+          <div>
+            <label className="block text-sm font-medium text-black mb-2">
+              New Date <span className="text-red-500">*</span>
+            </label>
+            <input
+              style={{ color: "black" }}
+              type="date"
+              value={rescheduleData.date}
+              onChange={(e) => {
+                setRescheduleData((prev) => ({ ...prev, date: e.target.value, startTime: "", endTime: "" }))
+              }}
+              min={new Date().toISOString().split("T")[0]}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+            />
+          </div>
+
+          {/* Time Selection */}
+          <div>
+            <label className="block text-sm font-medium text-black mb-2">
+              Available Time Slots <span className="text-red-500">*</span>
+            </label>
+            {loadingSlots ? (
+              <div className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 flex items-center justify-center">
+                <div className="w-4 h-4 border-2 border-purple-600 border-t-transparent rounded-full animate-spin mr-2"></div>
+                <span className="text-gray-600">Loading available slots...</span>
+              </div>
+            ) : (
+              <select
+                style={{ color: "black" }}
+                value={rescheduleData.startTime}
+                onChange={(e) => {
+                  const startTime = e.target.value
+                  const endTime = calculateEndTime(startTime)
+                  setRescheduleData((prev) => ({
+                    ...prev,
+                    startTime,
+                    endTime,
+                  }))
+                }}
+                disabled={!rescheduleData.date}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:bg-gray-100"
+              >
+                <option value="">{!rescheduleData.date ? "Select date first" : "Select available time slot"}</option>
+                {availableSlots.map((slot) => (
+                  <option key={slot} value={slot}>
+                    {slot}
+                  </option>
+                ))}
+              </select>
+            )}
+            {rescheduleData.date && availableSlots.length === 0 && !loadingSlots && (
+              <p className="text-sm text-red-500 mt-1">No available slots for selected date</p>
+            )}
+          </div>
+
+          {/* End Time Display */}
+          {rescheduleData.startTime && (
+            <div>
+              <label className="block text-sm font-medium text-black mb-2">End Time (Auto-calculated)</label>
+              <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-black">
+                {rescheduleData.endTime}
+              </div>
+            </div>
+          )}
+
+          {/* Reason */}
+          <div>
+            <label className="block text-sm font-medium text-black mb-2">Reason for Rescheduling (Optional)</label>
+            <textarea
+              style={{ color: "black" }}
+              value={rescheduleData.reason}
+              onChange={(e) => setRescheduleData((prev) => ({ ...prev, reason: e.target.value }))}
+              placeholder="Enter reason for rescheduling..."
+              rows={3}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none"
+            />
+          </div>
+        </div>
+
+        {/* Modal Footer */}
+        <div className="bg-gray-50 px-6 py-4 flex items-center justify-end gap-3">
+          <button
+            onClick={onClose}
+            disabled={isSubmitting}
+            className="px-4 py-2 text-black bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleRescheduleSubmit}
+            disabled={!rescheduleData.date || !rescheduleData.startTime || loadingSlots || isSubmitting}
+            className="px-6 py-2 bg-gradient-to-r from-[#C83C92] to-purple-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+          >
+            {isSubmitting ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                Rescheduling...
+              </>
+            ) : (
+              <>
+                <Calendar className="w-4 h-4" />
+                Reschedule Appointment
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // Status dropdown component
 const StatusDropdown: React.FC<{
   currentStatus: string
@@ -125,7 +479,6 @@ const StatusDropdown: React.FC<{
   position: { x: number; y: number }
 }> = ({ currentStatus, appointmentId, onStatusUpdate, onClose, position }) => {
   const dropdownRef = useRef<HTMLDivElement>(null)
-
   const statusOptions = [
     { value: "scheduled", label: "Scheduled", color: "text-blue-600", icon: Clock },
     { value: "confirmed", label: "Confirmed", color: "text-green-600", icon: CheckCircle },
@@ -138,13 +491,11 @@ const StatusDropdown: React.FC<{
         onClose()
       }
     }
-
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         onClose()
       }
     }
-
     document.addEventListener("mousedown", handleClickOutside)
     document.addEventListener("keydown", handleEscape)
     return () => {
@@ -226,6 +577,10 @@ const AppointmentsEnhancedPage: React.FC = () => {
     position: { x: number; y: number }
   } | null>(null)
 
+  // Reschedule modal states
+  const [showRescheduleModal, setShowRescheduleModal] = useState(false)
+  const [rescheduleAppointment, setRescheduleAppointment] = useState<AppointmentDetails | null>(null)
+
   // Double-click tracking
   const [lastClickTime, setLastClickTime] = useState<{ [key: string]: number }>({})
   const [clickTimeouts, setClickTimeouts] = useState<{ [key: string]: NodeJS.Timeout }>({})
@@ -235,12 +590,10 @@ const AppointmentsEnhancedPage: React.FC = () => {
     try {
       setLoading(true)
       setError(null)
-
       const token = localStorage.getItem("receptionToken")
       if (!token) {
         throw new Error("Authentication token not found")
       }
-
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments`, {
         method: "GET",
         headers: {
@@ -248,21 +601,17 @@ const AppointmentsEnhancedPage: React.FC = () => {
           Authorization: `Bearer ${token}`,
         },
       })
-
       if (!response.ok) {
         if (response.status === 401) {
           throw new Error("Authentication failed. Please login again.")
         }
         throw new Error(`HTTP error! status: ${response.status}`)
       }
-
       const apiResponse = await response.json()
       console.log("API Response:", apiResponse)
-
       if (!apiResponse.success) {
         throw new Error(apiResponse.message || "API returned unsuccessful response")
       }
-
       // Transform the data to match our interface
       const transformedAppointments = (apiResponse.data || []).map((apt: any) => ({
         _id: apt._id,
@@ -303,7 +652,6 @@ const AppointmentsEnhancedPage: React.FC = () => {
         createdAt: apt.createdAt,
         updatedAt: apt.updatedAt,
       }))
-
       setAppointments(transformedAppointments)
       calculateSummary(transformedAppointments)
     } catch (err) {
@@ -362,6 +710,15 @@ const AppointmentsEnhancedPage: React.FC = () => {
     event.preventDefault()
     event.stopPropagation()
 
+    // If appointment is cancelled, handle reschedule instead
+    if (currentStatus === "cancelled") {
+      const appointment = appointments.find((apt) => apt._id === appointmentId)
+      if (appointment) {
+        handleRescheduleClick(appointment)
+      }
+      return
+    }
+
     const now = Date.now()
     const lastClick = lastClickTime[appointmentId] || 0
     const timeDiff = now - lastClick
@@ -394,11 +751,98 @@ const AppointmentsEnhancedPage: React.FC = () => {
     }
   }
 
+  // Handle reschedule click
+  const handleRescheduleClick = (appointment: AppointmentDetails) => {
+    setRescheduleAppointment(appointment)
+    setShowRescheduleModal(true)
+  }
+
+  // Handle reschedule submission
+  const handleRescheduleSubmit = async (appointmentId: string, rescheduleData: any) => {
+    try {
+      setUpdating(true)
+
+      console.log("Sending reschedule data:", {
+        date: rescheduleData.date,
+        startTime: rescheduleData.startTime,
+        endTime: rescheduleData.endTime,
+        therapistId: rescheduleData.therapistId,
+        reason: rescheduleData.reason,
+        paymentStatus: rescheduleData.paymentStatus, // Make sure this is included
+      })
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/${appointmentId}/reschedule`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
+        },
+        body: JSON.stringify({
+          date: rescheduleData.date,
+          startTime: rescheduleData.startTime,
+          endTime: rescheduleData.endTime,
+          therapistId: rescheduleData.therapistId,
+          reason: rescheduleData.reason,
+          paymentStatus: rescheduleData.paymentStatus, // Explicitly send payment status
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || errorData.message || "Failed to reschedule appointment")
+      }
+
+      const result = await response.json()
+      console.log("Reschedule response:", result)
+
+      // Update local state immediately with the returned data
+      if (result.success && result.data) {
+        setAppointments((prevAppointments) =>
+          prevAppointments.map((apt) =>
+            apt._id === appointmentId
+              ? {
+                  ...apt,
+                  date: result.data.date,
+                  startTime: result.data.startTime,
+                  endTime: result.data.endTime,
+                  status: result.data.status as any,
+                  payment: {
+                    ...apt.payment,
+                    status: result.data.payment.status as any, // Use the status from server response
+                  },
+                  therapistId: {
+                    ...apt.therapistId,
+                    _id: result.data.therapistId._id || result.data.therapistId,
+                  },
+                  notes: result.data.notes,
+                }
+              : apt,
+          ),
+        )
+      }
+
+      setShowRescheduleModal(false)
+      setRescheduleAppointment(null)
+
+      showToast("Appointment rescheduled successfully", "success")
+
+      // Refresh appointments after a short delay to ensure consistency
+      setTimeout(() => {
+        fetchAppointments()
+      }, 1500)
+    } catch (error) {
+      console.error("Error rescheduling appointment:", error)
+      showToast(error instanceof Error ? error.message : "Failed to reschedule appointment", "error")
+      throw error
+    } finally {
+      setUpdating(false)
+    }
+  }
+
   // Enhanced appointment status update function
   const updateAppointmentStatus = async (appointmentId: string, newStatus: string) => {
     try {
       setUpdating(true)
-
       const appointment = appointments.find((apt) => apt._id === appointmentId)
       if (!appointment) {
         throw new Error("Appointment not found")
@@ -420,10 +864,14 @@ const AppointmentsEnhancedPage: React.FC = () => {
           }
         }
       } else if (newStatus === "cancelled") {
-        updates.payment = {
-          ...appointment.payment,
-          status: "refunded",
+        // Handle payment status based on current payment status
+        if (appointment.payment.status === "paid") {
+          updates.payment = {
+            ...appointment.payment,
+            status: "refunded",
+          }
         }
+        // If payment was pending, keep it as pending (don't change to refunded)
       }
 
       const token = localStorage.getItem("receptionToken")
@@ -533,8 +981,6 @@ const AppointmentsEnhancedPage: React.FC = () => {
         return "bg-green-100 text-green-800"
       case "pending":
         return "bg-yellow-100 text-yellow-800"
-      case "partial":
-        return "bg-orange-100 text-orange-800"
       case "refunded":
         return "bg-red-100 text-red-800"
       default:
@@ -609,7 +1055,6 @@ const AppointmentsEnhancedPage: React.FC = () => {
       a.click()
       document.body.removeChild(a)
       window.URL.revokeObjectURL(url)
-
       showToast("Report exported successfully", "success")
     } catch (error) {
       console.error("Error exporting report:", error)
@@ -677,7 +1122,6 @@ const AppointmentsEnhancedPage: React.FC = () => {
         setStatusDropdownData(null)
       }
     }
-
     if (showStatusDropdown) {
       document.addEventListener("click", handleClickOutside)
       return () => document.removeEventListener("click", handleClickOutside)
@@ -906,7 +1350,6 @@ const AppointmentsEnhancedPage: React.FC = () => {
                 <option value="all">All Payments</option>
                 <option value="paid">Paid</option>
                 <option value="pending">Pending</option>
-                <option value="partial">Partial</option>
                 <option value="refunded">Refunded</option>
               </select>
             </div>
@@ -933,7 +1376,9 @@ const AppointmentsEnhancedPage: React.FC = () => {
           <h2 className="text-xl font-semibold text-[#1E437A]">
             Appointments Overview ({filteredAppointments.length})
           </h2>
-          <p className="text-sm text-gray-600 mt-1">Double-click on any status to update it</p>
+          <p className="text-sm text-gray-600 mt-1">
+            Double-click on status to update • Double-click on cancelled appointments to reschedule
+          </p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -981,14 +1426,17 @@ const AppointmentsEnhancedPage: React.FC = () => {
                   <td className="px-6 py-4">
                     <div>
                       <div className="font-medium text-[#456696]">{appointment.serviceId.name}</div>
-                      {/* <div className="text-sm text-gray-500">₹{appointment.serviceId.price}</div> */}
                     </div>
                   </td>
                   <td className="px-6 py-4">
                     <span
                       className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border cursor-pointer hover:shadow-md transition-all select-none ${getStatusColor(appointment.status)}`}
                       onClick={(e) => handleStatusClick(e, appointment._id, appointment.status)}
-                      title="Double-click to change status"
+                      title={
+                        appointment.status === "cancelled"
+                          ? "Double-click to reschedule"
+                          : "Double-click to change status"
+                      }
                     >
                       {appointment.status === "completed" && <CheckCircle className="w-3 h-3 mr-1" />}
                       {appointment.status === "cancelled" && <XCircle className="w-3 h-3 mr-1" />}
@@ -1007,13 +1455,7 @@ const AppointmentsEnhancedPage: React.FC = () => {
                         <IndianRupee className="w-3 h-3 mr-1" />
                         {appointment.payment.status}
                       </span>
-                      <div className="text-xs text-gray-500">
-                        ₹
-                        {appointment.payment.status === "partial"
-                          ? appointment.payment.paidAmount
-                          : appointment.payment.amount}
-                        {appointment.payment.status === "partial" && ` / ₹${appointment.payment.amount}`}
-                      </div>
+                      <div className="text-xs text-gray-500">₹{appointment.payment.amount}</div>
                     </div>
                   </td>
                   <td className="px-6 py-4">
@@ -1025,6 +1467,15 @@ const AppointmentsEnhancedPage: React.FC = () => {
                       >
                         <Eye className="w-4 h-4" />
                       </button>
+                      {appointment.status === "cancelled" && (
+                        <button
+                          onClick={() => handleRescheduleClick(appointment)}
+                          className="p-1 text-purple-600 hover:bg-purple-100 rounded transition-colors"
+                          title="Reschedule Appointment"
+                        >
+                          <Edit3 className="w-4 h-4" />
+                        </button>
+                      )}
                       <div className="relative group p-3">
                         <button className="p-1 text-gray-600 hover:bg-gray-100 rounded transition-colors">
                           <MoreHorizontal className="w-4 h-4" />
@@ -1078,6 +1529,17 @@ const AppointmentsEnhancedPage: React.FC = () => {
         />
       )}
 
+      {/* Reschedule Modal */}
+      <RescheduleModal
+        appointment={rescheduleAppointment}
+        isOpen={showRescheduleModal}
+        onClose={() => {
+          setShowRescheduleModal(false)
+          setRescheduleAppointment(null)
+        }}
+        onReschedule={handleRescheduleSubmit}
+      />
+
       {/* Appointment Details Modal */}
       {showDetailsModal && selectedAppointment && (
         <AppointmentDetailsModal
@@ -1128,8 +1590,6 @@ const AppointmentDetailsModal: React.FC<{
         return "bg-green-100 text-green-800"
       case "pending":
         return "bg-yellow-100 text-yellow-800"
-      case "partial":
-        return "bg-orange-100 text-orange-800"
       case "refunded":
         return "bg-red-100 text-red-800"
       default:
@@ -1147,6 +1607,7 @@ const AppointmentDetailsModal: React.FC<{
             <XCircle className="w-6 h-6" />
           </button>
         </div>
+
         {/* Appointment Info */}
         <div className="space-y-6">
           {/* Basic Info */}
@@ -1201,6 +1662,7 @@ const AppointmentDetailsModal: React.FC<{
               </div>
             </div>
           </div>
+
           {/* Status and Payment */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
@@ -1221,10 +1683,10 @@ const AppointmentDetailsModal: React.FC<{
               </span>
               <div className="text-sm text-gray-500 mt-1">
                 Amount: ₹{appointment.payment.amount} | Method: {appointment.payment.method}
-                {appointment.payment.status === "partial" && <div>Paid: ₹{appointment.payment.paidAmount}</div>}
               </div>
             </div>
           </div>
+
           {/* Sessions Info */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Session Progress</label>
@@ -1243,6 +1705,7 @@ const AppointmentDetailsModal: React.FC<{
               </div>
             </div>
           </div>
+
           {/* Additional Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
@@ -1254,6 +1717,7 @@ const AppointmentDetailsModal: React.FC<{
               <span className="text-[#456696] capitalize">{appointment.consultationMode}</span>
             </div>
           </div>
+
           {/* Notes */}
           {appointment.notes && (
             <div>
@@ -1262,6 +1726,7 @@ const AppointmentDetailsModal: React.FC<{
             </div>
           )}
         </div>
+
         {/* Action Buttons */}
         <div className="mt-6 flex gap-3">
           {appointment.status === "scheduled" && (

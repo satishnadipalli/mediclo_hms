@@ -1,7 +1,8 @@
 "use client"
+
 import type React from "react"
 import { useState, useRef, createContext, useCallback } from "react"
-import { ChevronLeft, Upload, Calendar, X, CheckCircle, Loader2 } from "lucide-react"
+import { ChevronLeft, Upload, Calendar, X, CheckCircle, Loader2, Search, ChevronDown } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 // Toast functionality
@@ -25,6 +26,150 @@ const ToastContext = createContext<{
 
 function cn(...classes: (string | undefined)[]) {
   return classes.filter(Boolean).join(" ")
+}
+
+// Child Symptoms Data
+const CHILD_SYMPTOMS = [
+  "Autism spectrum disorder",
+  "Attention deficit hyperactivity disorder",
+  "Down's syndrome",
+  "Developmental delayed disorder",
+  "Cerebral palsy",
+  "Seizure disorders",
+  "Hypoxic-Ischemic Encephalopathy",
+  "Hemiparalysis",
+  "Learning difficulties",
+  "Slow learner",
+  "Fine motor skills difficulties",
+  "Attention deficit disorder",
+  "Sensory processing disorders",
+  "Swallowing and feeding issues",
+  "Speech language delays",
+  "Stammering",
+  "Articulations issues",
+  "Slurred speech",
+  "Visual processing difficulties",
+  "Behavioural issues",
+  "Handwriting difficulties",
+  "Brachial plexus injury",
+  "Hand functions dysfunction",
+  "Spina bifida",
+  "Developmental disorders",
+  "Genetic disorders",
+  "Others",
+]
+
+// Multi-Select Symptoms Component
+const SymptomsMultiSelect: React.FC<{
+  selectedSymptoms: string[]
+  onSymptomsChange: (symptoms: string[]) => void
+}> = ({ selectedSymptoms, onSymptomsChange }) => {
+  const [isOpen, setIsOpen] = useState(false)
+  const [searchTerm, setSearchTerm] = useState("")
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  const filteredSymptoms = CHILD_SYMPTOMS.filter(
+    (symptom) => symptom.toLowerCase().includes(searchTerm.toLowerCase()) && !selectedSymptoms.includes(symptom),
+  )
+
+  const handleSymptomSelect = (symptom: string) => {
+    if (!selectedSymptoms.includes(symptom)) {
+      onSymptomsChange([...selectedSymptoms, symptom])
+    }
+    setSearchTerm("")
+  }
+
+  const handleSymptomRemove = (symptomToRemove: string) => {
+    onSymptomsChange(selectedSymptoms.filter((symptom) => symptom !== symptomToRemove))
+  }
+
+  const handleClickOutside = (e: React.MouseEvent) => {
+    if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+      setIsOpen(false)
+    }
+  }
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      {/* Selected Symptoms as Chips */}
+      {selectedSymptoms.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-3">
+          {selectedSymptoms.map((symptom, index) => (
+            <div
+              key={index}
+              className="inline-flex items-center gap-2 px-3 py-1 text-black bg-pink-100 text-pink-800 rounded-full text-sm font-medium"
+            >
+              <span className="">{symptom}</span>
+              <button
+                type="button"
+                onClick={() => handleSymptomRemove(symptom)}
+                className="hover:bg-pink-200 rounded-full p-0.5 transition-colors"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Dropdown Trigger */}
+      <div
+        className="w-full px-3 py-3 border border-gray-300 rounded-lg bg-white cursor-pointer focus-within:ring-2 focus-within:ring-pink-500 focus-within:border-pink-500"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <div className="flex items-center justify-between">
+          <span className={selectedSymptoms.length > 0 ? "text-gray-900" : "text-gray-500"}>
+            {selectedSymptoms.length > 0
+              ? `${selectedSymptoms.length} symptom${selectedSymptoms.length > 1 ? "s" : ""} selected`
+              : "Select child symptoms"}
+          </span>
+          <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+        </div>
+      </div>
+
+      {/* Dropdown Menu */}
+      {isOpen && (
+        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-hidden">
+          {/* Search Input */}
+          <div className="p-3 border-b border-gray-200">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Search symptoms..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+          </div>
+
+          {/* Symptoms List */}
+          <div className="max-h-40 overflow-y-auto">
+            {filteredSymptoms.length > 0 ? (
+              filteredSymptoms.map((symptom, index) => (
+                <div
+                  key={index}
+                  className="px-3 py-2 hover:bg-gray-50 text-black cursor-pointer text-sm"
+                  onClick={() => handleSymptomSelect(symptom)}
+                >
+                  {symptom}
+                </div>
+              ))
+            ) : (
+              <div className="px-3 py-2 text-sm text-gray-500">
+                {searchTerm ? "No symptoms found" : "All symptoms selected"}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Overlay to close dropdown */}
+      {isOpen && <div className="fixed inset-0 z-5" onClick={() => setIsOpen(false)} />}
+    </div>
+  )
 }
 
 // Success Modal Component
@@ -109,6 +254,7 @@ const PatientRegistrationForm = () => {
     const id = Math.random().toString(36).substr(2, 9)
     const newToast = { ...toast, id }
     setToasts((prev) => [...prev, newToast])
+
     // Auto remove after duration
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id))
@@ -136,7 +282,6 @@ const PatientRegistrationForm = () => {
   const [childPhotoPreview, setChildPhotoPreview] = useState<string | null>(null)
   const [childPhotoUrl, setChildPhotoUrl] = useState<string>("")
   const [childPhotoPublicId, setChildPhotoPublicId] = useState<string>("")
-
   const [birthCertificatePreview, setBirthCertificatePreview] = useState<string | null>(null)
   const [birthCertificateUrl, setBirthCertificateUrl] = useState<string>("")
   const [birthCertificatePublicId, setBirthCertificatePublicId] = useState<string>("")
@@ -149,6 +294,9 @@ const PatientRegistrationForm = () => {
     age: "",
     gender: "",
     parentId: "",
+    // Child Symptoms and Notes - NEW FIELDS
+    childSymptoms: [] as string[],
+    notes: "",
     // Parent's Information
     parentInfo: {
       name: "",
@@ -214,6 +362,7 @@ const PatientRegistrationForm = () => {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
+
     if (name.startsWith("parentInfo.")) {
       const field = name.split(".")[1]
       setFormData({
@@ -237,6 +386,7 @@ const PatientRegistrationForm = () => {
         ...formData,
         [name]: value,
       })
+
       // Auto-calculate age when date of birth changes
       if (name === "dateOfBirth") {
         const calculatedAge = calculateAge(value)
@@ -247,6 +397,14 @@ const PatientRegistrationForm = () => {
         }))
       }
     }
+  }
+
+  // Handle symptoms change
+  const handleSymptomsChange = (symptoms: string[]) => {
+    setFormData({
+      ...formData,
+      childSymptoms: symptoms,
+    })
   }
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, fileType: string) => {
@@ -266,9 +424,6 @@ const PatientRegistrationForm = () => {
 
     // Validate file type
     const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"]
-    // if (fileType === "birthCertificate") {
-    //   allowedTypes.push("application/pdf")
-    // }
 
     if (!allowedTypes.includes(file.type)) {
       addToast({
@@ -376,6 +531,7 @@ const PatientRegistrationForm = () => {
         return false
       }
     }
+
     return true
   }
 
@@ -399,6 +555,9 @@ const PatientRegistrationForm = () => {
           lastName: formData.lastName,
           dateOfBirth: formData.dateOfBirth,
           gender: formData.gender,
+          // NEW FIELDS - Child Symptoms and Notes
+          childSymptoms: formData.childSymptoms,
+          notes: formData.notes,
           // Send photo data with URL and public_id
           photo: childPhotoUrl
             ? {
@@ -456,7 +615,6 @@ const PatientRegistrationForm = () => {
 
   const handleSuccessModalClose = () => {
     setShowSuccessModal(false)
-
     if (isRegisterLater) {
       // Stay on the same page and reset form
       setFormData({
@@ -466,6 +624,8 @@ const PatientRegistrationForm = () => {
         age: "",
         gender: "",
         parentId: "",
+        childSymptoms: [],
+        notes: "",
         parentInfo: {
           name: "",
           phone: "",
@@ -673,7 +833,9 @@ const PatientRegistrationForm = () => {
 
                 {/* Child Photo Upload */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Upload Child Photo {"(Imgae -jpg/jpeg, png)"}</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Upload Child Photo {"(Image -jpg/jpeg, png)"}
+                  </label>
                   <label
                     className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg cursor-pointer font-medium transition-colors ${
                       uploadingPhoto ? "bg-gray-400 cursor-not-allowed" : "bg-pink-500 hover:bg-pink-600"
@@ -712,7 +874,9 @@ const PatientRegistrationForm = () => {
 
                 {/* Birth Certificate Upload */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Upload Document {"(Imgae -jpg/jpeg, png)"}</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Upload Document {"(Image -jpg/jpeg, png)"}
+                  </label>
                   <label
                     className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg cursor-pointer font-medium transition-colors ${
                       uploadingBirthCert ? "bg-gray-400 cursor-not-allowed" : "bg-pink-500 hover:bg-pink-600"
@@ -846,6 +1010,32 @@ const PatientRegistrationForm = () => {
                 />
               </div>
 
+              {/* NEW FIELDS - Child Symptoms */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Child Symptoms <span className="text-gray-500">{"(Optional)"}</span>
+                </label>
+                <SymptomsMultiSelect
+                  selectedSymptoms={formData.childSymptoms}
+                  onSymptomsChange={handleSymptomsChange}
+                />
+              </div>
+
+              {/* NEW FIELDS - Notes */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Notes <span className="text-gray-500">{"(Optional)"}</span>
+                </label>
+                <textarea
+                  name="notes"
+                  value={formData.notes}
+                  onChange={handleInputChange}
+                  placeholder="Enter any additional notes here..."
+                  rows={4}
+                  className="w-full px-3 py-3 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500 resize-none"
+                />
+              </div>
+
               {/* Address */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -863,6 +1053,7 @@ const PatientRegistrationForm = () => {
                 />
               </div>
             </div>
+
             <div className="flex items-center mt-10 justify-between mb-2">
               <div className="flex gap-3">
                 <button

@@ -1,4 +1,5 @@
 "use client"
+
 import type React from "react"
 import { useState, useEffect } from "react"
 import {
@@ -16,9 +17,11 @@ import {
   RefreshCw,
   User,
   FileText,
-  ZoomIn,
+  Edit,
+  Save,
+  ChevronDown,
+  Upload,
 } from "lucide-react"
-import Link from "next/link"
 
 // Enhanced interfaces for comprehensive appointment and payment management
 interface AppointmentDetails {
@@ -66,12 +69,17 @@ interface PatientWithAppointments {
     url: string
     public_id: string
   } | null
+  // NEW FIELDS - Child Symptoms and Notes
+  childSymptoms?: string[]
+  notes?: string
   parentInfo?: {
     name: string
     phone: string
     email: string
     relationship?: string
     address?: string
+    motherName?: string
+    motherphone?: string
   }
   parentName?: string
   contactNumber?: string
@@ -103,6 +111,688 @@ interface PaymentModalData {
   customAmount?: number
 }
 
+// Child Symptoms Data
+const CHILD_SYMPTOMS = [
+  "Autism spectrum disorder",
+  "Attention deficit hyperactivity disorder",
+  "Down's syndrome",
+  "Developmental delayed disorder",
+  "Cerebral palsy",
+  "Seizure disorders",
+  "Hypoxic-Ischemic Encephalopathy",
+  "Hemiparalysis",
+  "Learning difficulties",
+  "Slow learner",
+  "Fine motor skills difficulties",
+  "Attention deficit disorder",
+  "Sensory processing disorders",
+  "Swallowing and feeding issues",
+  "Speech language delays",
+  "Stammering",
+  "Articulations issues",
+  "Slurred speech",
+  "Visual processing difficulties",
+  "Behavioural issues",
+  "Handwriting difficulties",
+  "Brachial plexus injury",
+  "Hand functions dysfunction",
+  "Spina bifida",
+  "Developmental disorders",
+  "Genetic disorders",
+  "Others",
+]
+
+// Multi-Select Symptoms Component for Edit Modal
+const SymptomsMultiSelect: React.FC<{
+  selectedSymptoms: string[]
+  onSymptomsChange: (symptoms: string[]) => void
+}> = ({ selectedSymptoms, onSymptomsChange }) => {
+  const [isOpen, setIsOpen] = useState(false)
+  const [searchTerm, setSearchTerm] = useState("")
+
+  const filteredSymptoms = CHILD_SYMPTOMS.filter(
+    (symptom) => symptom.toLowerCase().includes(searchTerm.toLowerCase()) && !selectedSymptoms.includes(symptom),
+  )
+
+  const handleSymptomSelect = (symptom: string) => {
+    if (!selectedSymptoms.includes(symptom)) {
+      onSymptomsChange([...selectedSymptoms, symptom])
+    }
+    setSearchTerm("")
+  }
+
+  const handleSymptomRemove = (symptomToRemove: string) => {
+    onSymptomsChange(selectedSymptoms.filter((symptom) => symptom !== symptomToRemove))
+  }
+
+  return (
+    <div className="relative">
+      {/* Selected Symptoms as Chips */}
+      {selectedSymptoms.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-3">
+          {selectedSymptoms.map((symptom, index) => (
+            <div
+              key={index}
+              className="inline-flex items-center gap-2 px-3 py-1 bg-pink-100 text-pink-800 rounded-full text-sm font-medium"
+            >
+              <span>{symptom}</span>
+              <button
+                type="button"
+                onClick={() => handleSymptomRemove(symptom)}
+                className="hover:bg-pink-200 rounded-full p-0.5 transition-colors"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Dropdown Trigger */}
+      <div
+        className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white cursor-pointer focus-within:ring-2 focus-within:ring-pink-500 focus-within:border-pink-500"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <div className="flex items-center justify-between">
+          <span className={selectedSymptoms.length > 0 ? "text-gray-900" : "text-gray-500"}>
+            {selectedSymptoms.length > 0
+              ? `${selectedSymptoms.length} symptom${selectedSymptoms.length > 1 ? "s" : ""} selected`
+              : "Select child symptoms"}
+          </span>
+          <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+        </div>
+      </div>
+
+      {/* Dropdown Menu */}
+      {isOpen && (
+        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-hidden">
+          {/* Search Input */}
+          <div className="p-3 border-b border-gray-200">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input
+                type="text"
+                style={{color:"black"}}
+                placeholder="Search symptoms..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+          </div>
+
+          {/* Symptoms List */}
+          <div className="max-h-40 overflow-y-auto">
+            {filteredSymptoms.length > 0 ? (
+              filteredSymptoms.map((symptom, index) => (
+                <div
+                  key={index}
+                  className="px-3 py-2 hover:bg-gray-50 cursor-pointer text-sm"
+                  onClick={() => handleSymptomSelect(symptom)}
+                >
+                  {symptom}
+                </div>
+              ))
+            ) : (
+              <div className="px-3 py-2 text-sm text-gray-500">
+                {searchTerm ? "No symptoms found" : "All symptoms selected"}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Overlay to close dropdown */}
+      {isOpen && <div className="fixed inset-0 z-5" onClick={() => setIsOpen(false)} />}
+    </div>
+  )
+}
+
+// Edit Patient Modal Component
+const EditPatientModal: React.FC<{
+  patient: PatientWithAppointments
+  isOpen: boolean
+  onClose: () => void
+  onSave: (updatedPatient: Partial<PatientWithAppointments>) => void
+}> = ({ patient, isOpen, onClose, onSave }) => {
+  const [isLoading, setIsLoading] = useState(false)
+  const [formData, setFormData] = useState({
+    firstName: patient.firstName || "",
+    lastName: patient.lastName || "",
+    dateOfBirth: patient.dateOfBirth ? patient.dateOfBirth.split("T")[0] : "",
+    gender: patient.gender || patient.childGender || "",
+    childSymptoms: patient.childSymptoms || [],
+    notes: patient.notes || "",
+    parentInfo: {
+      name: patient.parentInfo?.name || patient.parentName || "",
+      phone: patient.parentInfo?.phone || patient.contactNumber || "",
+      email: patient.parentInfo?.email || patient.email || "",
+      motherName: patient.parentInfo?.motherName || "",
+      motherphone: patient.parentInfo?.motherphone || "",
+      relationship: patient.parentInfo?.relationship || "Guardian",
+      address: patient.parentInfo?.address || "",
+    },
+  })
+
+  // Add these new state variables after the existing formData state:
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const [uploadingBirthCert, setUploadingBirthCert] = useState(false)
+  const [childPhotoPreview, setChildPhotoPreview] = useState<string | null>(patient.photo?.url || null)
+  const [childPhotoUrl, setChildPhotoUrl] = useState<string>(patient.photo?.url || "")
+  const [childPhotoPublicId, setChildPhotoPublicId] = useState<string>(patient.photo?.public_id || "")
+  const [birthCertificatePreview, setBirthCertificatePreview] = useState<string | null>(
+    patient.birthCertificate?.url || null,
+  )
+  const [birthCertificateUrl, setBirthCertificateUrl] = useState<string>(patient.birthCertificate?.url || "")
+  const [birthCertificatePublicId, setBirthCertificatePublicId] = useState<string>(
+    patient.birthCertificate?.public_id || "",
+  )
+
+  const handleInputChange = (field: string, value: any) => {
+    if (field.startsWith("parentInfo.")) {
+      const parentField = field.split(".")[1]
+      setFormData((prev) => ({
+        ...prev,
+        parentInfo: {
+          ...prev.parentInfo,
+          [parentField]: value,
+        },
+      }))
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        [field]: value,
+      }))
+    }
+  }
+
+  // Add the Cloudinary upload function after the handleInputChange function:
+  const uploadToCloudinary = async (file: File, folder = "patients") => {
+    const formData = new FormData()
+    formData.append("file", file)
+    formData.append("upload_preset", "my_unsigned_preset") // Replace with your unsigned preset name
+
+    try {
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/dlehbizfp/image/upload`, // Replace YOUR_CLOUD_NAME
+        {
+          method: "POST",
+          body: formData,
+        },
+      )
+
+      if (!response.ok) {
+        throw new Error("Failed to upload image")
+      }
+
+      const data = await response.json()
+      return {
+        url: data.secure_url,
+        public_id: data.public_id,
+      }
+    } catch (error) {
+      console.error("Cloudinary upload error:", error)
+      throw error
+    }
+  }
+
+  // Add the file upload handler after the uploadToCloudinary function:
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, fileType: string) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Please select a file smaller than 5MB.")
+      return
+    }
+
+    // Validate file type
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"]
+
+    if (!allowedTypes.includes(file.type)) {
+      alert(`Please select a valid ${fileType === "birthCertificate" ? "image or PDF" : "image"} file.`)
+      return
+    }
+
+    try {
+      // Set loading state
+      if (fileType === "childPhoto") {
+        setUploadingPhoto(true)
+      } else if (fileType === "birthCertificate") {
+        setUploadingBirthCert(true)
+      }
+
+      // Create preview for images
+      if (file.type.startsWith("image/")) {
+        const reader = new FileReader()
+        reader.onloadend = () => {
+          const result = reader.result as string
+          if (fileType === "childPhoto") {
+            setChildPhotoPreview(result)
+          } else if (fileType === "birthCertificate") {
+            setBirthCertificatePreview(result)
+          }
+        }
+        reader.readAsDataURL(file)
+      }
+
+      // Upload to Cloudinary
+      const uploadResult = await uploadToCloudinary(
+        file,
+        fileType === "childPhoto" ? "patients/photos" : "patients/certificates",
+      )
+
+      // Store the URLs and public IDs
+      if (fileType === "childPhoto") {
+        setChildPhotoUrl(uploadResult.url)
+        setChildPhotoPublicId(uploadResult.public_id)
+        alert("Child photo uploaded successfully!")
+      } else if (fileType === "birthCertificate") {
+        setBirthCertificateUrl(uploadResult.url)
+        setBirthCertificatePublicId(uploadResult.public_id)
+        alert("Birth certificate uploaded successfully!")
+      }
+    } catch (error) {
+      console.error("Upload error:", error)
+      alert(`Failed to upload ${fileType === "childPhoto" ? "photo" : "birth certificate"}. Please try again.`)
+    } finally {
+      // Reset loading state
+      if (fileType === "childPhoto") {
+        setUploadingPhoto(false)
+      } else if (fileType === "birthCertificate") {
+        setUploadingBirthCert(false)
+      }
+    }
+  }
+
+  // Update the handleSave function to include the uploaded files:
+  const handleSave = async () => {
+    setIsLoading(true)
+    try {
+      const updateData = {
+        ...formData,
+        // Include photo data if uploaded
+        photo: childPhotoUrl
+          ? {
+              url: childPhotoUrl,
+              public_id: childPhotoPublicId,
+            }
+          : patient.photo, // Keep existing photo if no new upload
+        // Include birth certificate data if uploaded
+        birthCertificate: birthCertificateUrl
+          ? {
+              url: birthCertificateUrl,
+              public_id: birthCertificatePublicId,
+            }
+          : patient.birthCertificate, // Keep existing certificate if no new upload
+      }
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/patients/${patient._id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
+        },
+        body: JSON.stringify(updateData),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to update patient")
+      }
+
+      const result = await response.json()
+      onSave(result.data)
+      onClose()
+    } catch (error) {
+      console.error("Error updating patient:", error)
+      alert("Failed to update patient. Please try again.")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  if (!isOpen) return null
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="flex justify-between items-center p-6 border-b border-gray-200">
+          <div className="flex items-center gap-3">
+            <Edit className="w-5 h-5 text-blue-600" />
+            <h3 className="text-xl font-semibold text-gray-900">Edit Patient Details</h3>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+            <X className="w-6 h-6 text-gray-500" />
+          </button>
+        </div>
+
+        {/* Form Content */}
+        <div className="p-6 space-y-6">
+          {/* Child Information */}
+          <div className="space-y-4">
+            <h4 className="text-lg font-semibold text-gray-900 border-b pb-2">Child Information</h4>
+            {/* Replace the existing gender field div with this expanded version: */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+              <div className="">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Gender *</label>
+                <select
+                style={{color:"black"}}
+                  value={formData.gender}
+                  onChange={(e) => handleInputChange("gender", e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+                  required
+                >
+                  <option value="">Select gender</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              {/* Child Photo Upload */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Update Photo {"(jpg/jpeg, png)"}
+                </label>
+                <label
+                  className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg cursor-pointer font-medium transition-colors ${
+                    uploadingPhoto ? "bg-gray-400 cursor-not-allowed" : "bg-pink-500 hover:bg-pink-600"
+                  } text-white`}
+                >
+                  {uploadingPhoto ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4" />
+                      Photo
+                    </>
+                  )}
+                  <input
+                    type="file"
+                    style={{color:"black"}}
+                    accept="image/*"
+                    onChange={(e) => handleFileUpload(e, "childPhoto")}
+                    disabled={uploadingPhoto}
+                    className="hidden"
+                  />
+                </label>
+                {childPhotoPreview && (
+                  <div className="mt-2">
+                    <img
+                      src={childPhotoPreview || "/placeholder.svg"}
+                      alt="Child"
+                      className="w-16 h-16 object-cover rounded-lg border-2 border-green-200"
+                    />
+                    <div className="text-xs text-green-600 mt-1">✓ Photo ready</div>
+                  </div>
+                )}
+              </div>
+
+              {/* Birth Certificate Upload */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Update Document {"(Image -jpg/jpeg, png)"}
+                </label>
+                <label
+                  className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg cursor-pointer font-medium transition-colors ${
+                    uploadingBirthCert ? "bg-gray-400 cursor-not-allowed" : "bg-pink-500 hover:bg-pink-600"
+                  } text-white`}
+                >
+                  {uploadingBirthCert ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4" />
+                      Document
+                    </>
+                  )}
+                  <input
+                    type="file"
+                    style={{color:"black"}}
+                    accept="image/*,.pdf"
+                    onChange={(e) => handleFileUpload(e, "birthCertificate")}
+                    disabled={uploadingBirthCert}
+                    className="hidden"
+                  />
+                </label>
+                {birthCertificatePreview && (
+                  <div className="mt-2">
+                    <img
+                      src={birthCertificatePreview || "/placeholder.svg"}
+                      alt="Birth Certificate"
+                      className="w-16 h-16 object-cover rounded-lg border-2 border-green-200"
+                    />
+                    <div className="text-xs text-green-600 mt-1">✓ Certificate ready</div>
+                  </div>
+                )}
+                {birthCertificateUrl && !birthCertificatePreview && (
+                  <div className="mt-2 text-xs text-green-600">✓ PDF ready for upload</div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Current Documents Section */}
+          {(patient.photo?.url || patient.birthCertificate?.url) && (
+            <div className="space-y-4">
+              <h4 className="text-lg font-semibold text-gray-900 border-b pb-2">Current Documents</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Current Patient Photo */}
+                {patient.photo?.url && (
+                  <div className="space-y-3">
+                    <h5 className="font-medium text-gray-700 flex items-center gap-2">
+                      <User className="w-4 h-4" />
+                      Current Patient Photo
+                    </h5>
+                    <div className="relative group">
+                      <img
+                        src={patient.photo.url || "/placeholder.svg"}
+                        alt="Current Patient Photo"
+                        className="w-full h-32 object-cover rounded-lg border-2 border-gray-200"
+                      />
+                      <div className="absolute bottom-2 right-2 bg-white/90 rounded-full p-1">
+                        <Eye className="w-3 h-3 text-gray-600" />
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500">Upload a new photo above to replace this one</p>
+                  </div>
+                )}
+                {/* Current Birth Certificate */}
+                {patient.birthCertificate?.url && (
+                  <div className="space-y-3">
+                    <h5 className="font-medium text-gray-700 flex items-center gap-2">
+                      <FileText className="w-4 h-4" />
+                      Current Birth Certificate
+                    </h5>
+                    <div className="relative group">
+                      <img
+                        src={patient.birthCertificate.url || "/placeholder.svg"}
+                        alt="Current Birth Certificate"
+                        className="w-full h-32 object-cover rounded-lg border-2 border-gray-200"
+                      />
+                      <div className="absolute bottom-2 right-2 bg-white/90 rounded-full p-1">
+                        <Eye className="w-3 h-3 text-gray-600" />
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500">Upload a new document above to replace this one</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Parent Information */}
+          <div className="space-y-4">
+            <h4 className="text-lg font-semibold text-gray-900 border-b pb-2">Parent Information</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Father's Name *</label>
+                <input
+                  type="text"
+                  style={{color:"black"}}
+                  value={formData.parentInfo.name}
+                  onChange={(e) => handleInputChange("parentInfo.name", e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Father's Phone *</label>
+                <input
+                  type="tel"
+                  style={{color:"black"}}
+                  value={formData.parentInfo.phone}
+                  onChange={(e) => handleInputChange("parentInfo.phone", e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Mother's Name *</label>
+                <input
+                  type="text"
+                  style={{color:"black"}}
+                  value={formData.parentInfo.motherName}
+                  onChange={(e) => handleInputChange("parentInfo.motherName", e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Mother's Phone *</label>
+                <input
+                  type="tel"
+                  style={{color:"black"}}
+                  value={formData.parentInfo.motherphone}
+                  onChange={(e) => handleInputChange("parentInfo.motherphone", e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Email (Optional)</label>
+                <input
+                  type="email"
+                  style={{color:"black"}}
+                  value={formData.parentInfo.email}
+                  onChange={(e) => handleInputChange("parentInfo.email", e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Relationship</label>
+                <select
+                style={{color:"black"}}
+                  value={formData.parentInfo.relationship}
+                  onChange={(e) => handleInputChange("parentInfo.relationship", e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+                >
+                  <option value="Father">Father</option>
+                  <option value="Mother">Mother</option>
+                  <option value="Guardian">Guardian</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Child Symptoms */}
+          <div className="space-y-4">
+            <h4 className="text-lg font-semibold text-gray-900 border-b pb-2">Child Symptoms</h4>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Child Symptoms <span className="text-gray-500">(Optional)</span>
+              </label>
+              <SymptomsMultiSelect
+                selectedSymptoms={formData.childSymptoms}
+                onSymptomsChange={(symptoms) => handleInputChange("childSymptoms", symptoms)}
+              />
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div className="space-y-4">
+            <h4 className="text-lg font-semibold text-gray-900 border-b pb-2">Notes</h4>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Additional Notes <span className="text-gray-500">(Optional)</span>
+              </label>
+              <textarea
+              style={{color:"black"}}
+                value={formData.notes}
+                onChange={(e) => handleInputChange("notes", e.target.value)}
+                rows={4}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500 resize-none"
+                placeholder="Enter any additional notes..."
+              />
+            </div>
+          </div>
+
+          {/* Address */}
+          <div className="space-y-4">
+            <h4 className="text-lg font-semibold text-gray-900 border-b pb-2">Address</h4>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Address *</label>
+              <textarea
+                value={formData.parentInfo.address}
+                style={{color:"black"}}
+                onChange={(e) => handleInputChange("parentInfo.address", e.target.value)}
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500 resize-none"
+                placeholder="Enter full address..."
+                required
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
+          <button
+            onClick={onClose}
+            disabled={isLoading}
+            className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          {/* Update the Save button to show upload status: */}
+          <button
+            onClick={handleSave}
+            disabled={isLoading || uploadingPhoto || uploadingBirthCert}
+            className="flex items-center gap-2 px-6 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 transition-colors disabled:opacity-50"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Saving...
+              </>
+            ) : uploadingPhoto || uploadingBirthCert ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Uploading...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4" />
+                Save Changes
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // Image Modal Component
 const ImageModal: React.FC<{
   isOpen: boolean
@@ -130,7 +820,6 @@ const ImageModal: React.FC<{
             <X className="w-5 h-5 text-gray-500" />
           </button>
         </div>
-
         {/* Image Container */}
         <div className="p-6 flex justify-center items-center bg-gray-50 min-h-[400px]">
           <img
@@ -143,7 +832,6 @@ const ImageModal: React.FC<{
             }}
           />
         </div>
-
         {/* Footer */}
         <div className="p-4 border-t border-gray-200 flex justify-end">
           <button
@@ -158,12 +846,13 @@ const ImageModal: React.FC<{
   )
 }
 
-// Patient Details Modal Component
+// Enhanced Patient Details Modal Component
 const PatientDetailsModal: React.FC<{
   patient: PatientWithAppointments
   isOpen: boolean
   onClose: () => void
-}> = ({ patient, isOpen, onClose }) => {
+  onEdit: (patient: PatientWithAppointments) => void
+}> = ({ patient, isOpen, onClose, onEdit }) => {
   const [showImageModal, setShowImageModal] = useState(false)
   const [selectedImage, setSelectedImage] = useState<{
     url: string
@@ -224,9 +913,18 @@ const PatientDetailsModal: React.FC<{
                 <p className="text-sm text-gray-600">Patient Details</p>
               </div>
             </div>
-            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-              <X className="w-6 h-6 text-gray-500" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => onEdit(patient)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+              >
+                <Edit className="w-4 h-4" />
+                Edit Details
+              </button>
+              <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                <X className="w-6 h-6 text-gray-500" />
+              </button>
+            </div>
           </div>
 
           {/* Patient Information */}
@@ -256,18 +954,29 @@ const PatientDetailsModal: React.FC<{
                   </div>
                 </div>
               </div>
-
               <div className="space-y-4">
                 <h4 className="text-lg font-semibold text-gray-900 border-b pb-2">Parent Information</h4>
                 <div className="space-y-3">
                   <div>
-                    <span className="text-sm font-medium text-gray-600">Parent Name:</span>
+                    <span className="text-sm font-medium text-gray-600">Father's Name:</span>
                     <p className="text-gray-900">{getParentName(patient)}</p>
                   </div>
                   <div>
-                    <span className="text-sm font-medium text-gray-600">Contact:</span>
+                    <span className="text-sm font-medium text-gray-600">Father's Contact:</span>
                     <p className="text-gray-900">{patient.parentInfo?.phone || patient.contactNumber || "N/A"}</p>
                   </div>
+                  {patient.parentInfo?.motherName && (
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">Mother's Name:</span>
+                      <p className="text-gray-900">{patient.parentInfo.motherName}</p>
+                    </div>
+                  )}
+                  {patient.parentInfo?.motherphone && (
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">Mother's Contact:</span>
+                      <p className="text-gray-900">{patient.parentInfo.motherphone}</p>
+                    </div>
+                  )}
                   <div>
                     <span className="text-sm font-medium text-gray-600">Email:</span>
                     <p className="text-gray-900">{patient.parentInfo?.email || patient.email || "N/A"}</p>
@@ -280,73 +989,81 @@ const PatientDetailsModal: React.FC<{
               </div>
             </div>
 
-            {/* Documents Section */}
-            {
-              (patient.photo?.url || patient.birthCertificate?.url) && (
-                <div className="space-y-4">
-                  <h4 className="text-lg font-semibold text-gray-900 border-b pb-2">Documents & Photos</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-                    {/* Patient Photo */}
-                    {patient?.photo?.url && (
-                      <div className="space-y-3">
-                        <h5 className="font-medium text-gray-700 flex items-center gap-2">
-                          <User className="w-4 h-4" />
-                          Patient Photo
-                        </h5>
-                        <a to={patient?.photo?.url} target="_blank" onClick={console.log("Hello")}>
-                          <div className="relative group">
-                            <img
-                              src={patient.photo.url || "/placeholder.svg"}
-                              alt="Patient Photo"
-                              className="w-full h-48 object-cover rounded-lg border-2 border-gray-200 cursor-pointer hover:border-blue-300 transition-colors"
-                              onClick={() => window.open(patient.photo!.url, '_blank')}
-                            />
-
-                            <div className="absolute bottom-2 right-2 bg-white/90 rounded-full p-1">
-
-                              <Eye className="w-4 h-4 text-gray-600" />
-
-                            </div>
-
-                          </div>
-                        </a>
-                      </div>
-                    )}
-
-                    {/* Birth Certificate */}
-                    {patient?.birthCertificate?.url && (
-                      <div className="space-y-3">
-                        <h5 className="font-medium text-gray-700 flex items-center gap-2">
-                          <FileText className="w-4 h-4" />
-                          Birth Certificate
-                        </h5>
-                        <a a to={patient?.birthCertificate?.url}>
-                          <div className="relative group">
-                            <img
-                              src={patient.birthCertificate.url || "/placeholder.svg"}
-                              alt="Birth Certificate"
-                              className="w-full h-48 object-cover rounded-lg border-2 border-gray-200 cursor-pointer hover:border-green-300 transition-colors"
-                              onClick={() => window.open(patient.birthCertificate!.url, '_blank')}
-                            />
-                            {/* <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-colors flex items-center justify-center">
-                            <ZoomIn className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                          </div> */}
-                            <div className="absolute bottom-2 right-2 bg-white/90 rounded-full p-1">
-                              <Eye className="w-4 h-4 text-gray-600" />
-                            </div>
-                          </div>
-                        </a>
-                      </div>
-                    )}
-
-                  </div>
+            {/* NEW SECTION - Child Symptoms */}
+            {patient.childSymptoms && patient.childSymptoms.length > 0 && (
+              <div className="space-y-4">
+                <h4 className="text-lg font-semibold text-gray-900 border-b pb-2">Child Symptoms</h4>
+                <div className="flex flex-wrap gap-2">
+                  {patient.childSymptoms.map((symptom, index) => (
+                    <span
+                      key={index}
+                      className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"
+                    >
+                      {symptom}
+                    </span>
+                  ))}
                 </div>
-              )
-            }
+              </div>
+            )}
 
+            {/* NEW SECTION - Notes */}
+            {patient.notes && (
+              <div className="space-y-4">
+                <h4 className="text-lg font-semibold text-gray-900 border-b pb-2">Notes</h4>
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <p className="text-gray-900 whitespace-pre-wrap">{patient.notes}</p>
+                </div>
+              </div>
+            )}
 
-
+            {/* Documents Section */}
+            {(patient.photo?.url || patient.birthCertificate?.url) && (
+              <div className="space-y-4">
+                <h4 className="text-lg font-semibold text-gray-900 border-b pb-2">Documents & Photos</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Patient Photo */}
+                  {patient?.photo?.url && (
+                    <div className="space-y-3">
+                      <h5 className="font-medium text-gray-700 flex items-center gap-2">
+                        <User className="w-4 h-4" />
+                        Patient Photo
+                      </h5>
+                      <div className="relative group">
+                        <img
+                          src={patient.photo.url || "/placeholder.svg"}
+                          alt="Patient Photo"
+                          className="w-full h-48 object-cover rounded-lg border-2 border-gray-200 cursor-pointer hover:border-blue-300 transition-colors"
+                          onClick={() => window.open(patient.photo!.url, "_blank")}
+                        />
+                        <div className="absolute bottom-2 right-2 bg-white/90 rounded-full p-1">
+                          <Eye className="w-4 h-4 text-gray-600" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {/* Birth Certificate */}
+                  {patient?.birthCertificate?.url && (
+                    <div className="space-y-3">
+                      <h5 className="font-medium text-gray-700 flex items-center gap-2">
+                        <FileText className="w-4 h-4" />
+                        Birth Certificate
+                      </h5>
+                      <div className="relative group">
+                        <img
+                          src={patient.birthCertificate.url || "/placeholder.svg"}
+                          alt="Birth Certificate"
+                          className="w-full h-48 object-cover rounded-lg border-2 border-gray-200 cursor-pointer hover:border-green-300 transition-colors"
+                          onClick={() => window.open(patient.birthCertificate!.url, "_blank")}
+                        />
+                        <div className="absolute bottom-2 right-2 bg-white/90 rounded-full p-1">
+                          <Eye className="w-4 h-4 text-gray-600" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Appointment Summary */}
             <div className="space-y-4">
@@ -366,7 +1083,7 @@ const PatientDetailsModal: React.FC<{
                 </div>
                 <div className="bg-red-50 rounded-lg p-4 text-center">
                   <div className="text-2xl font-bold text-red-600">₹{patient.totalOwed}</div>
-                  <div className="text-sm text-red-700">Amount Owed</div>
+                  <div className="text-sm text-red-700">Due Amount</div>
                 </div>
               </div>
             </div>
@@ -419,6 +1136,7 @@ const PatientsEnhancedPage: React.FC = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [showAppointmentsModal, setShowAppointmentsModal] = useState(false)
   const [showPatientDetailsModal, setShowPatientDetailsModal] = useState(false)
+  const [showEditPatientModal, setShowEditPatientModal] = useState(false) // NEW STATE
   const [selectedPatient, setSelectedPatient] = useState<PatientWithAppointments | null>(null)
   const [paymentModalData, setPaymentModalData] = useState<PaymentModalData | null>(null)
   const [isProcessingPayment, setIsProcessingPayment] = useState(false)
@@ -441,7 +1159,6 @@ const PatientsEnhancedPage: React.FC = () => {
       }
 
       const apiResponse = await response.json()
-
       if (!apiResponse.success) {
         throw new Error("API returned unsuccessful response")
       }
@@ -500,6 +1217,22 @@ const PatientsEnhancedPage: React.FC = () => {
   const openPatientDetailsModal = (patient: PatientWithAppointments) => {
     setSelectedPatient(patient)
     setShowPatientDetailsModal(true)
+  }
+
+  // NEW FUNCTION - Open edit patient modal
+  const openEditPatientModal = (patient: PatientWithAppointments) => {
+    setSelectedPatient(patient)
+    setShowEditPatientModal(true)
+    setShowPatientDetailsModal(false) // Close details modal if open
+  }
+
+  // NEW FUNCTION - Handle patient update
+  const handlePatientUpdate = (updatedPatient: Partial<PatientWithAppointments>) => {
+    setPatients((prevPatients) =>
+      prevPatients.map((patient) => (patient._id === updatedPatient._id ? { ...patient, ...updatedPatient } : patient)),
+    )
+    // Refresh the data to get the latest information
+    fetchPatientsWithAppointments()
   }
 
   // Open payment modal
@@ -577,6 +1310,8 @@ const PatientsEnhancedPage: React.FC = () => {
         "Total Paid",
         "Pending Payments",
         "Payment Status",
+        "Symptoms",
+        "Notes",
       ],
       ...filteredPatients.map((patient) => [
         getPatientName(patient),
@@ -588,6 +1323,8 @@ const PatientsEnhancedPage: React.FC = () => {
         patient.totalPaid.toString(),
         patient.pendingPayments.toString(),
         patient.pendingPayments > 0 ? "Has Pending" : "Up to Date",
+        patient.childSymptoms?.join("; ") || "None",
+        patient.notes || "None",
       ]),
     ]
       .map((row) => row.join(","))
@@ -607,7 +1344,10 @@ const PatientsEnhancedPage: React.FC = () => {
     const matchesSearch =
       getPatientName(patient).toLowerCase().includes(searchTerm.toLowerCase()) ||
       getParentName(patient).toLowerCase().includes(searchTerm.toLowerCase()) ||
-      getContactInfo(patient).includes(searchTerm)
+      getContactInfo(patient).includes(searchTerm) ||
+      (patient.childSymptoms &&
+        patient.childSymptoms.some((symptom) => symptom.toLowerCase().includes(searchTerm.toLowerCase()))) ||
+      (patient.notes && patient.notes.toLowerCase().includes(searchTerm.toLowerCase()))
 
     const matchesFilter =
       filterStatus === "all" ||
@@ -723,7 +1463,8 @@ const PatientsEnhancedPage: React.FC = () => {
           <Search className="absolute left-3 top-3 text-gray-400 w-5 h-5" />
           <input
             type="text"
-            placeholder="Search patients by name, parent, or contact..."
+            style={{color:"black"}}
+            placeholder="Search patients by name, parent, contact, symptoms, or notes..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10 pr-4 py-2 bg-white w-full border text-[#858D9D] border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -732,6 +1473,7 @@ const PatientsEnhancedPage: React.FC = () => {
         <div className="flex gap-2">
           <select
             value={filterStatus}
+            style={{color:"black"}}
             onChange={(e) => setFilterStatus(e.target.value)}
             className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700"
           >
@@ -817,6 +1559,16 @@ const PatientsEnhancedPage: React.FC = () => {
                               Certificate
                             </span>
                           )}
+                          {patient.childSymptoms && patient.childSymptoms.length > 0 && (
+                            <span className="inline-flex items-center gap-1 text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded">
+                              {patient.childSymptoms.length} Symptom{patient.childSymptoms.length > 1 ? "s" : ""}
+                            </span>
+                          )}
+                          {patient.notes && (
+                            <span className="inline-flex items-center gap-1 text-xs text-orange-600 bg-orange-50 px-2 py-0.5 rounded">
+                              Notes
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -841,7 +1593,7 @@ const PatientsEnhancedPage: React.FC = () => {
                   <td className="px-6 py-4">
                     <div className="space-y-1">
                       <div className="text-sm text-black">
-                        <span className="font-medium text-gray-800">Owed:</span>{" "}
+                        <span className="font-medium text-gray-800">Due Amount</span>{" "}
                         <span className="text-red-600">₹{patient.totalOwed}</span>
                       </div>
                       <div className="text-sm text-black">
@@ -859,7 +1611,7 @@ const PatientsEnhancedPage: React.FC = () => {
                     {patient.pendingPayments === 0 ? (
                       <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium text-gray-800 bg-green-100 text-green-800">
                         <CheckCircle className="w-3 h-3 mr-1" />
-                        Up to Date
+                        payment completed
                       </span>
                     ) : (
                       <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium text-gray-800 bg-yellow-100 text-yellow-800">
@@ -869,12 +1621,18 @@ const PatientsEnhancedPage: React.FC = () => {
                     )}
                   </td>
                   <td className="px-6 py-4">
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap">
                       <button
                         onClick={() => openPatientDetailsModal(patient)}
                         className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200 transition-colors"
                       >
                         View Details
+                      </button>
+                      <button
+                        onClick={() => openEditPatientModal(patient)}
+                        className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded hover:bg-green-200 transition-colors"
+                      >
+                        Edit
                       </button>
                       {patient.pendingPayments > 0 && (
                         <>
@@ -915,6 +1673,20 @@ const PatientsEnhancedPage: React.FC = () => {
             setShowPatientDetailsModal(false)
             setSelectedPatient(null)
           }}
+          onEdit={openEditPatientModal}
+        />
+      )}
+
+      {/* NEW MODAL - Edit Patient Modal */}
+      {showEditPatientModal && selectedPatient && (
+        <EditPatientModal
+          patient={selectedPatient}
+          isOpen={showEditPatientModal}
+          onClose={() => {
+            setShowEditPatientModal(false)
+            setSelectedPatient(null)
+          }}
+          onSave={handlePatientUpdate}
         />
       )}
 
@@ -947,7 +1719,7 @@ const PatientsEnhancedPage: React.FC = () => {
   )
 }
 
-// Payment Modal Component (keeping existing implementation)
+// Enhanced Payment Modal Component with improved scrolling
 const PaymentModal: React.FC<{
   data: PaymentModalData
   isOpen: boolean
@@ -985,7 +1757,7 @@ const PaymentModal: React.FC<{
       setPaymentAmount(remaining)
       setPaymentType("full")
     }
-  }, [data]);
+  }, [data])
 
   // ADD THIS NEW useEffect - This is the fix!
   useEffect(() => {
@@ -1034,151 +1806,179 @@ const PaymentModal: React.FC<{
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-6">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] flex flex-col">
+        {/* Header - Fixed */}
+        <div className="flex justify-between items-center p-6 border-b border-gray-200 flex-shrink-0">
           <h3 className="text-xl font-semibold text-[#1E437A]">Process Payment</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
             <X className="w-6 h-6" />
           </button>
         </div>
 
-        {/* Patient Info */}
-        <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-          <h4 className="font-medium text-gray-800 text-[#1E437A] mb-2">Patient Information</h4>
-          <div className="grid grid-cols-2 gap-4 text-sm text-black">
-            <div>
-              <span className="font-medium text-gray-800">Name:</span> {data.patient.firstName} {data.patient.lastName}
-            </div>
-            <div>
-              <span className="font-medium text-gray-800">Parent:</span> {data.patient.parentInfo?.name}
-            </div>
-            <div>
-              <span className="font-medium text-gray-800">Total Owed:</span>{" "}
-              <span className="text-red-600 font-medium text-gray-800">₹{totalOwed}</span>
-            </div>
-            <div>
-              <span className="font-medium text-gray-800">Pending Appointments:</span> {pendingAppointments.length}
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* Patient Info */}
+          <div className="p-4 bg-gray-50 rounded-lg">
+            <h4 className="font-medium text-[#1E437A] mb-2">Patient Information</h4>
+            <div className="grid grid-cols-2 gap-4 text-sm text-black">
+              <div>
+                <span className="font-medium text-gray-800">Name:</span> {data.patient.firstName}{" "}
+                {data.patient.lastName}
+              </div>
+              <div>
+                <span className="font-medium text-gray-800">Parent:</span> {data.patient.parentInfo?.name}
+              </div>
+              <div>
+                <span className="font-medium text-gray-800">Due Amount:</span>{" "}
+                <span className="text-red-600 font-medium">₹{totalOwed}</span>
+              </div>
+              <div>
+                <span className="font-medium text-gray-800">Pending Appointments:</span> {pendingAppointments.length}
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Appointment Selection */}
-        <div className="mb-6">
-          <h4 className="font-medium text-gray-800 text-[#1E437A] mb-3">Select Appointments to Pay</h4>
-          <div className="space-y-2 max-h-40 overflow-y-auto">
-            {pendingAppointments.map((appointment) => {
-              const remaining = appointment.payment.amount - (appointment.payment.paidAmount || 0)
-              return (
-                <label key={appointment._id} className="flex items-center p-3 border rounded-lg hover:bg-gray-50">
-                  <input
-                    type="checkbox"
-                    checked={selectedAppointments.includes(appointment._id)}
-                    onChange={() => handleAppointmentToggle(appointment._id)}
-                    className="mr-3 text-[#C83C92] focus:ring-[#C83C92]"
-                  />
-                  <div className="flex-1">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <div className="font-medium text-gray-800 text-sm text-black">
-                          {new Date(appointment.date).toLocaleDateString()} - {appointment.startTime}
-                        </div>
-                        <div className="text-xs text-gray-600">
-                          {appointment.service.name} with {appointment.therapist.name}
-                        </div>
-                        {appointment.payment.status === "partial" && (
-                          <div className="text-xs text-orange-600">
-                            Paid: ₹{appointment.payment.paidAmount} of ₹{appointment.payment.amount}
-                          </div>
-                        )}
-                      </div>
-                      <div className="text-right">
-                        <div className="font-medium text-gray-800 text-sm text-black">₹{remaining}</div>
-                        <div className="text-xs text-gray-500">remaining</div>
-                      </div>
-                    </div>
-                  </div>
-                </label>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* Payment Details */}
-        <div className="mb-6 space-y-4">
+          {/* Appointment Selection with Enhanced Scrolling */}
           <div>
-            <label className="block text-sm text-black font-medium text-black text-[#1E437A] mb-2">Payment Type</label>
-            <div className="flex gap-4">
-              <label className="flex items-center">
-                <input
-                  type="radio"
-                  name="paymentType"
-                  value="full"
-                  checked={paymentType === "full"}
-                  onChange={(e) => {
-                    setPaymentType(e.target.value as "full" | "partial")
-                    if (e.target.value === "full") {
-                      setPaymentAmount(calculateSelectedTotal())
-                    }
-                  }}
-                  className="mr-2 text-[#C83C92] focus:ring-[#C83C92]"
-                />
-                <span style={{ color: "black" }}>Full Payment</span>
-              </label>
-
-              {/* <label className="flex items-center">
-                <input
-                  type="radio"
-                  name="paymentType"
-                  value="partial"
-                  checked={paymentType === "partial"}
-                  onChange={(e) => setPaymentType(e.target.value as "full" | "partial")}
-                  className="mr-2 text-[#C83C92] focus:ring-[#C83C92]"
-                />
-                <span style={{ color: "black" }}>Partial Payment</span>
-              </label> */}
-             
+            <h4 className="font-medium text-[#1E437A] mb-3">Select Appointments to Pay</h4>
+            <div className="relative">
+              {/* Custom scrollable container with visible scrollbar */}
+              <div
+                className="space-y-2 max-h-64 overflow-y-auto border border-gray-300 rounded-lg bg-gray-50"
+                style={{
+                  scrollbarWidth: "thin",
+                  scrollbarColor: "#C83C92 #f1f1f1",
+                }}
+              >
+                {/* Custom scrollbar styles for webkit browsers */}
+                <style jsx>{`
+                  .appointments-scroll::-webkit-scrollbar {
+                    width: 8px;
+                  }
+                  .appointments-scroll::-webkit-scrollbar-track {
+                    background: #f1f1f1;
+                    border-radius: 4px;
+                  }
+                  .appointments-scroll::-webkit-scrollbar-thumb {
+                    background: #C83C92;
+                    border-radius: 4px;
+                  }
+                  .appointments-scroll::-webkit-scrollbar-thumb:hover {
+                    background: #B8358A;
+                  }
+                `}</style>
+                <div className="appointments-scroll p-2 space-y-2">
+                  {pendingAppointments.map((appointment) => {
+                    const remaining = appointment.payment.amount - (appointment.payment.paidAmount || 0)
+                    return (
+                      <label
+                        key={appointment._id}
+                        className="flex items-center p-3 bg-white border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-all duration-200 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          style={{color:"black"}}
+                          checked={selectedAppointments.includes(appointment._id)}
+                          onChange={() => handleAppointmentToggle(appointment._id)}
+                          className="mr-3 text-[#C83C92] focus:ring-[#C83C92] focus:ring-2 rounded"
+                        />
+                        <div className="flex-1">
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <div className="font-medium text-sm text-gray-900">
+                                {new Date(appointment.date).toLocaleDateString()} - {appointment.startTime}
+                              </div>
+                              <div className="text-xs text-gray-600 mt-1">
+                                {appointment.service.name} with {appointment.therapist.name}
+                              </div>
+                              {appointment.payment.status === "partial" && (
+                                <div className="text-xs text-orange-600 mt-1 bg-orange-50 px-2 py-1 rounded">
+                                  Paid: ₹{appointment.payment.paidAmount} of ₹{appointment.payment.amount}
+                                </div>
+                              )}
+                            </div>
+                            <div className="text-right ml-4">
+                              <div className="font-semibold text-sm text-gray-900">₹{remaining}</div>
+                              <div className="text-xs text-gray-500">remaining</div>
+                            </div>
+                          </div>
+                        </div>
+                      </label>
+                    )
+                  })}
+                </div>
+              </div>
+              {/* Scroll indicator */}
+              {pendingAppointments.length > 3 && (
+                <div className="text-xs text-gray-500 mt-2 text-center">
+                  Scroll to view more appointments ({pendingAppointments.length} total)
+                </div>
+              )}
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+
+          {/* Payment Details */}
+          <div className="space-y-4">
             <div>
-              <label className="block text-sm text-black font-medium text-gray-800 text-[#1E437A] mb-2">
-                Payment Amount
-              </label>
-              <input
-                type="number"
-                value={paymentAmount || calculateSelectedTotal() || 0}
-                onChange={(e) => setPaymentAmount(Number(e.target.value))}
-                max={calculateSelectedTotal()}
-                step="0.01"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] text-black"
-                placeholder="Enter amount"
-              />
-              <div className="text-xs text-gray-500 mt-1">Selected total: ₹{calculateSelectedTotal()}</div>
+              <label className="block text-sm font-medium text-[#1E437A] mb-2">Payment Type</label>
+              <div className="flex gap-4">
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="paymentType"
+                    value="full"
+                    style={{color:"black"}}
+                    checked={paymentType === "full"}
+                    onChange={(e) => {
+                      setPaymentType(e.target.value as "full" | "partial")
+                      if (e.target.value === "full") {
+                        setPaymentAmount(calculateSelectedTotal())
+                      }
+                    }}
+                    className="mr-2 text-[#C83C92] focus:ring-[#C83C92]"
+                  />
+                  <span className="text-black">Full Payment</span>
+                </label>
+              </div>
             </div>
-            <div>
-              <label className="block text-sm text-black font-medium text-gray-800 text-[#1E437A] mb-2">
-                Payment Method
-              </label>
-              <select
-                value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] text-black"
-              >
-                <option value="cash">Cash</option>
-                <option value="card">Upi</option>
-              </select>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-[#1E437A] mb-2">Payment Amount</label>
+                <input
+                  type="number"
+                  style={{color:"black"}}
+                  value={paymentAmount || calculateSelectedTotal() || 0}
+                  onChange={(e) => setPaymentAmount(Number(e.target.value))}
+                  max={calculateSelectedTotal()}
+                  step="0.01"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] text-black"
+                  placeholder="Enter amount"
+                />
+                <div className="text-xs text-gray-500 mt-1">Selected total: ₹{calculateSelectedTotal()}</div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[#1E437A] mb-2">Payment Method</label>
+                <select
+                style={{color:"black"}}
+                  value={paymentMethod}
+                  onChange={(e) => setPaymentMethod(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] text-black"
+                >
+                  <option value="cash">Cash</option>
+                  <option value="card">UPI</option>
+                </select>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex gap-3">
+        {/* Footer - Fixed */}
+        <div className="flex gap-3 p-6 border-t border-gray-200 flex-shrink-0">
           <button
             onClick={handleSubmit}
             disabled={isProcessing || selectedAppointments.length === 0}
-            className="flex-1 bg-[#C83C92] text-white py-2 px-4 rounded-lg font-medium text-gray-800 hover:bg-[#B8358A] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="flex-1 bg-[#C83C92] text-white py-2 px-4 rounded-lg font-medium hover:bg-[#B8358A] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {isProcessing ? (
               <>
@@ -1195,7 +1995,7 @@ const PaymentModal: React.FC<{
           <button
             onClick={onClose}
             disabled={isProcessing}
-            className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium text-gray-800 hover:bg-gray-50 transition-colors disabled:opacity-50"
+            className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
           >
             Cancel
           </button>
@@ -1270,7 +2070,7 @@ const AppointmentsDetailModal: React.FC<{
               <span className="text-green-600">₹{patient.totalPaid}</span>
             </div>
             <div>
-              <span className="font-medium text-gray-800">Amount Owed:</span>{" "}
+              <span className="font-medium text-gray-800">Due Amount:</span>{" "}
               <span className="text-red-600">₹{patient.totalOwed}</span>
             </div>
           </div>
@@ -1278,22 +2078,22 @@ const AppointmentsDetailModal: React.FC<{
 
         {/* Appointments List */}
         <div className="space-y-4">
-          <h4 className="font-medium text-gray-800 text-[#1E437A]">All Appointments</h4>
+          <h4 className="font-medium text-[#1E437A]">All Appointments</h4>
           {patient.appointments.map((appointment) => (
             <div key={appointment._id} className="border rounded-lg p-4 hover:bg-gray-50">
               <div className="flex justify-between items-start mb-3">
                 <div>
-                  <div className="font-medium text-gray-800 text-[#456696]">
+                  <div className="font-medium text-[#456696]">
                     {new Date(appointment.date).toLocaleDateString()} - {appointment.startTime} to {appointment.endTime}
                   </div>
-                  <div className="text-sm text-black text-gray-600 mt-1">
+                  <div className="text-sm text-gray-600 mt-1">
                     {appointment.service.name} with {appointment.therapist.name}
                   </div>
-                  <div className="text-sm text-black text-gray-600">Type: {appointment.type}</div>
+                  <div className="text-sm text-gray-600">Type: {appointment.type}</div>
                 </div>
                 <div className="text-right">
                   <span
-                    className={`inline-block px-2 py-1 rounded-full text-xs font-medium text-gray-800 ${getStatusColor(appointment.status)}`}
+                    className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(appointment.status)}`}
                   >
                     {appointment.status}
                   </span>
@@ -1306,7 +2106,7 @@ const AppointmentsDetailModal: React.FC<{
                 <div>
                   <span className="font-medium text-gray-800">Payment Status:</span>{" "}
                   <span
-                    className={`inline-block px-2 py-1 rounded-full text-xs font-medium text-gray-800 ${getPaymentStatusColor(appointment.payment.status)}`}
+                    className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getPaymentStatusColor(appointment.payment.status)}`}
                   >
                     {appointment.payment.status}
                   </span>
@@ -1320,13 +2120,14 @@ const AppointmentsDetailModal: React.FC<{
                 </div>
               </div>
               {appointment.payment.status === "partial" && (
-                <div className="mt-2 text-sm text-black text-orange-600">
+                <div className="mt-2 text-sm text-orange-600">
                   Paid: ₹{appointment.payment.paidAmount} of ₹{appointment.payment.amount}
                 </div>
               )}
             </div>
           ))}
         </div>
+
         {patient.appointments.length === 0 && (
           <div className="text-center py-8 text-gray-500">No appointments found for this patient.</div>
         )}
@@ -1335,7 +2136,7 @@ const AppointmentsDetailModal: React.FC<{
         <div className="mt-6 flex justify-end">
           <button
             onClick={onClose}
-            className="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium text-gray-800 hover:bg-gray-200 transition-colors"
+            className="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors"
           >
             Close
           </button>
