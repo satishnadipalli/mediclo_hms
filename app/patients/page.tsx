@@ -211,8 +211,8 @@ const SymptomsMultiSelect: React.FC<{
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
-                type="text"
                 style={{color:"black"}}
+                type="text"
                 placeholder="Search symptoms..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -228,14 +228,14 @@ const SymptomsMultiSelect: React.FC<{
               filteredSymptoms.map((symptom, index) => (
                 <div
                   key={index}
-                  className="px-3 py-2 hover:bg-gray-50 cursor-pointer text-sm"
+                  className="px-3 py-2 hover:bg-gray-50 text-black cursor-pointer text-sm"
                   onClick={() => handleSymptomSelect(symptom)}
                 >
                   {symptom}
                 </div>
               ))
             ) : (
-              <div className="px-3 py-2 text-sm text-gray-500">
+              <div className="px-3 py-2 text-sm text-black">
                 {searchTerm ? "No symptoms found" : "All symptoms selected"}
               </div>
             )}
@@ -475,11 +475,11 @@ const EditPatientModal: React.FC<{
           <div className="space-y-4">
             <h4 className="text-lg font-semibold text-gray-900 border-b pb-2">Child Information</h4>
             {/* Replace the existing gender field div with this expanded version: */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
-              <div className="">
+            <div className="grid grid-cols-1  md:grid-cols-3 gap-4 items-start">
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Gender *</label>
                 <select
-                style={{color:"black"}}
+                  style={{color:"black"}}
                   value={formData.gender}
                   onChange={(e) => handleInputChange("gender", e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
@@ -495,7 +495,7 @@ const EditPatientModal: React.FC<{
               {/* Child Photo Upload */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Update Photo {"(jpg/jpeg, png)"}
+                  Update Photo {"(Image -jpg/jpeg, png)"}
                 </label>
                 <label
                   className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg cursor-pointer font-medium transition-colors ${
@@ -514,8 +514,8 @@ const EditPatientModal: React.FC<{
                     </>
                   )}
                   <input
-                    type="file"
                     style={{color:"black"}}
+                    type="file"
                     accept="image/*"
                     onChange={(e) => handleFileUpload(e, "childPhoto")}
                     disabled={uploadingPhoto}
@@ -556,8 +556,8 @@ const EditPatientModal: React.FC<{
                     </>
                   )}
                   <input
-                    type="file"
                     style={{color:"black"}}
+                    type="file"
                     accept="image/*,.pdf"
                     onChange={(e) => handleFileUpload(e, "birthCertificate")}
                     disabled={uploadingBirthCert}
@@ -637,8 +637,8 @@ const EditPatientModal: React.FC<{
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Father's Name *</label>
                 <input
-                  type="text"
                   style={{color:"black"}}
+                  type="text"
                   value={formData.parentInfo.name}
                   onChange={(e) => handleInputChange("parentInfo.name", e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
@@ -648,8 +648,8 @@ const EditPatientModal: React.FC<{
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Father's Phone *</label>
                 <input
-                  type="tel"
                   style={{color:"black"}}
+                  type="tel"
                   value={formData.parentInfo.phone}
                   onChange={(e) => handleInputChange("parentInfo.phone", e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
@@ -659,8 +659,8 @@ const EditPatientModal: React.FC<{
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Mother's Name *</label>
                 <input
-                  type="text"
                   style={{color:"black"}}
+                  type="text"
                   value={formData.parentInfo.motherName}
                   onChange={(e) => handleInputChange("parentInfo.motherName", e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
@@ -670,8 +670,8 @@ const EditPatientModal: React.FC<{
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Mother's Phone *</label>
                 <input
-                  type="tel"
                   style={{color:"black"}}
+                  type="tel"
                   value={formData.parentInfo.motherphone}
                   onChange={(e) => handleInputChange("parentInfo.motherphone", e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
@@ -681,8 +681,8 @@ const EditPatientModal: React.FC<{
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Email (Optional)</label>
                 <input
-                  type="email"
                   style={{color:"black"}}
+                  type="email"
                   value={formData.parentInfo.email}
                   onChange={(e) => handleInputChange("parentInfo.email", e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
@@ -691,7 +691,7 @@ const EditPatientModal: React.FC<{
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Relationship</label>
                 <select
-                style={{color:"black"}}
+                  style={{color:"black"}}
                   value={formData.parentInfo.relationship}
                   onChange={(e) => handleInputChange("parentInfo.relationship", e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
@@ -727,7 +727,7 @@ const EditPatientModal: React.FC<{
                 Additional Notes <span className="text-gray-500">(Optional)</span>
               </label>
               <textarea
-              style={{color:"black"}}
+                style={{color:"black"}}
                 value={formData.notes}
                 onChange={(e) => handleInputChange("notes", e.target.value)}
                 rows={4}
@@ -743,8 +743,8 @@ const EditPatientModal: React.FC<{
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Address *</label>
               <textarea
-                value={formData.parentInfo.address}
                 style={{color:"black"}}
+                value={formData.parentInfo.address}
                 onChange={(e) => handleInputChange("parentInfo.address", e.target.value)}
                 rows={3}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500 resize-none"
@@ -1083,7 +1083,7 @@ const PatientDetailsModal: React.FC<{
                 </div>
                 <div className="bg-red-50 rounded-lg p-4 text-center">
                   <div className="text-2xl font-bold text-red-600">₹{patient.totalOwed}</div>
-                  <div className="text-sm text-red-700">Due Amount</div>
+                  <div className="text-sm text-red-700">Payment to be received</div>
                 </div>
               </div>
             </div>
@@ -1462,8 +1462,8 @@ const PatientsEnhancedPage: React.FC = () => {
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-3 text-gray-400 w-5 h-5" />
           <input
-            type="text"
             style={{color:"black"}}
+            type="text"
             placeholder="Search patients by name, parent, contact, symptoms, or notes..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -1472,8 +1472,8 @@ const PatientsEnhancedPage: React.FC = () => {
         </div>
         <div className="flex gap-2">
           <select
-            value={filterStatus}
             style={{color:"black"}}
+            value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
             className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700"
           >
@@ -1593,7 +1593,7 @@ const PatientsEnhancedPage: React.FC = () => {
                   <td className="px-6 py-4">
                     <div className="space-y-1">
                       <div className="text-sm text-black">
-                        <span className="font-medium text-gray-800">Due Amount</span>{" "}
+                        <span className="font-medium text-gray-800">Amount Due:</span>{" "}
                         <span className="text-red-600">₹{patient.totalOwed}</span>
                       </div>
                       <div className="text-sm text-black">
@@ -1608,10 +1608,15 @@ const PatientsEnhancedPage: React.FC = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    {patient.pendingPayments === 0 ? (
+                    {patient.totalAppointments === 0 ? (
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                        <AlertCircle className="w-3 h-3 mr-1" />
+                        No Appointments
+                      </span>
+                    ) : patient.pendingPayments === 0 ? (
                       <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium text-gray-800 bg-green-100 text-green-800">
                         <CheckCircle className="w-3 h-3 mr-1" />
-                        payment completed
+                        Payment Completed
                       </span>
                     ) : (
                       <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium text-gray-800 bg-yellow-100 text-yellow-800">
@@ -1634,7 +1639,7 @@ const PatientsEnhancedPage: React.FC = () => {
                       >
                         Edit
                       </button>
-                      {patient.pendingPayments > 0 && (
+                      {patient.totalAppointments > 0 && patient.pendingPayments > 0 && (
                         <>
                           <button
                             onClick={() => openPaymentModal(patient, "single")}
@@ -1830,7 +1835,7 @@ const PaymentModal: React.FC<{
                 <span className="font-medium text-gray-800">Parent:</span> {data.patient.parentInfo?.name}
               </div>
               <div>
-                <span className="font-medium text-gray-800">Due Amount:</span>{" "}
+                <span className="font-medium text-gray-800">Total Amount Due:</span>{" "}
                 <span className="text-red-600 font-medium">₹{totalOwed}</span>
               </div>
               <div>
@@ -1877,8 +1882,8 @@ const PaymentModal: React.FC<{
                         className="flex items-center p-3 bg-white border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-all duration-200 cursor-pointer"
                       >
                         <input
-                          type="checkbox"
                           style={{color:"black"}}
+                          type="checkbox"
                           checked={selectedAppointments.includes(appointment._id)}
                           onChange={() => handleAppointmentToggle(appointment._id)}
                           className="mr-3 text-[#C83C92] focus:ring-[#C83C92] focus:ring-2 rounded"
@@ -1925,10 +1930,10 @@ const PaymentModal: React.FC<{
               <div className="flex gap-4">
                 <label className="flex items-center">
                   <input
+                    style={{color:"black"}}
                     type="radio"
                     name="paymentType"
                     value="full"
-                    style={{color:"black"}}
                     checked={paymentType === "full"}
                     onChange={(e) => {
                       setPaymentType(e.target.value as "full" | "partial")
@@ -1946,8 +1951,8 @@ const PaymentModal: React.FC<{
               <div>
                 <label className="block text-sm font-medium text-[#1E437A] mb-2">Payment Amount</label>
                 <input
-                  type="number"
                   style={{color:"black"}}
+                  type="number"
                   value={paymentAmount || calculateSelectedTotal() || 0}
                   onChange={(e) => setPaymentAmount(Number(e.target.value))}
                   max={calculateSelectedTotal()}
@@ -1960,7 +1965,7 @@ const PaymentModal: React.FC<{
               <div>
                 <label className="block text-sm font-medium text-[#1E437A] mb-2">Payment Method</label>
                 <select
-                style={{color:"black"}}
+                  style={{color:"black"}}
                   value={paymentMethod}
                   onChange={(e) => setPaymentMethod(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] text-black"
@@ -2070,7 +2075,7 @@ const AppointmentsDetailModal: React.FC<{
               <span className="text-green-600">₹{patient.totalPaid}</span>
             </div>
             <div>
-              <span className="font-medium text-gray-800">Due Amount:</span>{" "}
+              <span className="font-medium text-gray-800">Payment to be received:</span>{" "}
               <span className="text-red-600">₹{patient.totalOwed}</span>
             </div>
           </div>
