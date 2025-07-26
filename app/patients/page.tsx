@@ -1,5 +1,4 @@
 "use client"
-
 import type React from "react"
 import { useState, useEffect } from "react"
 import {
@@ -21,6 +20,7 @@ import {
   Save,
   ChevronDown,
   Upload,
+  Trash2,
 } from "lucide-react"
 
 // Enhanced interfaces for comprehensive appointment and payment management
@@ -142,6 +142,96 @@ const CHILD_SYMPTOMS = [
   "Others",
 ]
 
+// NEW COMPONENT - Delete Confirmation Modal
+const DeleteConfirmationModal: React.FC<{
+  patient: PatientWithAppointments
+  isOpen: boolean
+  onClose: () => void
+  onConfirm: () => void
+  isDeleting: boolean
+}> = ({ patient, isOpen, onClose, onConfirm, isDeleting }) => {
+  if (!isOpen) return null
+
+  const getPatientName = (patient: PatientWithAppointments): string => {
+    if (patient.firstName && patient.lastName) {
+      return `${patient.firstName} ${patient.lastName}`
+    }
+    return patient.fullName || patient.childName || "Unknown"
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4">
+        {/* Header */}
+        <div className="flex justify-between items-center p-6 border-b border-gray-200">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-red-100 rounded-lg">
+              <Trash2 className="w-5 h-5 text-red-600" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900">Delete Patient</h3>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+            <X className="w-6 h-6 text-gray-500" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="p-6">
+          <div className="mb-4">
+            <p className="text-gray-700 mb-2">Are you sure you want to delete the patient record for:</p>
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+              <p className="font-semibold text-red-800">{getPatientName(patient)}</p>
+              <p className="text-sm text-red-600">Parent: {patient.parentInfo?.name || patient.parentName || "N/A"}</p>
+              <p className="text-sm text-red-600">Total Appointments: {patient.totalAppointments}</p>
+            </div>
+          </div>
+
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-yellow-800">Warning</p>
+                <p className="text-sm text-yellow-700">
+                  This action cannot be undone. All patient data, appointments, and payment history will be permanently
+                  deleted.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
+          <button
+            onClick={onClose}
+            disabled={isDeleting}
+            className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={isDeleting}
+            className="flex items-center gap-2 px-6 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
+          >
+            {isDeleting ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Deleting...
+              </>
+            ) : (
+              <>
+                <Trash2 className="w-4 h-4" />
+                Delete Patient
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // Multi-Select Symptoms Component for Edit Modal
 const SymptomsMultiSelect: React.FC<{
   selectedSymptoms: string[]
@@ -211,7 +301,7 @@ const SymptomsMultiSelect: React.FC<{
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
-                style={{color:"black"}}
+                style={{ color: "black" }}
                 type="text"
                 placeholder="Search symptoms..."
                 value={searchTerm}
@@ -221,7 +311,6 @@ const SymptomsMultiSelect: React.FC<{
               />
             </div>
           </div>
-
           {/* Symptoms List */}
           <div className="max-h-40 overflow-y-auto">
             {filteredSymptoms.length > 0 ? (
@@ -242,7 +331,6 @@ const SymptomsMultiSelect: React.FC<{
           </div>
         </div>
       )}
-
       {/* Overlay to close dropdown */}
       {isOpen && <div className="fixed inset-0 z-5" onClick={() => setIsOpen(false)} />}
     </div>
@@ -350,7 +438,6 @@ const EditPatientModal: React.FC<{
 
     // Validate file type
     const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"]
-
     if (!allowedTypes.includes(file.type)) {
       alert(`Please select a valid ${fileType === "birthCertificate" ? "image or PDF" : "image"} file.`)
       return
@@ -479,7 +566,7 @@ const EditPatientModal: React.FC<{
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Gender *</label>
                 <select
-                  style={{color:"black"}}
+                  style={{ color: "black" }}
                   value={formData.gender}
                   onChange={(e) => handleInputChange("gender", e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
@@ -514,7 +601,7 @@ const EditPatientModal: React.FC<{
                     </>
                   )}
                   <input
-                    style={{color:"black"}}
+                    style={{ color: "black" }}
                     type="file"
                     accept="image/*"
                     onChange={(e) => handleFileUpload(e, "childPhoto")}
@@ -556,7 +643,7 @@ const EditPatientModal: React.FC<{
                     </>
                   )}
                   <input
-                    style={{color:"black"}}
+                    style={{ color: "black" }}
                     type="file"
                     accept="image/*,.pdf"
                     onChange={(e) => handleFileUpload(e, "birthCertificate")}
@@ -606,6 +693,7 @@ const EditPatientModal: React.FC<{
                     <p className="text-xs text-gray-500">Upload a new photo above to replace this one</p>
                   </div>
                 )}
+
                 {/* Current Birth Certificate */}
                 {patient.birthCertificate?.url && (
                   <div className="space-y-3">
@@ -637,7 +725,7 @@ const EditPatientModal: React.FC<{
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Father's Name *</label>
                 <input
-                  style={{color:"black"}}
+                  style={{ color: "black" }}
                   type="text"
                   value={formData.parentInfo.name}
                   onChange={(e) => handleInputChange("parentInfo.name", e.target.value)}
@@ -648,7 +736,7 @@ const EditPatientModal: React.FC<{
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Father's Phone *</label>
                 <input
-                  style={{color:"black"}}
+                  style={{ color: "black" }}
                   type="tel"
                   value={formData.parentInfo.phone}
                   onChange={(e) => handleInputChange("parentInfo.phone", e.target.value)}
@@ -659,7 +747,7 @@ const EditPatientModal: React.FC<{
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Mother's Name *</label>
                 <input
-                  style={{color:"black"}}
+                  style={{ color: "black" }}
                   type="text"
                   value={formData.parentInfo.motherName}
                   onChange={(e) => handleInputChange("parentInfo.motherName", e.target.value)}
@@ -670,7 +758,7 @@ const EditPatientModal: React.FC<{
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Mother's Phone *</label>
                 <input
-                  style={{color:"black"}}
+                  style={{ color: "black" }}
                   type="tel"
                   value={formData.parentInfo.motherphone}
                   onChange={(e) => handleInputChange("parentInfo.motherphone", e.target.value)}
@@ -681,7 +769,7 @@ const EditPatientModal: React.FC<{
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Email (Optional)</label>
                 <input
-                  style={{color:"black"}}
+                  style={{ color: "black" }}
                   type="email"
                   value={formData.parentInfo.email}
                   onChange={(e) => handleInputChange("parentInfo.email", e.target.value)}
@@ -691,7 +779,7 @@ const EditPatientModal: React.FC<{
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Relationship</label>
                 <select
-                  style={{color:"black"}}
+                  style={{ color: "black" }}
                   value={formData.parentInfo.relationship}
                   onChange={(e) => handleInputChange("parentInfo.relationship", e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
@@ -727,7 +815,7 @@ const EditPatientModal: React.FC<{
                 Additional Notes <span className="text-gray-500">(Optional)</span>
               </label>
               <textarea
-                style={{color:"black"}}
+                style={{ color: "black" }}
                 value={formData.notes}
                 onChange={(e) => handleInputChange("notes", e.target.value)}
                 rows={4}
@@ -743,7 +831,7 @@ const EditPatientModal: React.FC<{
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Address *</label>
               <textarea
-                style={{color:"black"}}
+                style={{ color: "black" }}
                 value={formData.parentInfo.address}
                 onChange={(e) => handleInputChange("parentInfo.address", e.target.value)}
                 rows={3}
@@ -820,6 +908,7 @@ const ImageModal: React.FC<{
             <X className="w-5 h-5 text-gray-500" />
           </button>
         </div>
+
         {/* Image Container */}
         <div className="p-6 flex justify-center items-center bg-gray-50 min-h-[400px]">
           <img
@@ -832,6 +921,7 @@ const ImageModal: React.FC<{
             }}
           />
         </div>
+
         {/* Footer */}
         <div className="p-4 border-t border-gray-200 flex justify-end">
           <button
@@ -954,6 +1044,7 @@ const PatientDetailsModal: React.FC<{
                   </div>
                 </div>
               </div>
+
               <div className="space-y-4">
                 <h4 className="text-lg font-semibold text-gray-900 border-b pb-2">Parent Information</h4>
                 <div className="space-y-3">
@@ -1041,6 +1132,7 @@ const PatientDetailsModal: React.FC<{
                       </div>
                     </div>
                   )}
+
                   {/* Birth Certificate */}
                   {patient?.birthCertificate?.url && (
                     <div className="space-y-3">
@@ -1136,7 +1228,11 @@ const PatientsEnhancedPage: React.FC = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [showAppointmentsModal, setShowAppointmentsModal] = useState(false)
   const [showPatientDetailsModal, setShowPatientDetailsModal] = useState(false)
-  const [showEditPatientModal, setShowEditPatientModal] = useState(false) // NEW STATE
+  const [showEditPatientModal, setShowEditPatientModal] = useState(false)
+  // NEW STATE - Delete modal
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+
   const [selectedPatient, setSelectedPatient] = useState<PatientWithAppointments | null>(null)
   const [paymentModalData, setPaymentModalData] = useState<PaymentModalData | null>(null)
   const [isProcessingPayment, setIsProcessingPayment] = useState(false)
@@ -1192,6 +1288,7 @@ const PatientsEnhancedPage: React.FC = () => {
         partialPayments: 0,
       },
     )
+
     setPaymentSummary(summary)
   }
 
@@ -1219,14 +1316,65 @@ const PatientsEnhancedPage: React.FC = () => {
     setShowPatientDetailsModal(true)
   }
 
-  // NEW FUNCTION - Open edit patient modal
+  // Open edit patient modal
   const openEditPatientModal = (patient: PatientWithAppointments) => {
     setSelectedPatient(patient)
     setShowEditPatientModal(true)
     setShowPatientDetailsModal(false) // Close details modal if open
   }
 
-  // NEW FUNCTION - Handle patient update
+  // NEW FUNCTION - Open delete confirmation modal
+  const openDeleteModal = (patient: PatientWithAppointments) => {
+    setSelectedPatient(patient)
+    setShowDeleteModal(true)
+  }
+
+  // NEW FUNCTION - Handle patient deletion
+  const handleDeletePatient = async () => {
+    if (!selectedPatient) return
+
+    setIsDeleting(true)
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/patients/${selectedPatient._id}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to delete patient")
+      }
+
+      const result = await response.json()
+
+      if (result.success) {
+        // Remove patient from local state
+        setPatients((prevPatients) => prevPatients.filter((patient) => patient._id !== selectedPatient._id))
+
+        // Recalculate payment summary
+        const updatedPatients = patients.filter((patient) => patient._id !== selectedPatient._id)
+        calculatePaymentSummary(updatedPatients)
+
+        // Show success message
+        alert(`Patient ${getPatientName(selectedPatient)} has been successfully deleted.`)
+
+        // Close modal and reset state
+        setShowDeleteModal(false)
+        setSelectedPatient(null)
+      } else {
+        throw new Error(result.error || "Failed to delete patient")
+      }
+    } catch (error) {
+      console.error("Error deleting patient:", error)
+      alert("Failed to delete patient. Please try again.")
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  // Handle patient update
   const handlePatientUpdate = (updatedPatient: Partial<PatientWithAppointments>) => {
     setPatients((prevPatients) =>
       prevPatients.map((patient) => (patient._id === updatedPatient._id ? { ...patient, ...updatedPatient } : patient)),
@@ -1462,7 +1610,7 @@ const PatientsEnhancedPage: React.FC = () => {
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-3 text-gray-400 w-5 h-5" />
           <input
-            style={{color:"black"}}
+            style={{ color: "black" }}
             type="text"
             placeholder="Search patients by name, parent, contact, symptoms, or notes..."
             value={searchTerm}
@@ -1472,7 +1620,7 @@ const PatientsEnhancedPage: React.FC = () => {
         </div>
         <div className="flex gap-2">
           <select
-            style={{color:"black"}}
+            style={{ color: "black" }}
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
             className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700"
@@ -1639,6 +1787,13 @@ const PatientsEnhancedPage: React.FC = () => {
                       >
                         Edit
                       </button>
+                      {/* NEW BUTTON - Delete Patient */}
+                      <button
+                        onClick={() => openDeleteModal(patient)}
+                        className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded hover:bg-red-200 transition-colors"
+                      >
+                        Delete
+                      </button>
                       {patient.totalAppointments > 0 && patient.pendingPayments > 0 && (
                         <>
                           <button
@@ -1682,7 +1837,7 @@ const PatientsEnhancedPage: React.FC = () => {
         />
       )}
 
-      {/* NEW MODAL - Edit Patient Modal */}
+      {/* Edit Patient Modal */}
       {showEditPatientModal && selectedPatient && (
         <EditPatientModal
           patient={selectedPatient}
@@ -1692,6 +1847,20 @@ const PatientsEnhancedPage: React.FC = () => {
             setSelectedPatient(null)
           }}
           onSave={handlePatientUpdate}
+        />
+      )}
+
+      {/* NEW MODAL - Delete Confirmation Modal */}
+      {showDeleteModal && selectedPatient && (
+        <DeleteConfirmationModal
+          patient={selectedPatient}
+          isOpen={showDeleteModal}
+          onClose={() => {
+            setShowDeleteModal(false)
+            setSelectedPatient(null)
+          }}
+          onConfirm={handleDeletePatient}
+          isDeleting={isDeleting}
         />
       )}
 
@@ -1882,7 +2051,7 @@ const PaymentModal: React.FC<{
                         className="flex items-center p-3 bg-white border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-all duration-200 cursor-pointer"
                       >
                         <input
-                          style={{color:"black"}}
+                          style={{ color: "black" }}
                           type="checkbox"
                           checked={selectedAppointments.includes(appointment._id)}
                           onChange={() => handleAppointmentToggle(appointment._id)}
@@ -1930,7 +2099,7 @@ const PaymentModal: React.FC<{
               <div className="flex gap-4">
                 <label className="flex items-center">
                   <input
-                    style={{color:"black"}}
+                    style={{ color: "black" }}
                     type="radio"
                     name="paymentType"
                     value="full"
@@ -1951,7 +2120,7 @@ const PaymentModal: React.FC<{
               <div>
                 <label className="block text-sm font-medium text-[#1E437A] mb-2">Payment Amount</label>
                 <input
-                  style={{color:"black"}}
+                  style={{ color: "black" }}
                   type="number"
                   value={paymentAmount || calculateSelectedTotal() || 0}
                   onChange={(e) => setPaymentAmount(Number(e.target.value))}
@@ -1965,7 +2134,7 @@ const PaymentModal: React.FC<{
               <div>
                 <label className="block text-sm font-medium text-[#1E437A] mb-2">Payment Method</label>
                 <select
-                  style={{color:"black"}}
+                  style={{ color: "black" }}
                   value={paymentMethod}
                   onChange={(e) => setPaymentMethod(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] text-black"

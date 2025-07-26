@@ -760,9 +760,9 @@ const ReceptionistDashboard = () => {
           </Link>
         </div>
         <div className="bg-white rounded-lg border border-gray-200 p-6 w-full overflow-hidden">
-          <div className="flex justify-between items-center mb-6">
+          {/* <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-semibold text-[#1E437A] ml-5">Doctor Schedule</h2>
-          </div>
+          </div> */}
           <DoctorScheduleTable />
         </div>
       </div>

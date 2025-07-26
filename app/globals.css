@@ -66,3 +66,7 @@ aside::-webkit-scrollbar,
 nav::-webkit-scrollbar {
   display: none;
 }
+/* 
+.text-sm {
+  font-size: 17px !important; 
+} */
