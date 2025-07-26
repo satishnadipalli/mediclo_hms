@@ -586,20 +586,19 @@ const AppointmentSchedulingContent = () => {
   // Keep your existing handleSubmit function
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement> | React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault()
-    // For multiple appointments mode, use scheduled appointments
-    if (isMultipleAppointments && scheduledAppointments.length === 0) {
-      toast.error("Please add at least one appointment to the schedule")
-      return
-    }
 
     setFieldErrors({})
     setShowValidation(false)
     const errors: { [key: string]: boolean } = {}
 
     if (isMultipleAppointments) {
-      if (scheduledAppointments.length === 0) errors.scheduledAppointments = true
+      // For multiple appointments mode
+      if (scheduledAppointments.length === 0) {
+        toast.error("Please add at least one appointment to the schedule")
+        return
+      }
     } else {
-      // Single appointment validation
+      // For single appointment mode - validate required fields
       if (!formData.doctor) errors.doctor = true
       if (!formData.appointmentDates[0]) errors.appointmentDates = true
       if (!formData.timeSlot) errors.timeSlot = true
@@ -623,17 +622,20 @@ const AppointmentSchedulingContent = () => {
     }
 
     setLoading(true)
+
     try {
+      let appointmentData
+
       if (isMultipleAppointments && scheduledAppointments.length > 0) {
-        // FIXED: Ensure proper data structure for multiple appointments
-        const appointmentData = {
+        // FIXED: Multiple appointments mode
+        appointmentData = {
           patientId: selectedPatient?._id,
-          patientName: formData.patientName || selectedPatient?.firstName + " " + selectedPatient?.lastName,
+          patientName: formData.patientName || (selectedPatient?.firstName + " " + selectedPatient?.lastName),
           fatherName: formData.fatherName || formData.patientName,
           email: formData.email,
           phone: formData.phone,
-          serviceId: persistentService.current?._id || formData.serviceId,
-          therapistId: persistentDoctor.current?.id || scheduledAppointments[0]?.therapist?.id,
+          serviceId: persistentService?._id || formData.serviceId,
+          therapistId: persistentDoctor?.id || scheduledAppointments[0]?.therapist?.id,
           // FIXED: Properly structure the scheduledAppointments array
           scheduledAppointments: scheduledAppointments.map((apt) => {
             console.log("Processing appointment for submission:", apt)
@@ -652,50 +654,19 @@ const AppointmentSchedulingContent = () => {
           consent: formData.consent,
           totalSessions: scheduledAppointments.length,
         }
-
-        console.log("Sending appointment data:", JSON.stringify(appointmentData, null, 2))
-
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/multiple`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
-          },
-          body: JSON.stringify(appointmentData),
-        })
-
-        if (!response.ok) {
-          const errorData = await response.json()
-          console.error("Server error response:", errorData)
-          throw new Error(errorData.error || "Failed to create appointments")
-        }
-
-        const result = await response.json()
-        console.log("Successfully created appointments", result)
-        toast.success(`${scheduledAppointments.length} appointments scheduled successfully!`)
-        router.push("/dashboard")
       } else {
-        // Keep your existing single appointment logic
-        if (selectedPatient && formData.appointmentDates.length > 0 && formData.timeSlot) {
-          const conflicts = checkPatientConflicts(selectedPatient._id, formData.appointmentDates, formData.timeSlot)
-          if (conflicts.length > 0) {
-            toast.error(`Patient already has an appointment at ${formData.timeSlot} with ${conflicts[0].doctorName}`)
-            return
-          }
-        }
-
-        const endTime = calculateEndTime(formData.timeSlot)
-        const appointmentData = {
+        // FIXED: Single appointment mode
+        appointmentData = {
           patientId: selectedPatient?._id,
-          patientName: formData.patientName || selectedPatient?.firstName + " " + selectedPatient?.lastName,
+          patientName: formData.patientName || (selectedPatient?.firstName + " " + selectedPatient?.lastName),
           fatherName: formData.fatherName || formData.patientName,
           email: formData.email,
           phone: formData.phone,
           serviceId: formData.serviceId,
           therapistId: formData.doctor,
-          dates: formData.appointmentDates,
+          dates: formData.appointmentDates, // This should be the array of dates
           startTime: formData.timeSlot,
-          endTime: endTime,
+          endTime: calculateEndTime(formData.timeSlot),
           type: formData.type,
           consultationMode: formData.consultationMode,
           notes: formData.notes,
@@ -705,29 +676,52 @@ const AppointmentSchedulingContent = () => {
           consent: formData.consent,
           totalSessions: formData.totalSessions,
         }
-
-        console.log("Sending single appointment data:", JSON.stringify(appointmentData, null, 2))
-
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/multiple`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
-          },
-          body: JSON.stringify(appointmentData),
-        })
-
-        if (!response.ok) {
-          const errorData = await response.json()
-          console.error("Server error response:", errorData)
-          throw new Error(errorData.error || "Failed to create appointments")
-        }
-
-        const result = await response.json()
-        console.log("Successfully created appointments", result)
-        toast.success(`${formData.appointmentDates.length || 1} appointments scheduled successfully!`)
-        router.push("/dashboard")
       }
+
+      // FIXED: Add validation to ensure we have appointment data
+      if (isMultipleAppointments) {
+        if (!appointmentData.scheduledAppointments || appointmentData.scheduledAppointments.length === 0) {
+          toast.error("No appointments provided")
+          return
+        }
+      } else {
+        if (!appointmentData.dates || appointmentData.dates.length === 0) {
+          toast.error("No appointment dates provided")
+          return
+        }
+      }
+
+      console.log("Final appointment data being sent:", {
+        isMultipleAppointments,
+        scheduledAppointmentsLength: scheduledAppointments.length,
+        appointmentDatesLength: formData.appointmentDates.length,
+        appointmentData
+      })
+
+      console.log("Sending appointment data:", JSON.stringify(appointmentData, null, 2))
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/multiple`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
+        },
+        body: JSON.stringify(appointmentData),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error("Server error response:", errorData)
+        throw new Error(errorData.error || "Failed to create appointments")
+      }
+
+      const result = await response.json()
+      console.log("Successfully created appointments", result)
+
+      const appointmentCount = isMultipleAppointments ? scheduledAppointments.length : formData.appointmentDates.length
+      toast.success(`${appointmentCount} appointment(s) scheduled successfully!`)
+      router.push("/dashboard")
+
     } catch (error) {
       console.error("Error creating appointments:", error)
       toast.error(error instanceof Error ? error.message : "Failed to schedule appointments")
@@ -931,11 +925,10 @@ const AppointmentSchedulingContent = () => {
                     onChange={handleInputChange}
                     name="doctor"
                     disabled={formData.appointmentDates.length === 0 || !!persistentDoctor}
-                    className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none ${
-                      formData.appointmentDates.length === 0 || !!persistentDoctor
+                    className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none ${formData.appointmentDates.length === 0 || !!persistentDoctor
                         ? "opacity-50 cursor-not-allowed"
                         : ""
-                    } ${persistentDoctor ? "bg-blue-50 border-blue-300" : ""}`}
+                      } ${persistentDoctor ? "bg-blue-50 border-blue-300" : ""}`}
                     required
                   >
                     <option value="">
@@ -986,9 +979,8 @@ const AppointmentSchedulingContent = () => {
                     onChange={handleInputChange}
                     name="timeSlot"
                     disabled={!formData.doctor}
-                    className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none ${
-                      !formData.doctor ? "opacity-50 cursor-not-allowed" : ""
-                    }`}
+                    className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none ${!formData.doctor ? "opacity-50 cursor-not-allowed" : ""
+                      }`}
                     required
                   >
                     <option value="">{!formData.doctor ? "Select doctor first" : "Select time slot"}</option>
@@ -1046,9 +1038,8 @@ const AppointmentSchedulingContent = () => {
                     onChange={handleInputChange}
                     name="serviceId"
                     disabled={!formData.timeSlot || !!persistentService}
-                    className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none ${
-                      !formData.timeSlot || !!persistentService ? "opacity-50 cursor-not-allowed" : ""
-                    } ${persistentService ? "bg-blue-50 border-blue-300" : ""}`}
+                    className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none ${!formData.timeSlot || !!persistentService ? "opacity-50 cursor-not-allowed" : ""
+                      } ${persistentService ? "bg-blue-50 border-blue-300" : ""}`}
                     required
                   >
                     <option value="">
@@ -1123,11 +1114,10 @@ const AppointmentSchedulingContent = () => {
                     })
                   }}
                   min={new Date().toISOString().split("T")[0]}
-                  className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] ${
-                    showValidation && fieldErrors.appointmentDates
+                  className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] ${showValidation && fieldErrors.appointmentDates
                       ? "border-[#C83C92] ring-2 ring-[#C83C92] ring-opacity-50 animate-pulse"
                       : "border-gray-300"
-                  }`}
+                    }`}
                   placeholder="Select appointment date"
                   required
                 />
@@ -1148,11 +1138,10 @@ const AppointmentSchedulingContent = () => {
                   name="doctor"
                   value={formData.doctor}
                   onChange={handleInputChange}
-                  className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none ${
-                    showValidation && fieldErrors.doctor
+                  className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none ${showValidation && fieldErrors.doctor
                       ? "border-[#C83C92] ring-2 ring-[#C83C92] ring-opacity-50 animate-pulse"
                       : "border-gray-300"
-                  }`}
+                    }`}
                   required
                   disabled={formData.appointmentDates.length === 0}
                 >
@@ -1192,11 +1181,10 @@ const AppointmentSchedulingContent = () => {
                   name="timeSlot"
                   value={formData.timeSlot}
                   onChange={handleInputChange}
-                  className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none ${
-                    showValidation && fieldErrors.timeSlot
+                  className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none ${showValidation && fieldErrors.timeSlot
                       ? "border-[#C83C92] ring-2 ring-[#C83C92] ring-opacity-50 animate-pulse"
                       : "border-gray-300"
-                  }`}
+                    }`}
                   disabled={!formData.doctor}
                   required
                 >
@@ -1256,11 +1244,10 @@ const AppointmentSchedulingContent = () => {
                   name="serviceId"
                   value={formData.serviceId}
                   onChange={handleInputChange}
-                  className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none ${
-                    showValidation && fieldErrors.serviceId
+                  className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none ${showValidation && fieldErrors.serviceId
                       ? "border-[#C83C92] ring-2 ring-[#C83C92] ring-opacity-50 animate-pulse"
                       : "border-gray-300"
-                  }`}
+                    }`}
                   required
                 >
                   <option value="">Select a service</option>
@@ -1405,11 +1392,10 @@ const AppointmentSchedulingContent = () => {
                   name="consultationMode"
                   value={formData.consultationMode}
                   onChange={handleInputChange}
-                  className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none ${
-                    showValidation && fieldErrors.consultationMode
+                  className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none ${showValidation && fieldErrors.consultationMode
                       ? "border-[#C83C92] ring-2 ring-[#C83C92] ring-opacity-50 animate-pulse"
                       : "border-gray-300"
-                  }`}
+                    }`}
                   required
                 >
                   <option value="in-person">In-Person</option>
@@ -1443,11 +1429,10 @@ const AppointmentSchedulingContent = () => {
                   name="type"
                   value={formData.type}
                   onChange={handleInputChange}
-                  className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none ${
-                    showValidation && fieldErrors.type
+                  className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none ${showValidation && fieldErrors.type
                       ? "border-[#C83C92] ring-2 ring-[#C83C92] ring-opacity-50 animate-pulse"
                       : "border-gray-300"
-                  }`}
+                    }`}
                   required
                 >
                   <option value="initial assessment">Initial Assessment</option>
