@@ -48,7 +48,7 @@ const Navbar: React.FC<NavbarProps> = ({ isOpen, setIsOpen, userDetails, setUser
         } h-16 flex items-center justify-between px-6 bg-white fixed top-0 z-10 border-b border-gray-200 z-40`}
     >
 
-      <div className=" flex items-center -ml-24 justify-center">
+      <div className={` flex items-center ${userDetails && "-ml-24" } justify-center`}>
         <Image
           src={logo || "/placeholder.svg"}
           alt="8Senses Logo"
