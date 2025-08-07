@@ -246,18 +246,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
 
   return (
     <aside
-      className={`fixed flex h-screen w-70 flex-col bg-white px-4 py-6 transition-all duration-300 ${
+      className={`fixed flex  h-screen w-20 flex-col bg-white px-4 py-6 transition-all duration-300 pt-18 ${
         isOpen ? "left-0" : "-left-70" // Adjust this based on your actual sidebar width
       }`}
     >
-      {/* Logo */}
-      <div className="mb-6 flex items-center justify-center">
-        <Image
-          src={logo || "/placeholder.svg"}
-          alt="8Senses Logo"
-          className="h-15"
-        />
-      </div>
       {/* Scrollable Navigation */}
       <div className="hide-scrollbar flex-1 overflow-y-auto">
         <nav>
@@ -273,7 +265,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                 onClick={() => handleTabClick("Dashboard")}
               >
                 <LayoutGrid className="h-6 w-6" /> {/* Lucide icon */}
-                <span>Dashboard</span>
+                {/* <span>Dashboard</span> */}
               </li>
             </Link>
             {/* Patients */}
@@ -287,7 +279,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                 onClick={() => handleTabClick("Patients")}
               >
                 <Users className="h-6 w-6" /> {/* Lucide icon */}
-                <span>Patients</span>
+                {/* <span>Patients</span> */}
               </li>
             </Link>
             {/* Appointments */}
@@ -301,7 +293,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                 onClick={() => handleTabClick("Appointments")}
               >
                 <CalendarCheck className="h-6 w-6" /> {/* Lucide icon */}
-                <span>Appointments</span>
+                {/* <span>Appointments</span> */}
               </li>
             </Link>
             {/* Consultations - Only shown for doctors */}

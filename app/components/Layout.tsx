@@ -34,14 +34,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   
   return (
     <div className="flex">
-      {/* Sidebar Component */}
+     
       {
       userDetails && 
       <Sidebar isOpen={isOpen} setIsOpen={setIsOpen} />
       }
+
       <div className="flex-1">
-        {/* Navbar Component */}
-        
           <Navbar  isOpen={isOpen} setIsOpen={setIsOpen} setUserDetails={setUserDetails} userDetails={userDetails}/>
         
         {/* Page Content */}

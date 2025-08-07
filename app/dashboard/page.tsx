@@ -1,4 +1,5 @@
 "use client"
+
 import type React from "react"
 import { useState, useEffect, useRef } from "react"
 import {
@@ -14,12 +15,42 @@ import {
   AlertCircle,
   ChevronLeft,
   ChevronRight,
+  Eye,
+  Users,
+  Phone,
+  Mail,
+  Download,
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { toast } from "react-toastify"
 import { Stethoscope, UserCheck } from "lucide-react"
 
+// Add this utility function after the imports and before the interfaces
+const exportToCSV = (data: any[], filename: string) => {
+  const csvContent = data
+    .map((row) =>
+      Object.values(row)
+        .map((value) => (typeof value === "string" && value.includes(",") ? `"${value}"` : value))
+        .join(","),
+    )
+    .join("\n")
+
+  const headers = Object.keys(data[0]).join(",")
+  const fullContent = headers + "\n" + csvContent
+
+  const blob = new Blob([fullContent], { type: "text/csv;charset=utf-8;" })
+  const link = document.createElement("a")
+  const url = URL.createObjectURL(blob)
+  link.setAttribute("href", url)
+  link.setAttribute("download", filename)
+  link.style.visibility = "hidden"
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+}
+
+// Keep all your existing interfaces exactly the same
 interface Appointment {
   _id: string
   date: string
@@ -39,7 +70,6 @@ interface Appointment {
   status: "scheduled" | "completed" | "cancelled" | "no_show"
 }
 
-// Enhanced API Response interfaces
 interface CalendarAppointment {
   id: string
   patientId: string
@@ -47,157 +77,503 @@ interface CalendarAppointment {
   patientName: string
   type: "initial assessment" | "therapy session" | "follow-up" | "other"
   status:
-    | "scheduled"
-    | "rescheduled"
-    | "cancelled"
-    | "no-show"
-    | "pending-assignment"
-    | "pending_confirmation"
-    | "converted"
-    | "completed"
+  | "scheduled"
+  | "rescheduled"
+  | "cancelled"
+  | "no-show"
+  | "pending-assignment"
+  | "pending_confirmation"
+  | "converted"
+  | "completed"
   duration: number
-  // Payment information
   payment: {
     amount: number
     status: "pending" | "paid" | "refunded"
     method: "card" | "cash" | "insurance" | "not_specified"
   }
-  // Session information
   totalSessions: number
   sessionsPaid: number
   sessionsCompleted: number
-  // Additional fields
   phone: string
   email: string
   notes?: string
+  consultationMode: string
+  fatherName?: string
+  address?: string
+  serviceInfo: {
+    name: string
+    price: number
+    duration: number
+  }
 }
+
+interface GroupSessionPatient {
+  id: string
+  patientId: string
+  patientName: string
+  phone: string
+  email: string
+  fatherName: string
+  payment: {
+    amount: number
+    status: "pending" | "paid" | "refunded"
+    method: "card" | "cash" | "insurance" | "not_specified"
+  }
+  notes: string
+  address: string
+  serviceInfo: {
+    name: string
+    price: number
+    duration: number
+  }
+  createdAt: string
+  updatedAt: string
+}
+
+interface GroupSession {
+  isGroupSession: true
+  groupSessionId: string
+  groupSessionName: string
+  doctorId: string
+  totalPatients: number
+  duration: number
+  type: "initial assessment" | "therapy session" | "follow-up" | "other"
+  status:
+  | "scheduled"
+  | "rescheduled"
+  | "cancelled"
+  | "no-show"
+  | "pending-assignment"
+  | "pending_confirmation"
+  | "converted"
+  | "completed"
+  consultationMode: string
+  patients: GroupSessionPatient[]
+  totalRevenue: number
+  serviceInfo: {
+    name: string
+    price: number
+    duration: number
+  }
+}
+
+type AppointmentOrGroup = CalendarAppointment | GroupSession
 
 interface CalendarApiResponse {
   success: boolean
   data: {
     [doctorName: string]: {
-      [timeSlot: string]: CalendarAppointment | null
+      [timeSlot: string]: AppointmentOrGroup | null
     }
   }
 }
 
-// Enhanced Status Update Modal Component
-const StatusUpdateModal: React.FC<{
-  appointment: CalendarAppointment
+// Enhanced Group Session View Modal - keeping your existing structure but improving functionality
+const GroupSessionViewModal: React.FC<{
+  groupSession: GroupSession | null
   isOpen: boolean
   onClose: () => void
-  onUpdate: (appointmentId: string, updates: any) => void
+  onUpdateStatus: (groupSession: GroupSession) => void
+  onReschedule: (groupSession: GroupSession) => void
+}> = ({ groupSession, isOpen, onClose, onUpdateStatus, onReschedule }) => {
+  if (!isOpen || !groupSession) return null
+
+  const getPaidPatientsCount = () => {
+    return groupSession.patients.filter((patient) => patient.payment.status === "paid").length
+  }
+
+  const getPendingPatientsCount = () => {
+    return groupSession.patients.filter((patient) => patient.payment.status === "pending").length
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl mx-4 overflow-hidden max-h-[90vh]">
+        {/* Modal Header */}
+        <div className="bg-gradient-to-r from-[#C83C92] to-purple-600 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-white bg-opacity-20 rounded-lg">
+                <Users className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h3 className="text-xl font-semibold text-white">{groupSession.groupSessionName}</h3>
+                <p className="text-purple-100 text-sm">
+                  Group Session • {groupSession.totalPatients} Patients • {groupSession.duration} min
+                </p>
+              </div>
+            </div>
+            <button onClick={onClose} className="p-1 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors">
+              <X className="w-6 h-6 text-white" />
+            </button>
+          </div>
+        </div>
+
+        {/* Modal Body */}
+        <div className="p-6 overflow-y-auto max-h-[60vh]">
+          {/* Group Session Summary */}
+          <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4 mb-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-blue-600">{groupSession.totalPatients}</div>
+                <div className="text-sm text-gray-600">Total Patients</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-600">{getPaidPatientsCount()}</div>
+                <div className="text-sm text-gray-600">Paid</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-yellow-600">{getPendingPatientsCount()}</div>
+                <div className="text-sm text-gray-600">Pending</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-purple-600">₹{groupSession.totalRevenue}</div>
+                <div className="text-sm text-gray-600">Total Revenue</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Session Details */}
+          <div className="bg-gray-50 rounded-lg p-4 mb-6">
+            <h4 className="text-lg font-semibold text-gray-900 mb-3">Session Details</h4>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="text-gray-600">Session Type:</p>
+                <p className="font-medium text-gray-900 capitalize">{groupSession.type}</p>
+              </div>
+              <div>
+                <p className="text-gray-600">Status:</p>
+                <p className="font-medium text-gray-900 capitalize">{groupSession.status}</p>
+              </div>
+              <div>
+                <p className="text-gray-600">Mode:</p>
+                <p className="font-medium text-gray-900 capitalize">{groupSession.consultationMode}</p>
+              </div>
+              <div>
+                <p className="text-gray-600">Service:</p>
+                <p className="font-medium text-gray-900">{groupSession.serviceInfo.name}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Patients List */}
+          <div>
+            <h4 className="text-lg font-semibold text-gray-900 mb-4">Patients in Group Session</h4>
+            <div className="space-y-4">
+              {groupSession.patients.map((patient, index) => (
+                <div
+                  key={patient.id}
+                  className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                          <span className="text-sm font-semibold text-blue-600">{index + 1}</span>
+                        </div>
+                        <div>
+                          <h5 className="font-semibold text-gray-900">{patient.patientName}</h5>
+                          <p className="text-sm text-gray-600">Father: {patient.fatherName}</p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <Phone className="w-4 h-4 text-gray-400" />
+                            <span className="text-gray-600">{patient.phone}</span>
+                          </div>
+                          {patient.email !== "N/A" && (
+                            <div className="flex items-center gap-2">
+                              <Mail className="w-4 h-4 text-gray-400" />
+                              <span className="text-gray-600">{patient.email}</span>
+                            </div>
+                          )}
+                          {patient.address && (
+                            <div className="text-gray-600">
+                              <span className="font-medium">Address:</span> {patient.address}
+                            </div>
+                          )}
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-600">Payment:</span>
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`px-2 py-1 rounded-full text-xs font-medium ${patient.payment.status === "paid"
+                                    ? "bg-green-100 text-green-800"
+                                    : patient.payment.status === "pending"
+                                      ? "bg-yellow-100 text-yellow-800"
+                                      : "bg-red-100 text-red-800"
+                                  }`}
+                              >
+                                {patient.payment.status}
+                              </span>
+                              <span className="font-medium">₹{patient.payment.amount}</span>
+                            </div>
+                          </div>
+                          <div className="text-gray-600">
+                            <span className="font-medium">Method:</span> {patient.payment.method}
+                          </div>
+                        </div>
+                      </div>
+                      {patient.notes && (
+                        <div className="mt-3 p-2 bg-gray-50 rounded text-sm">
+                          <span className="font-medium text-gray-700">Notes:</span>
+                          <p className="text-gray-600 mt-1">{patient.notes}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Modal Footer */}
+        <div className="bg-gray-50 px-6 py-4 flex items-center justify-end gap-3">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            Close
+          </button>
+          <button
+            onClick={() => onReschedule(groupSession)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+          >
+            <Calendar className="w-4 h-4" />
+            Reschedule Group
+          </button>
+          <button
+            onClick={() => onUpdateStatus(groupSession)}
+            className="px-6 py-2 bg-gradient-to-r from-[#C83C92] to-purple-600 text-white rounded-lg hover:from-[#a21e6b] hover:to-purple-700 transition-colors flex items-center gap-2"
+          >
+            <CheckCircle className="w-4 h-4" />
+            Update Status
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ENHANCED Status Update Modal - Fixed group session handling
+const StatusUpdateModal: React.FC<{
+  appointment: AppointmentOrGroup | null
+  isOpen: boolean
+  onClose: () => void
+  onUpdate: (appointmentId: string, updates: any, isGroupSession?: boolean) => void
 }> = ({ appointment, isOpen, onClose, onUpdate }) => {
-  const [status, setStatus] = useState(appointment?.status || "scheduled")
-  const [paymentStatus, setPaymentStatus] = useState(appointment?.payment?.status || "pending")
-  const [paymentAmount, setPaymentAmount] = useState(appointment?.payment?.amount || 0)
-  const [paymentMethod, setPaymentMethod] = useState(appointment?.payment?.method || "not_specified")
-  const [notes, setNotes] = useState(appointment?.notes || "")
-  const [sessionsCompleted, setSessionsCompleted] = useState(appointment?.sessionsCompleted || 0)
+  const [status, setStatus] = useState("")
+  const [paymentStatus, setPaymentStatus] = useState("pending")
+  const [paymentAmount, setPaymentAmount] = useState(0)
+  const [paymentMethod, setPaymentMethod] = useState("not_specified")
+  const [notes, setNotes] = useState("")
+  const [sessionsCompleted, setSessionsCompleted] = useState(0)
   const [isUpdating, setIsUpdating] = useState(false)
   const [validationErrors, setValidationErrors] = useState<string[]>([])
+
+  // Enhanced group session payment strategy
+  const [groupPaymentStrategy, setGroupPaymentStrategy] = useState<"all-paid" | "all-pending" | "keep-current">(
+    "keep-current",
+  )
+
+  const isGroupSession = appointment && "isGroupSession" in appointment && appointment.isGroupSession
 
   // Reset form when appointment changes or modal opens
   useEffect(() => {
     if (appointment && isOpen) {
-      setStatus(appointment.status || "scheduled")
-      setPaymentStatus(appointment.payment?.status || "pending")
-      setPaymentAmount(appointment.payment?.amount || 0)
-      setPaymentMethod(appointment.payment?.method || "not_specified")
-      setNotes(appointment.notes || "")
-      setSessionsCompleted(appointment.sessionsCompleted || 0)
+      if (isGroupSession) {
+        const groupSession = appointment as GroupSession
+        setStatus(groupSession.status || "scheduled")
+        // For group sessions, calculate average payment data
+        const totalAmount = groupSession.totalRevenue
+        const avgAmount = Math.round(totalAmount / groupSession.totalPatients)
+        setPaymentAmount(avgAmount)
+        setPaymentStatus("pending") // Default for group
+        setPaymentMethod("cash")
+        setNotes("")
+        setSessionsCompleted(0)
+        setGroupPaymentStrategy("keep-current")
+      } else {
+        const singleAppointment = appointment as CalendarAppointment
+        setStatus(singleAppointment.status || "scheduled")
+        setPaymentStatus(singleAppointment.payment?.status || "pending")
+        setPaymentAmount(singleAppointment.payment?.amount || 0)
+        setPaymentMethod(singleAppointment.payment?.method || "not_specified")
+        setNotes(singleAppointment.notes || "")
+        setSessionsCompleted(singleAppointment.sessionsCompleted || 0)
+      }
       setValidationErrors([])
     }
-  }, [appointment, isOpen])
+  }, [appointment, isOpen, isGroupSession])
 
   // Auto-increment sessions when status changes to completed
   useEffect(() => {
-    if (status === "completed" && appointment) {
-      // Only auto-increment if current sessionsCompleted is less than what we're setting
-      const currentCompleted = appointment.sessionsCompleted || 0
+    if (status === "completed" && appointment && !isGroupSession) {
+      const singleAppointment = appointment as CalendarAppointment
+      const currentCompleted = singleAppointment.sessionsCompleted || 0
       if (sessionsCompleted <= currentCompleted) {
-        const newCompleted = Math.min(currentCompleted + 1, appointment.totalSessions || 0)
+        const newCompleted = Math.min(currentCompleted + 1, singleAppointment.totalSessions || 0)
         setSessionsCompleted(newCompleted)
       }
-      // Auto-set payment to paid if amount is greater than 0 and status is pending
       if (paymentAmount > 0 && paymentStatus === "pending") {
         setPaymentStatus("paid")
       }
     }
-  }, [status, appointment, paymentAmount, paymentStatus, sessionsCompleted])
+  }, [status, appointment, paymentAmount, paymentStatus, sessionsCompleted, isGroupSession])
 
-  // Validation function
+  // Enhanced validation function
   const validateForm = (): boolean => {
     const errors: string[] = []
     if (!status) {
       errors.push("Status is required")
     }
-    if (sessionsCompleted > (appointment?.totalSessions || 0)) {
-      errors.push(`Sessions completed cannot exceed total sessions (${appointment?.totalSessions})`)
-    }
-    if (sessionsCompleted < 0) {
-      errors.push("Sessions completed cannot be negative")
+    if (!isGroupSession) {
+      const singleAppointment = appointment as CalendarAppointment
+      if (sessionsCompleted > (singleAppointment?.totalSessions || 0)) {
+        errors.push(`Sessions completed cannot exceed total sessions (${singleAppointment?.totalSessions})`)
+      }
+      if (sessionsCompleted < 0) {
+        errors.push("Sessions completed cannot be negative")
+      }
+      if (status === "completed" && sessionsCompleted === 0) {
+        errors.push("At least one session must be completed when marking as completed")
+      }
     }
     if (paymentAmount < 0) {
       errors.push("Payment amount cannot be negative")
-    }
-    // If marking as completed, ensure at least one session is completed
-    if (status === "completed" && sessionsCompleted === 0) {
-      errors.push("At least one session must be completed when marking as completed")
     }
     setValidationErrors(errors)
     return errors.length === 0
   }
 
+  // ENHANCED update handler for group sessions
   const handleUpdate = async () => {
     if (!validateForm()) {
       toast.error("Please fix the validation errors")
       return
     }
+
     setIsUpdating(true)
     try {
-      const updates = {
-        status,
-        payment: {
-          amount: paymentAmount,
-          status: paymentStatus,
-          method: paymentMethod,
-        },
-        notes,
-        sessionsCompleted,
-      }
-      await onUpdate(appointment?.id, updates)
-      onClose()
-      // Show success message based on status
-      if (status === "completed") {
-        toast.success(`Appointment completed! Session ${sessionsCompleted}/${appointment?.totalSessions} recorded.`)
-      } else if (status === "cancelled") {
-        toast.success("Appointment cancelled successfully")
+      let updates: any
+
+      if (isGroupSession) {
+        // Enhanced group session updates
+        const groupSession = appointment as GroupSession
+        updates = {
+          status,
+          notes,
+          groupPaymentStrategy,
+          // For group sessions, we'll update all patients with the same payment info
+          patientUpdates: groupSession.patients.map((patient) => ({
+            patientId: patient.id,
+            payment: {
+              amount: paymentAmount,
+              status: groupPaymentStrategy === "keep-current" ? patient.payment.status : paymentStatus,
+              method: paymentMethod,
+            },
+            notes: notes || patient.notes,
+          })),
+        }
+
+        // If completing group session, mark all patients as completed
+        if (status === "completed") {
+          updates.patientUpdates = updates.patientUpdates.map((update: any) => ({
+            ...update,
+            status: "completed",
+            payment: {
+              ...update.payment,
+              status: groupPaymentStrategy === "all-paid" ? "paid" : update.payment.status,
+            },
+          }))
+        }
+
+        // If cancelling group session, handle refunds
+        if (status === "cancelled") {
+          updates.patientUpdates = updates.patientUpdates.map((update: any) => ({
+            ...update,
+            status: "cancelled",
+            payment: {
+              ...update.payment,
+              status: update.payment.status === "paid" ? "refunded" : update.payment.status,
+            },
+          }))
+        }
       } else {
-        toast.success("Appointment updated successfully")
+        // Individual appointment updates (keep existing logic)
+        updates = {
+          status,
+          payment: {
+            amount: paymentAmount,
+            status: paymentStatus,
+            method: paymentMethod,
+          },
+          notes,
+          sessionsCompleted,
+        }
+      }
+
+      const appointmentId = isGroupSession
+        ? (appointment as GroupSession).groupSessionId
+        : (appointment as CalendarAppointment).id
+
+      console.log("Sending update request:", { appointmentId, updates, isGroupSession })
+
+      await onUpdate(appointmentId, updates, isGroupSession)
+      onClose()
+
+      // Enhanced success messages
+      if (status === "completed") {
+        if (isGroupSession) {
+          toast.success(`Group session completed! All ${(appointment as GroupSession).totalPatients} patients updated.`)
+        } else {
+          const singleAppointment = appointment as CalendarAppointment
+          toast.success(
+            `Appointment completed! Session ${sessionsCompleted}/${singleAppointment?.totalSessions} recorded.`,
+          )
+        }
+      } else if (status === "cancelled") {
+        toast.success(isGroupSession ? "Group session cancelled successfully" : "Appointment cancelled successfully")
+      } else {
+        toast.success(isGroupSession ? "Group session updated successfully" : "Appointment updated successfully")
       }
     } catch (error) {
       console.error("Update error:", error)
-      toast.error("Failed to update appointment")
+      toast.error(isGroupSession ? "Failed to update group session" : "Failed to update appointment")
     } finally {
       setIsUpdating(false)
     }
   }
 
-  // Quick complete function
+  // Quick complete function - enhanced for groups
   const handleQuickComplete = () => {
     setStatus("completed")
-    const newCompleted = Math.min((appointment?.sessionsCompleted || 0) + 1, appointment?.totalSessions || 0)
-    setSessionsCompleted(newCompleted)
+    if (!isGroupSession) {
+      const singleAppointment = appointment as CalendarAppointment
+      const newCompleted = Math.min(
+        (singleAppointment?.sessionsCompleted || 0) + 1,
+        singleAppointment?.totalSessions || 0,
+      )
+      setSessionsCompleted(newCompleted)
+    }
     if (paymentAmount > 0) {
       setPaymentStatus("paid")
+      if (isGroupSession) {
+        setGroupPaymentStrategy("all-paid")
+      }
     }
   }
 
-  // Quick cancel function
+  // Quick cancel function - enhanced for groups
   const handleQuickCancel = () => {
     setStatus("cancelled")
     setPaymentStatus("refunded")
+    if (isGroupSession) {
+      setGroupPaymentStrategy("keep-current") // Keep current status but will be handled in update logic
+    }
   }
 
   if (!isOpen || !appointment) return null
@@ -206,15 +582,25 @@ const StatusUpdateModal: React.FC<{
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
         {/* Modal Header */}
-        <div className="bg-gradient-to-r bg-[#C83C92] px-6 py-4">
+        <div className="bg-gradient-to-r from-[#C83C92] to-purple-600 px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-white bg-opacity-20 rounded-lg">
-                <CheckCircle className="w-5 h-5 text-white" />
+                {isGroupSession ? (
+                  <Users className="w-5 h-5 text-white" />
+                ) : (
+                  <CheckCircle className="w-5 h-5 text-white" />
+                )}
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-white">Update Appointment</h3>
-                <p className="text-purple-100 text-sm">{appointment?.patientName}</p>
+                <h3 className="text-lg font-semibold text-white">
+                  {isGroupSession ? "Update Group Session" : "Update Appointment"}
+                </h3>
+                <p className="text-purple-100 text-sm">
+                  {isGroupSession
+                    ? (appointment as GroupSession).groupSessionName
+                    : (appointment as CalendarAppointment).patientName}
+                </p>
               </div>
             </div>
             <button onClick={onClose} className="p-1 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors">
@@ -222,6 +608,7 @@ const StatusUpdateModal: React.FC<{
             </button>
           </div>
         </div>
+
         {/* Modal Body */}
         <div className="p-6 space-y-6 max-h-96 overflow-y-auto">
           {/* Validation Errors */}
@@ -241,56 +628,90 @@ const StatusUpdateModal: React.FC<{
               </ul>
             </div>
           )}
+
           {/* Current Info */}
           <div className="bg-gray-50 rounded-lg p-4">
-            <h4 className="text-sm font-medium text-black mb-2">Appointment Details</h4>
-            <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
-              <div>
-                <p>
-                  Patient: <span className="font-medium">{appointment?.patientName}</span>
-                </p>
-                <p>
-                  Type: <span className="font-medium">{appointment?.type}</span>
-                </p>
-                <p>
-                  Duration: <span className="font-medium">{appointment?.duration} min</span>
-                </p>
+            <h4 className="text-sm font-medium text-black mb-2">
+              {isGroupSession ? "Group Session Details" : "Appointment Details"}
+            </h4>
+            {isGroupSession ? (
+              <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
+                <div>
+                  <p>
+                    Group: <span className="font-medium">{(appointment as GroupSession).groupSessionName}</span>
+                  </p>
+                  <p>
+                    Patients: <span className="font-medium">{(appointment as GroupSession).totalPatients}</span>
+                  </p>
+                  <p>
+                    Duration: <span className="font-medium">{(appointment as GroupSession).duration} min</span>
+                  </p>
+                </div>
+                <div>
+                  <p>
+                    Type: <span className="font-medium">{(appointment as GroupSession).type}</span>
+                  </p>
+                  <p>
+                    Revenue: <span className="font-medium">₹{(appointment as GroupSession).totalRevenue}</span>
+                  </p>
+                  <p>
+                    Mode: <span className="font-medium">{(appointment as GroupSession).consultationMode}</span>
+                  </p>
+                </div>
               </div>
-              <div>
-                <p>
-                  Phone: <span className="font-medium">{appointment?.phone}</span>
-                </p>
-                <p>
-                  Sessions:{" "}
-                  <span className="font-medium">
-                    {appointment?.sessionsCompleted}/{appointment?.totalSessions}
-                  </span>
-                </p>
-                <p>
-                  Paid Sessions: <span className="font-medium">{appointment?.sessionsPaid}</span>
-                </p>
+            ) : (
+              <div className="grid grid-cols-2 gap-4 text-sm ">
+                <div>
+                  <p>
+                    Patient: <span className="font-medium">{(appointment as CalendarAppointment).patientName}</span>
+                  </p>
+                  <p>
+                    Type: <span className="font-medium">{(appointment as CalendarAppointment).type}</span>
+                  </p>
+                  <p>
+                    Duration: <span className="font-medium">{(appointment as CalendarAppointment).duration} min</span>
+                  </p>
+                </div>
+                <div>
+                  <p>
+                    Phone: <span className="font-medium">{(appointment as CalendarAppointment).phone}</span>
+                  </p>
+                  <p>
+                    Sessions:{" "}
+                    <span className="font-medium">
+                      {(appointment as CalendarAppointment).sessionsCompleted}/
+                      {(appointment as CalendarAppointment).totalSessions}
+                    </span>
+                  </p>
+                  <p>
+                    Paid Sessions:{" "}
+                    <span className="font-medium">{(appointment as CalendarAppointment).sessionsPaid}</span>
+                  </p>
+                </div>
               </div>
-            </div>
+            )}
           </div>
+
           {/* Quick Actions */}
           <div className="flex gap-2">
             <button
               onClick={handleQuickComplete}
               className="flex-1 px-3 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors text-sm font-medium"
             >
-              Quick Complete Session
+              {isGroupSession ? "Complete Group Session" : "Quick Complete Session"}
             </button>
             <button
               onClick={handleQuickCancel}
               className="flex-1 px-3 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors text-sm font-medium"
             >
-              Cancel Appointment
+              {isGroupSession ? "Cancel Group Session" : "Cancel Appointment"}
             </button>
           </div>
+
           {/* Status Update */}
           <div>
             <label className="block text-sm font-medium text-black mb-2">
-              Appointment Status <span className="text-red-500">*</span>
+              {isGroupSession ? "Group Session Status" : "Appointment Status"} <span className="text-red-500">*</span>
             </label>
             <select
               style={{ color: "black" }}
@@ -300,41 +721,91 @@ const StatusUpdateModal: React.FC<{
             >
               <option value="scheduled">Scheduled</option>
               <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
               <option value="confirmed">Confirmed</option>
             </select>
           </div>
-          {/* Payment Status */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-black mb-2">Payment Status</label>
-              <select
-                style={{ color: "black" }}
-                value={paymentStatus}
-                onChange={(e) => setPaymentStatus(e.target.value as any)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-              >
-                <option value="pending">Pending</option>
-                <option value="paid">Paid</option>
-                <option value="refunded">Refunded</option>
-              </select>
+
+          {/* Enhanced Group Payment Strategy */}
+          {isGroupSession && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <label className="block text-sm font-medium text-black mb-3">Payment Strategy for All Patients</label>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="groupPaymentStrategy"
+                    value="keep-current"
+                    checked={groupPaymentStrategy === "keep-current"}
+                    onChange={(e) => setGroupPaymentStrategy(e.target.value as any)}
+                    className="text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-black">Keep current payment status for each patient</span>
+                </label>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="groupPaymentStrategy"
+                    value="all-paid"
+                    checked={groupPaymentStrategy === "all-paid"}
+                    onChange={(e) => setGroupPaymentStrategy(e.target.value as any)}
+                    className="text-green-600 focus:ring-green-500"
+                  />
+                  <span className="text-sm text-black">Mark all patients as PAID</span>
+                </label>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="groupPaymentStrategy"
+                    value="all-pending"
+                    checked={groupPaymentStrategy === "all-pending"}
+                    onChange={(e) => setGroupPaymentStrategy(e.target.value as any)}
+                    className="text-yellow-600 focus:ring-yellow-500"
+                  />
+                  <span className="text-sm text-black">Mark all patients as PENDING</span>
+                </label>
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-black mb-2">Payment Method</label>
-              <select
-                style={{ color: "black" }}
-                value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value as any)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-              >
-                <option value="not_specified">Not Specified</option>
-                <option value="cash">Cash</option>
-                <option value="upi">Upi</option>
-              </select>
+          )}
+
+          {/* Payment Status - only show for individual appointments or when group strategy is not keep-current */}
+          {(!isGroupSession || groupPaymentStrategy !== "keep-current") && (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-black mb-2">Payment Status</label>
+                <select
+                  style={{ color: "black" }}
+                  value={paymentStatus}
+                  onChange={(e) => setPaymentStatus(e.target.value as any)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  disabled={isGroupSession && groupPaymentStrategy !== "keep-current"}
+                >
+                  <option value="pending">Pending</option>
+                  <option value="paid">Paid</option>
+                  <option value="refunded">Refunded</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-black mb-2">Payment Method</label>
+                <select
+                  style={{ color: "black" }}
+                  value={paymentMethod}
+                  onChange={(e) => setPaymentMethod(e.target.value as any)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="not_specified">Not Specified</option>
+                  <option value="cash">Cash</option>
+                  <option value="upi">UPI</option>
+                </select>
+              </div>
             </div>
-          </div>
+          )}
+
           {/* Payment Amount */}
           <div>
-            <label className="block text-sm font-medium text-black mb-2">Payment Amount</label>
+            <label className="block text-sm font-medium text-black mb-2">
+              {isGroupSession ? "Payment Amount (per patient)" : "Payment Amount"}
+            </label>
             <input
               style={{ color: "black" }}
               type="number"
@@ -346,8 +817,9 @@ const StatusUpdateModal: React.FC<{
               placeholder="Enter amount"
             />
           </div>
-          {/* Sessions Completed - only show if not cancelled */}
-          {status !== "cancelled" && (
+
+          {/* Sessions Completed - only show for individual appointments and not cancelled */}
+          {!isGroupSession && status !== "cancelled" && (
             <div>
               <label className="block text-sm font-medium text-black mb-2">Sessions Completed</label>
               <input
@@ -356,12 +828,13 @@ const StatusUpdateModal: React.FC<{
                 value={sessionsCompleted}
                 onChange={(e) => setSessionsCompleted(Number(e.target.value))}
                 min="0"
-                max={appointment?.totalSessions || 0}
+                max={(appointment as CalendarAppointment)?.totalSessions || 0}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                 placeholder="Number of sessions completed"
               />
             </div>
           )}
+
           {/* Notes */}
           <div>
             <label className="block text-sm font-medium text-black mb-2">Notes</label>
@@ -369,12 +842,15 @@ const StatusUpdateModal: React.FC<{
               style={{ color: "black" }}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Add any notes about the appointment..."
+              placeholder={
+                isGroupSession ? "Add notes about the group session..." : "Add any notes about the appointment..."
+              }
               rows={3}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
             />
           </div>
         </div>
+
         {/* Modal Footer */}
         <div className="bg-gray-50 px-6 py-4 flex items-center justify-end gap-3">
           <button
@@ -387,7 +863,7 @@ const StatusUpdateModal: React.FC<{
           <button
             onClick={handleUpdate}
             disabled={isUpdating || validationErrors.length > 0}
-            className="px-6 py-2 bg-gradient-to-r bg-[#C83C92] text-white rounded-lg disabled:opacity-50 transition-colors flex items-center gap-2"
+            className="px-6 py-2 bg-gradient-to-r from-[#C83C92] to-purple-600 text-white rounded-lg disabled:opacity-50 transition-colors flex items-center gap-2"
           >
             {isUpdating ? (
               <>
@@ -397,7 +873,7 @@ const StatusUpdateModal: React.FC<{
             ) : (
               <>
                 <CheckCircle className="w-4 h-4" />
-                Update Appointment
+                {isGroupSession ? "Update Group Session" : "Update Appointment"}
               </>
             )}
           </button>
@@ -407,12 +883,12 @@ const StatusUpdateModal: React.FC<{
   )
 }
 
-// Enhanced Reschedule Modal with availability checking - SIMPLIFIED FOR DASHBOARD
+// ENHANCED Reschedule Modal - Fixed group session handling
 const RescheduleModal: React.FC<{
-  appointment: CalendarAppointment | null
+  appointment: AppointmentOrGroup | null
   isOpen: boolean
   onClose: () => void
-  onReschedule: (appointmentId: string, rescheduleData: any) => void
+  onReschedule: (appointmentId: string, rescheduleData: any, isGroupSession?: boolean) => void
 }> = ({ appointment, isOpen, onClose, onReschedule }) => {
   const [rescheduleData, setRescheduleData] = useState({
     date: "",
@@ -424,23 +900,7 @@ const RescheduleModal: React.FC<{
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Predefined time slots
-  const predefinedTimeSlots = [
-    "09:15 AM",
-    "10:00 AM",
-    "10:45 AM",
-    "11:30 AM",
-    "12:15 PM",
-    "01:00 PM",
-    "01:45 PM",
-    "02:30 PM",
-    "03:15 PM",
-    "04:00 PM",
-    "04:45 PM",
-    "05:30 PM",
-    "06:15 PM",
-    "07:00 PM",
-  ]
+  const isGroupSession = appointment && "isGroupSession" in appointment && appointment.isGroupSession
 
   // Calculate end time (45 minutes after start time)
   const calculateEndTime = (startTime: string): string => {
@@ -456,7 +916,7 @@ const RescheduleModal: React.FC<{
     return `${displayHours.toString().padStart(2, "0")}:${endMins.toString().padStart(2, "0")} ${endPeriod}`
   }
 
-  // Fetch available slots when date changes
+  // ENHANCED fetch available slots function
   const fetchAvailableSlots = async (selectedDate: string, doctorId: string) => {
     if (!selectedDate || !doctorId) return
     setLoadingSlots(true)
@@ -501,11 +961,15 @@ const RescheduleModal: React.FC<{
 
   // Fetch available slots when date changes
   useEffect(() => {
-    if (rescheduleData.date && appointment?.doctorId) {
-      fetchAvailableSlots(rescheduleData.date, appointment.doctorId)
+    if (rescheduleData.date && appointment) {
+      const doctorId = isGroupSession
+        ? (appointment as GroupSession).doctorId
+        : (appointment as CalendarAppointment).doctorId
+      fetchAvailableSlots(rescheduleData.date, doctorId)
     }
-  }, [rescheduleData.date, appointment?.doctorId])
+  }, [rescheduleData.date, appointment, isGroupSession])
 
+  // ENHANCED reschedule submit handler
   const handleRescheduleSubmit = async () => {
     if (!rescheduleData.date || !rescheduleData.startTime) {
       toast.error("Please select date and time")
@@ -515,27 +979,39 @@ const RescheduleModal: React.FC<{
 
     setIsSubmitting(true)
     try {
-      console.log("Dashboard reschedule - sending data:", {
-        appointmentId: appointment.id,
+      const appointmentId = isGroupSession
+        ? (appointment as GroupSession).groupSessionId
+        : (appointment as CalendarAppointment).id
+      const doctorId = isGroupSession
+        ? (appointment as GroupSession).doctorId
+        : (appointment as CalendarAppointment).doctorId
+
+      const reschedulePayload = {
         date: rescheduleData.date,
         startTime: rescheduleData.startTime,
-        endTime: rescheduleData.endTime,
-        therapistId: appointment.doctorId,
+        endTime: rescheduleData.endTime == "06:15 PM" ? "06:00 PM" : rescheduleData?.endTime,
+        therapistId: doctorId,
         reason: rescheduleData.reason,
+        // Enhanced group session data
+        ...(isGroupSession && {
+          isGroupReschedule: true,
+          groupSessionId: (appointment as GroupSession).groupSessionId,
+          totalPatients: (appointment as GroupSession).totalPatients,
+        }),
+      }
+
+      console.log("Dashboard reschedule - sending enhanced data:", {
+        appointmentId,
+        reschedulePayload,
+        isGroupSession,
       })
 
-      await onReschedule(appointment.id, {
-        date: rescheduleData.date,
-        startTime: rescheduleData.startTime,
-        endTime: rescheduleData.endTime,
-        therapistId: appointment.doctorId, // Keep same doctor
-        reason: rescheduleData.reason,
-      })
+      await onReschedule(appointmentId, reschedulePayload, isGroupSession)
       onClose()
-      toast.success("Appointment rescheduled successfully")
+      toast.success(isGroupSession ? "Group session rescheduled successfully" : "Appointment rescheduled successfully")
     } catch (error) {
       console.error("Error rescheduling:", error)
-      toast.error("Failed to reschedule appointment")
+      toast.error(isGroupSession ? "Failed to reschedule group session" : "Failed to reschedule appointment")
     } finally {
       setIsSubmitting(false)
     }
@@ -554,8 +1030,14 @@ const RescheduleModal: React.FC<{
                 <Calendar className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-white">Reschedule Appointment</h3>
-                <p className="text-purple-100 text-sm">{appointment?.patientName}</p>
+                <h3 className="text-lg font-semibold text-white">
+                  {isGroupSession ? "Reschedule Group Session" : "Reschedule Appointment"}
+                </h3>
+                <p className="text-purple-100 text-sm">
+                  {isGroupSession
+                    ? (appointment as GroupSession).groupSessionName
+                    : (appointment as CalendarAppointment).patientName}
+                </p>
               </div>
             </div>
             <button onClick={onClose} className="p-1 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors">
@@ -563,29 +1045,62 @@ const RescheduleModal: React.FC<{
             </button>
           </div>
         </div>
+
         {/* Modal Body */}
         <div className="p-6 space-y-4">
           {/* Current Appointment Info */}
           <div className="bg-gray-50 rounded-lg p-4">
-            <h4 className="text-sm font-medium text-black mb-2">Current Appointment</h4>
-            <div className="text-sm text-gray-600">
-              <div className="flex justify-between">
-                <p>
-                  Patient: <span className="font-medium">{appointment?.patientName}</span>
-                </p>
-                <p>
-                  <span className="font-medium">{appointment?.type}</span>
-                </p>
+            <h4 className="text-sm font-medium text-black mb-2">
+              {isGroupSession ? "Current Group Session" : "Current Appointment"}
+            </h4>
+            {isGroupSession ? (
+              <div className="text-sm text-gray-600">
+                <div className="flex justify-between">
+                  <p>
+                    Group: <span className="font-medium">{(appointment as GroupSession).groupSessionName}</span>
+                  </p>
+                  <p>
+                    <span className="font-medium">{(appointment as GroupSession).type}</span>
+                  </p>
+                </div>
+                <div className="flex justify-between mt-1">
+                  <p>
+                    Patients: <span className="font-medium">{(appointment as GroupSession).totalPatients}</span>
+                  </p>
+                  <p>
+                    Status: <span className="font-medium capitalize">{(appointment as GroupSession).status}</span>
+                  </p>
+                </div>
+                <div className="mt-2 p-2 bg-blue-50 rounded text-xs">
+                  <span className="font-medium text-blue-800">Note:</span>
+                  <span className="text-blue-700 ml-1">
+                    Rescheduling will update all {(appointment as GroupSession).totalPatients} patients in this group
+                    session.
+                  </span>
+                </div>
               </div>
-              <div className="flex justify-between mt-1">
-                <p>
-                  Duration: <span className="font-medium">{appointment?.duration} minutes</span>
-                </p>
-                <p>
-                  Status: <span className="font-medium capitalize">{appointment?.status}</span>
-                </p>
+            ) : (
+              <div className="text-sm text-gray-600">
+                <div className="flex justify-between">
+                  <p>
+                    Patient: <span className="font-medium">{(appointment as CalendarAppointment).patientName}</span>
+                  </p>
+                  <p>
+                    <span className="font-medium">{(appointment as CalendarAppointment).type}</span>
+                  </p>
+                </div>
+                <div className="flex justify-between mt-1">
+                  <p>
+                    Duration:{" "}
+                    <span className="font-medium">{(appointment as CalendarAppointment).duration} minutes</span>
+                  </p>
+                  <p>
+                    Status:{" "}
+                    <span className="font-medium capitalize">{(appointment as CalendarAppointment).status}</span>
+                  </p>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* New Date Selection */}
@@ -649,7 +1164,7 @@ const RescheduleModal: React.FC<{
             <div>
               <label className="block text-sm font-medium text-black mb-2">End Time (Auto-calculated)</label>
               <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-black">
-                {rescheduleData.endTime}
+                {rescheduleData?.endTime == '06:15 PM' ? "06:00 PM" : rescheduleData?.endTime}
               </div>
             </div>
           )}
@@ -661,7 +1176,11 @@ const RescheduleModal: React.FC<{
               style={{ color: "black" }}
               value={rescheduleData.reason}
               onChange={(e) => setRescheduleData((prev) => ({ ...prev, reason: e.target.value }))}
-              placeholder="Enter reason for rescheduling..."
+              placeholder={
+                isGroupSession
+                  ? "Enter reason for rescheduling the group session..."
+                  : "Enter reason for rescheduling..."
+              }
               rows={3}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none"
             />
@@ -690,7 +1209,7 @@ const RescheduleModal: React.FC<{
             ) : (
               <>
                 <Calendar className="w-4 h-4" />
-                Reschedule Appointment
+                {isGroupSession ? "Reschedule Group" : "Reschedule Appointment"}
               </>
             )}
           </button>
@@ -700,6 +1219,7 @@ const RescheduleModal: React.FC<{
   )
 }
 
+// Main Dashboard Component - keeping your existing structure but with enhanced group session handling
 const ReceptionistDashboard = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
@@ -742,7 +1262,7 @@ const ReceptionistDashboard = () => {
   return (
     <div className="min-h-screen w-full font-sans">
       {/* Fixed container that accounts for sidebar */}
-      <div className="ml-[300px]  w-[calc(100vw-300px)] p-6 pt-22 overflow-hidden">
+      <div className="ml-[100px] w-[calc(100vw-100px)] p-6 pt-18 overflow-hidden">
         <h1 className="text-2xl font-bold text-[#1E437A] mb-6">Hello, Receptionist!</h1>
         <div className="flex gap-4 mb-6">
           <button
@@ -760,9 +1280,6 @@ const ReceptionistDashboard = () => {
           </Link>
         </div>
         <div className="bg-white rounded-lg border border-gray-200 p-6 w-full overflow-hidden">
-          {/* <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold text-[#1E437A] ml-5">Doctor Schedule</h2>
-          </div> */}
           <DoctorScheduleTable />
         </div>
       </div>
@@ -770,6 +1287,7 @@ const ReceptionistDashboard = () => {
   )
 }
 
+// ENHANCED Doctor Schedule Table Component with improved group session handling
 const DoctorScheduleTable: React.FC = () => {
   const [scheduleData, setScheduleData] = useState<CalendarApiResponse["data"]>({})
   const [loading, setLoading] = useState(true)
@@ -778,10 +1296,14 @@ const DoctorScheduleTable: React.FC = () => {
 
   // Status Update Modal State
   const [showStatusModal, setShowStatusModal] = useState(false)
-  const [selectedAppointment, setSelectedAppointment] = useState<CalendarAppointment | null>(null)
+  const [selectedAppointment, setSelectedAppointment] = useState<AppointmentOrGroup | null>(null)
 
   // Reschedule Modal State
   const [showRescheduleModal, setShowRescheduleModal] = useState(false)
+
+  // Group Session View Modal State
+  const [showGroupViewModal, setShowGroupViewModal] = useState(false)
+  const [selectedGroupSession, setSelectedGroupSession] = useState<GroupSession | null>(null)
 
   const router = useRouter()
 
@@ -791,7 +1313,7 @@ const DoctorScheduleTable: React.FC = () => {
   // Handle scroll left and right
   const handleScroll = (direction: "left" | "right") => {
     if (tableContainerRef.current) {
-      const scrollAmount = 600 // Adjust this value to control scroll distance
+      const scrollAmount = 600
       const currentScroll = tableContainerRef.current.scrollLeft
       const newScroll = direction === "left" ? currentScroll - scrollAmount : currentScroll + scrollAmount
       console.log(`Scrolling ${direction}, current: ${currentScroll}, new: ${newScroll}`)
@@ -805,62 +1327,117 @@ const DoctorScheduleTable: React.FC = () => {
   }
 
   // Handle status update click
-  const handleStatusClick = (appointment: CalendarAppointment) => {
+  const handleStatusClick = (appointment: AppointmentOrGroup) => {
     setSelectedAppointment(appointment)
     setShowStatusModal(true)
   }
 
   // Handle reschedule click
-  const handleRescheduleClick = (appointment: CalendarAppointment) => {
+  const handleRescheduleClick = (appointment: AppointmentOrGroup) => {
     setSelectedAppointment(appointment)
     setShowRescheduleModal(true)
   }
 
-  // Enhanced appointment update handler - SINGLE APPOINTMENT UPDATE
-  const handleAppointmentUpdate = async (appointmentId: string, updates: any) => {
-    console.log("sfkj")
+  // Handle group session view click
+  const handleGroupViewClick = (groupSession: GroupSession) => {
+    setSelectedGroupSession(groupSession)
+    setShowGroupViewModal(true)
+  }
+
+  // ENHANCED appointment update handler - IMPROVED GROUP SESSION SUPPORT
+  const handleAppointmentUpdate = async (appointmentId: string, updates: any, isGroupSession = false) => {
+    console.log("Enhanced update - processing:", { appointmentId, updates, isGroupSession })
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/appointments/updateappointment/${appointmentId}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
+      let endpoint: string
+      let requestBody: any
+
+      if (isGroupSession) {
+        // Enhanced group session update endpoint
+        endpoint = `${process.env.NEXT_PUBLIC_API_URL}/api/appointments/group/${appointmentId}/update`
+        requestBody = {
+          status: updates.status,
+          notes: updates.notes,
+          groupPaymentStrategy: updates.groupPaymentStrategy || "keep-current",
+          // Enhanced patient updates with individual handling
+          patientUpdates: updates.patientUpdates || [],
+          // Global payment settings for group
+          globalPayment: {
+            amount: updates.payment?.amount,
+            method: updates.payment?.method,
           },
-          body: JSON.stringify(updates),
+        }
+
+        console.log("Group session update payload:", requestBody)
+      } else {
+        // Individual appointment update (keep existing logic)
+        endpoint = `${process.env.NEXT_PUBLIC_API_URL}/api/appointments/updateappointment/${appointmentId}`
+        requestBody = updates
+      }
+
+      const response = await fetch(endpoint, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
         },
-      )
+        body: JSON.stringify(requestBody),
+      })
+
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.message || "Failed to update appointment")
+        throw new Error(errorData.message || `Failed to update ${isGroupSession ? "group session" : "appointment"}`)
       }
+
       const result = await response.json()
-      // Update local state with the updated appointment data
+      console.log("Update response:", result)
+
+      // Enhanced local state update
       setScheduleData((prevData) => {
         const newData = { ...prevData }
         // Find and update the appointment in the schedule data
         Object.keys(newData).forEach((doctorName) => {
           Object.keys(newData[doctorName]).forEach((timeSlot) => {
             const appointment = newData[doctorName][timeSlot]
-            if (appointment && appointment?.id === appointmentId) {
-              // Update the appointment with new data from server response
-              newData[doctorName][timeSlot] = {
-                ...appointment,
-                ...updates,
-                // Use server response data if available
-                ...(result.data && {
-                  status: result.data.status,
-                  sessionsCompleted: result.data.sessionsCompleted,
-                  payment: result.data.payment,
-                  notes: result.data.notes,
-                }),
+            if (appointment) {
+              if (isGroupSession && "isGroupSession" in appointment && appointment.isGroupSession) {
+                if (appointment.groupSessionId === appointmentId) {
+                  // Enhanced group session update
+                  newData[doctorName][timeSlot] = {
+                    ...appointment,
+                    status: updates.status,
+                    // Update all patients in the group based on strategy
+                    patients: appointment.patients.map((patient) => {
+                      const patientUpdate = updates.patientUpdates?.find((pu: any) => pu.patientId === patient.id)
+                      if (patientUpdate) {
+                        return {
+                          ...patient,
+                          payment: patientUpdate.payment,
+                          notes: patientUpdate.notes || patient.notes,
+                        }
+                      }
+                      return patient
+                    }),
+                  }
+                }
+              } else if (!("isGroupSession" in appointment) && appointment.id === appointmentId) {
+                // Update single appointment
+                newData[doctorName][timeSlot] = {
+                  ...appointment,
+                  ...updates,
+                  ...(result.data && {
+                    status: result.data.status,
+                    sessionsCompleted: result.data.sessionsCompleted,
+                    payment: result.data.payment,
+                    notes: result.data.notes,
+                  }),
+                }
               }
             }
           })
         })
         return newData
       })
+
       // Refresh the calendar to get latest data
       setTimeout(() => {
         fetchCalendarData()
@@ -871,34 +1448,56 @@ const DoctorScheduleTable: React.FC = () => {
     }
   }
 
-  // Handle reschedule submission with availability checking - DASHBOARD VERSION
-  const handleRescheduleSubmit = async (appointmentId: string, rescheduleData: any) => {
+  // ENHANCED reschedule submission handler - IMPROVED GROUP SESSION SUPPORT
+  const handleRescheduleSubmit = async (appointmentId: string, rescheduleData: any, isGroupSession = false) => {
     try {
-      console.log("Dashboard reschedule - calling API with:", {
+      console.log("Enhanced reschedule - processing:", {
         appointmentId,
         rescheduleData,
+        isGroupSession,
       })
 
-      // Use the dashboard-specific reschedule endpoint
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/appointments/${appointmentId}/dashboard-reschedule`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
-          },
-          body: JSON.stringify(rescheduleData),
+      let endpoint: string
+      let requestBody: any
+
+      if (isGroupSession) {
+        // Enhanced group session reschedule endpoint
+        endpoint = `${process.env.NEXT_PUBLIC_API_URL}/api/appointments/group/${appointmentId}/reschedule`
+        requestBody = {
+          ...rescheduleData,
+          isGroupReschedule: true,
+          // Additional group session specific data
+          groupSessionId: appointmentId,
+          totalPatients: rescheduleData.totalPatients,
+        }
+      } else {
+        // Individual appointment reschedule
+        endpoint = `${process.env.NEXT_PUBLIC_API_URL}/api/appointments/${appointmentId}/dashboard-reschedule`
+        requestBody = rescheduleData
+      }
+
+      console.log("Reschedule API call:", { endpoint, requestBody })
+
+      const response = await fetch(endpoint, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
         },
-      )
+        body: JSON.stringify(requestBody),
+      })
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || errorData.message || "Failed to reschedule appointment")
+        throw new Error(
+          errorData.error ||
+          errorData.message ||
+          `Failed to reschedule ${isGroupSession ? "group session" : "appointment"}`,
+        )
       }
 
       const result = await response.json()
-      console.log("Dashboard reschedule - API response:", result)
+      console.log("Enhanced reschedule - API response:", result)
 
       setShowRescheduleModal(false)
       setSelectedAppointment(null)
@@ -917,6 +1516,7 @@ const DoctorScheduleTable: React.FC = () => {
     fetchCalendarData()
   }, [selectedDate])
 
+  // In the DoctorScheduleTable component, replace the existing fetchCalendarData function with this enhanced version:
   const fetchCalendarData = async () => {
     try {
       setLoading(true)
@@ -942,15 +1542,21 @@ const DoctorScheduleTable: React.FC = () => {
         console.log("apiresponse", apiResponse.data)
         const firstDoctorSlots = doctorNames.length > 0 ? Object.keys(apiResponse.data[doctorNames[0]]) : []
         setTimeSlots(firstDoctorSlots)
-        // Create doctor objects with colors
-        const doctorColors = ["blue", "pink", "green", "purple", "indigo", "orange", "teal"]
-        const doctorsData = doctorNames.map((name, index) => ({
-          name,
-          specialty: getSpecialtyFromName(name),
-          color: doctorColors[index % doctorColors.length],
-        }))
-        console.log(doctorsData, "doljksfjadsfkklkjljlkj")
-        setDoctors(doctorsData)
+
+        // Enhanced doctor processing with specialty-based sorting and coloring
+        const doctorsData = doctorNames.map((name) => {
+          const specialty = getSpecialtyFromName(name)
+          return {
+            name,
+            specialty,
+            color: specialty, // We'll use specialty for color determination
+          }
+        })
+
+        // Sort doctors by specialty priority
+        const sortedDoctors = sortDoctorsBySpecialty(doctorsData)
+        console.log("Sorted doctors by specialty:", sortedDoctors)
+        setDoctors(sortedDoctors)
       }
     } catch (error) {
       console.error("Error fetching calendar data:", error)
@@ -960,57 +1566,62 @@ const DoctorScheduleTable: React.FC = () => {
     }
   }
 
+  // Replace the getSpecialtyFromName function with this enhanced version
   const getSpecialtyFromName = (doctorName: string): string => {
-    const specialtyMap: { [key: string]: string } = {
-      "Dr. Abhishek Mishra": "Pediatrics",
-      "Dr. Staff User": "General Medicine",
-      "Dr. satish test": "Cardiology",
+    const name = doctorName.toLowerCase()
+
+    if (name.includes("occupational therapist") || name.includes("pediatric occupational therapist")) {
+      return "Occupational Therapist"
     }
-    return specialtyMap[doctorName]
+    if (name.includes("speech language therapist") || name.includes("speech language pathologist")) {
+      return "Speech Language Therapist"
+    }
+    if (name.includes("sp.ed")) {
+      return "Special Education"
+    }
+
+    return "Specialist"
   }
 
-  // Enhanced appointment styling with status and payment indicators
-  const getAppointmentTypeColor = (appointment: CalendarAppointment, doctorColor?: string) => {
-    const baseColors = {
-      blue: "bg-blue-100 border-blue-300 text-blue-800",
-      pink: "bg-pink-100 border-pink-300 text-pink-800",
-      green: "bg-green-100 border-green-300 text-green-800",
-      purple: "bg-purple-100 border-purple-300 text-purple-800",
-      indigo: "bg-indigo-100 border-indigo-300 text-indigo-800",
-      orange: "bg-orange-100 border-orange-300 text-orange-800",
-      teal: "bg-teal-100 border-teal-300 text-teal-800",
+  // Add this function to get doctor header colors based on specialty
+  const getDoctorHeaderColorBySpecialty = (specialty: string) => {
+    switch (specialty) {
+      case "Occupational Therapist":
+        return "from-blue-500 to-blue-600"
+      case "Speech Language Therapist":
+        return "from-yellow-400 to-orange-500"
+      case "Special Education":
+        return "from-purple-500 to-purple-600"
+      default:
+        return "from-gray-500 to-gray-600"
     }
-    // Status-based styling
-    if (appointment?.status === "completed") {
-      return "bg-green-100 border-green-400 text-green-800 ring-2 ring-green-200"
-    }
-    if (appointment?.status === "cancelled") {
-      return "bg-red-100 border-red-400 text-red-800 ring-2 ring-red-200"
-    }
-    if (appointment?.status === "no-show") {
-      return "bg-orange-100 border-orange-400 text-orange-800 ring-2 ring-orange-200"
-    }
-    // Type-based styling for scheduled appointments
-    if (appointment?.type === "initial assessment") {
-      return "bg-blue-100 border-blue-400 text-blue-800 ring-2 ring-blue-200"
-    }
-    if (appointment?.type === "therapy session") {
-      return "bg-purple-100 border-purple-400 text-purple-800 ring-2 ring-purple-200"
-    }
-    return baseColors[doctorColor as keyof typeof baseColors] || "bg-gray-100 border-gray-300 text-gray-800"
   }
 
-  const getDoctorHeaderColor = (color: string) => {
-    const colors = {
-      blue: "from-blue-500 to-blue-600",
-      pink: "from-pink-500 to-pink-600",
-      green: "from-green-500 to-green-600",
-      purple: "from-purple-500 to-purple-600",
-      indigo: "from-indigo-500 to-indigo-600",
-      orange: "from-orange-500 to-orange-600",
-      teal: "from-teal-500 to-teal-600",
+  // Add this function to sort doctors by specialty priority
+  const sortDoctorsBySpecialty = (doctors: Array<{ name: string; specialty: string; color: string }>) => {
+    const specialtyOrder = {
+      "Occupational Therapist": 1,
+      "Speech Language Therapist": 2,
+      "Special Education": 3,
+      Specialist: 4,
     }
-    return colors[color as keyof typeof colors] || "from-gray-500 to-gray-600"
+
+    return doctors.sort((a, b) => {
+      const orderA = specialtyOrder[a.specialty as keyof typeof specialtyOrder] || 999
+      const orderB = specialtyOrder[b.specialty as keyof typeof specialtyOrder] || 999
+
+      if (orderA !== orderB) {
+        return orderA - orderB
+      }
+
+      // If same specialty, sort alphabetically by name
+      return a.name.localeCompare(b.name)
+    })
+  }
+
+  // Replace the getDoctorHeaderColor function with this enhanced version:
+  const getDoctorHeaderColor = (specialty: string) => {
+    return getDoctorHeaderColorBySpecialty(specialty)
   }
 
   const handleSlotClick = async (doctor: string, time: string) => {
@@ -1031,39 +1642,46 @@ const DoctorScheduleTable: React.FC = () => {
     return Object.values(scheduleData[doctorName] || {}).filter(Boolean).length
   }
 
-  // Fixed cancel appointment function
-  const handleCancelAppointment = async (appointmentId: string) => {
-    if (!confirm("Are you sure you want to cancel this appointment?")) {
+  // ENHANCED cancel appointment function - SUPPORTS BOTH SINGLE AND GROUP
+  const handleCancelAppointment = async (appointment: AppointmentOrGroup) => {
+    const isGroupSession = "isGroupSession" in appointment && appointment.isGroupSession
+    const confirmMessage = isGroupSession
+      ? `Are you sure you want to cancel this group session? This will cancel appointments for all ${(appointment as GroupSession).totalPatients} patients.`
+      : "Are you sure you want to cancel this appointment?"
+
+    if (!confirm(confirmMessage)) {
       return
     }
+
     try {
       const updates = {
         status: "cancelled",
         payment: {
           status: "refunded",
         },
+        // Enhanced group session cancellation
+        ...(isGroupSession && {
+          groupPaymentStrategy: "keep-current",
+          patientUpdates: (appointment as GroupSession).patients.map((patient) => ({
+            patientId: patient.id,
+            status: "cancelled",
+            payment: {
+              ...patient.payment,
+              status: patient.payment.status === "paid" ? "refunded" : patient.payment.status,
+            },
+          })),
+        }),
       }
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/appointments/updateappointment/${appointmentId}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
-          },
-          body: JSON.stringify(updates),
-        },
-      )
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || "Failed to cancel appointment")
-      }
-      toast.success("Appointment cancelled successfully")
-      // Refresh the calendar to show updated data
-      fetchCalendarData()
+
+      const appointmentId = isGroupSession
+        ? (appointment as GroupSession).groupSessionId
+        : (appointment as CalendarAppointment).id
+
+      await handleAppointmentUpdate(appointmentId, updates, isGroupSession)
+      toast.success(isGroupSession ? "Group session cancelled successfully" : "Appointment cancelled successfully")
     } catch (error) {
       console.error("Cancel error:", error)
-      toast.error("Failed to cancel appointment")
+      toast.error(isGroupSession ? "Failed to cancel group session" : "Failed to cancel appointment")
     }
   }
 
@@ -1072,6 +1690,7 @@ const DoctorScheduleTable: React.FC = () => {
   }
 
   // Get payment status icon
+
   const getPaymentStatusIcon = (paymentStatus: string) => {
     switch (paymentStatus) {
       case "paid":
@@ -1113,6 +1732,95 @@ const DoctorScheduleTable: React.FC = () => {
     )
   }
 
+  // Add this export function before the return statement in DoctorScheduleTable component:
+  const handleExportData = () => {
+    try {
+      const exportData: any[] = []
+
+      // Iterate through all doctors and time slots to collect appointment data
+      doctors.forEach((doctor) => {
+        timeSlots.forEach((timeSlot) => {
+          const appointment = scheduleData[doctor.name]?.[timeSlot]
+
+          if (appointment) {
+            const isGroupSession = "isGroupSession" in appointment && appointment.isGroupSession
+
+            if (isGroupSession) {
+              // Export each patient in group session as separate row
+              const groupSession = appointment as GroupSession
+              groupSession.patients.forEach((patient, index) => {
+                exportData.push({
+                  Date: formatDateToDDMMYYYY(selectedDate),
+                  "Time Slot": timeSlot,
+                  "Doctor Name": doctor.name,
+                  "Doctor Specialty": doctor.specialty,
+                  "Session Type": "Group Session",
+                  "Group Name": groupSession.groupSessionName,
+                  "Patient Name": patient.patientName,
+                  "Father Name": patient.fatherName || "N/A",
+                  Phone: patient.phone,
+                  Email: patient.email,
+                  Address: patient.address || "N/A",
+                  Service: groupSession.serviceInfo.name,
+                  "Service Price": groupSession.serviceInfo.price,
+                  "Duration (min)": groupSession.duration,
+                  "Appointment Status": groupSession.status,
+                  "Payment Status": patient.payment.status,
+                  "Payment Amount": patient.payment.amount,
+                  "Payment Method": patient.payment.method,
+                  "Consultation Mode": groupSession.consultationMode,
+                  "Total Patients in Group": groupSession.totalPatients,
+                  "Patient Position in Group": index + 1,
+                  Notes: patient.notes || "N/A",
+                })
+              })
+            } else {
+              // Export individual appointment
+              const singleAppointment = appointment as CalendarAppointment
+              exportData.push({
+                Date: formatDateToDDMMYYYY(selectedDate),
+                "Time Slot": timeSlot,
+                "Doctor Name": doctor.name,
+                "Doctor Specialty": doctor.specialty,
+                "Session Type": "Individual",
+                "Group Name": "N/A",
+                "Patient Name": singleAppointment.patientName,
+                "Father Name": singleAppointment.fatherName || "N/A",
+                Phone: singleAppointment.phone,
+                Email: singleAppointment.email,
+                Address: singleAppointment.address || "N/A",
+                Service: singleAppointment.serviceInfo.name,
+                "Service Price": singleAppointment.serviceInfo.price,
+                "Duration (min)": singleAppointment.duration,
+                "Appointment Status": singleAppointment.status,
+                "Payment Status": singleAppointment.payment?.status || "N/A",
+                "Payment Amount": singleAppointment.payment?.amount || 0,
+                "Payment Method": singleAppointment.payment?.method || "N/A",
+                "Consultation Mode": singleAppointment.consultationMode,
+                "Total Sessions": singleAppointment.totalSessions,
+                "Sessions Completed": singleAppointment.sessionsCompleted,
+                "Sessions Paid": singleAppointment.sessionsPaid,
+                Notes: singleAppointment.notes || "N/A",
+              })
+            }
+          }
+        })
+      })
+
+      if (exportData.length === 0) {
+        toast.error("No appointment data to export")
+        return
+      }
+
+      const filename = `appointments_${formatDateToDDMMYYYY(selectedDate).replace(/-/g, "_")}.csv`
+      exportToCSV(exportData, filename)
+      toast.success(`Exported ${exportData.length} appointment records`)
+    } catch (error) {
+      console.error("Export error:", error)
+      toast.error("Failed to export data")
+    }
+  }
+
   return (
     <div className="w-full bg-gradient-to-br font-sans from-slate-50 to-blue-50 min-h-screen overflow-hidden">
       <div className="w-full p-2">
@@ -1125,10 +1833,11 @@ const DoctorScheduleTable: React.FC = () => {
               </div>
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">Doctor Schedule</h1>
-                <p className="text-gray-600">Daily consultation schedule with status & payment tracking</p>
+                <p className="text-gray-600">Daily consultation schedule with enhanced group session support</p>
               </div>
             </div>
             {/* Date Selector */}
+            {/* In the header section, add the export button after the refresh button: */}
             <div className="flex items-center gap-4">
               <input
                 type="date"
@@ -1143,10 +1852,17 @@ const DoctorScheduleTable: React.FC = () => {
               >
                 Refresh
               </button>
+              <button
+                onClick={handleExportData}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+              >
+                <Download className="w-4 h-4" />
+                Export CSV
+              </button>
             </div>
           </div>
           {/* Enhanced Legend */}
-          <div className="flex flex-wrap gap-4 p-4 bg-white rounded-xl shadow-sm border">
+          {/* <div className="flex flex-wrap gap-4 p-4 bg-white rounded-xl shadow-sm border">
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 bg-blue-100 border border-blue-300 rounded ring-2 ring-blue-200"></div>
               <span className="text-sm text-black">Initial Assessment</span>
@@ -1154,6 +1870,10 @@ const DoctorScheduleTable: React.FC = () => {
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 bg-purple-100 border border-purple-300 rounded ring-2 ring-purple-200"></div>
               <span className="text-sm text-black">Therapy Session</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 bg-purple-100 border border-purple-300 rounded ring-2 ring-purple-200 border-l-4 border-l-purple-500"></div>
+              <span className="text-sm text-black">Group Session</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 bg-green-100 border border-green-300 rounded ring-2 ring-green-200"></div>
@@ -1171,8 +1891,9 @@ const DoctorScheduleTable: React.FC = () => {
               <div className="w-4 h-4 bg-gray-100 border border-gray-300 rounded border-dashed"></div>
               <span className="text-sm text-black">Available Slot</span>
             </div>
-          </div>
+          </div> */}
         </div>
+
         {console.log("selected slot and time", selectedSlot, selectedDate)}
         {selectedSlot && (
           <div className="mt-6 mb-4 p-4 bg-white rounded-xl shadow-lg border border-blue-200">
@@ -1210,15 +1931,15 @@ const DoctorScheduleTable: React.FC = () => {
         )}
 
         {/* Schedule Table with Enhanced Horizontal Scroll */}
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden w-full">
+        <div className="bg-white rounded-2xl shadow-xl border -mt-3 border-gray-200 overflow-hidden w-full">
           {/* Table Container with Horizontal Scrollbar */}
           <div className="w-full flex flex-col">
             {/* Scroll Indicator */}
-            <div className="bg-gray-50 px-4 py-2 border-b border-gray-200 flex items-center justify-center">
+            {/* <div className="bg-gray-50 px-4 py-2 border-b border-gray-200 flex items-center justify-center">
               <div className="flex items-center gap-2 text-sm text-gray-500">
                 <span>← Scroll horizontally to view all doctors →</span>
               </div>
-            </div>
+            </div> */}
             {/* Custom Scroll Container */}
             <div
               ref={tableContainerRef}
@@ -1248,16 +1969,20 @@ const DoctorScheduleTable: React.FC = () => {
                         Time
                       </div>
                     </th>
+                    {/* Update the table header to use specialty-based colors: */}
                     {doctors.map((doctor) => (
                       <th key={doctor.name} className="p-4 text-center min-w-[200px] bg-white">
                         <div
-                          className={`bg-gradient-to-r ${getDoctorHeaderColor(doctor.color)} rounded-lg p-3 text-white`}
+                          className={`bg-gradient-to-r ${getDoctorHeaderColor(doctor.specialty)} rounded-lg p-3 text-white`}
                         >
                           <div className="flex items-center justify-center gap-2 mb-1">
                             <UserCheck className="w-5 h-5" />
-                            <span className="font-semibold text-sm whitespace-nowrap">{doctor.name}</span>
+                            <span className="font-semibold text-sm whitespace-nowrap">{doctor?.name?.includes("(") ? doctor?.name?.split("(")[0] : doctor.name}</span>
                           </div>
-                          <div className="text-xs opacity-90">{doctor.specialty}</div>
+                          <div className="text-xs opacity-90">
+                            {doctor?.specialty?.replace("Therapist", "").trim()}
+                          </div>
+
                           <div className="text-xs opacity-75 mt-1">{getAppointmentCount(doctor.name)} appointments</div>
                         </div>
                       </th>
@@ -1269,9 +1994,8 @@ const DoctorScheduleTable: React.FC = () => {
                   {timeSlots.map((time, timeIndex) => (
                     <tr
                       key={time}
-                      className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${
-                        timeIndex % 2 === 0 ? "bg-gray-25" : "bg-white"
-                      }`}
+                      className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${timeIndex % 2 === 0 ? "bg-gray-25" : "bg-white"
+                        }`}
                     >
                       {/* Time Column */}
                       <td className="p-4 border-r border-gray-200 bg-slate-50 sticky left-0 z-8 min-w-[120px]">
@@ -1283,6 +2007,8 @@ const DoctorScheduleTable: React.FC = () => {
                       {/* Doctor Columns */}
                       {doctors.map((doctor) => {
                         const appointment = scheduleData[doctor.name]?.[time]
+                        const isGroupSession =
+                          appointment && "isGroupSession" in appointment && appointment.isGroupSession
                         return (
                           <td
                             key={`${doctor.name}-${time}`}
@@ -1298,63 +2024,178 @@ const DoctorScheduleTable: React.FC = () => {
                               >
                                 <div className="flex items-start justify-between gap-2">
                                   <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-1 mb-1">
-                                      <User className="w-3 h-3 flex-shrink-0" />
-                                      <p className="font-semibold text-xs truncate">{appointment?.patientName}</p>
-                                    </div>
-                                    <div className="flex items-center gap-2 mb-1">
-                                      <span className="inline-block px-2 py-0.5 text-xs font-medium bg-white bg-opacity-60 rounded-full">
-                                        {appointment?.type?.substring(0, 8)}
-                                      </span>
-                                      <span className="text-xs opacity-70">{appointment?.duration}min</span>
-                                    </div>
-                                    {/* Status and Payment Row */}
-                                    <div className="flex items-center gap-2 mb-1">
-                                      <div className="flex items-center gap-1">
-                                        {getStatusIcon(appointment?.status)}
-                                        <span className="text-xs font-medium capitalize">{appointment?.status}</span>
-                                      </div>
-                                      <div className="flex items-center gap-1">
-                                        {getPaymentStatusIcon(appointment?.payment?.status)}
-                                        <span className="text-xs">₹{appointment?.payment?.amount}</span>
-                                      </div>
-                                    </div>
-                                    {/* Sessions Progress */}
-                                    <div className="text-xs opacity-70">
-                                      Sessions: {appointment?.sessionsCompleted}/{appointment?.totalSessions}
-                                    </div>
+                                    {isGroupSession ? (
+                                      // Enhanced Group Session Display
+                                      <>
+                                        <div className="flex items-center gap-1 mb-1">
+                                          <Users className="w-3 h-3 flex-shrink-0" />
+                                          <p className="font-semibold text-xs truncate">
+                                            {(appointment as GroupSession).groupSessionName}
+                                          </p>
+                                        </div>
+                                        <div className="flex items-center gap-2 mb-1">
+                                          <span className="inline-block whitespace-nowrap px-2 py-0.5 text-xs font-medium bg-white bg-opacity-60 rounded-full">
+                                            Group Session
+                                          </span>
+                                          <span className="text-xs opacity-70">
+                                            {(appointment as GroupSession).duration}min
+                                          </span>
+                                        </div>
+                                        {/* Enhanced Status and Payment Row */}
+                                        <div className="flex items-center gap-2 mb-1">
+                                          <div className="flex items-center gap-1">
+                                            {getStatusIcon((appointment as GroupSession).status)}
+                                            <span className="text-xs font-medium capitalize">
+                                              {(appointment as GroupSession).status}
+                                            </span>
+                                          </div>
+                                          <div className="flex items-center gap-1">
+                                            <Banknote className="w-3 h-3 text-green-600" />
+                                            <span className="text-xs">
+                                              ₹{(appointment as GroupSession).totalRevenue}
+                                            </span>
+                                          </div>
+                                        </div>
+                                        {/* Enhanced Patients Count with Payment Status */}
+                                        <div className="text-xs opacity-70">
+                                          <div>Patients: {(appointment as GroupSession).totalPatients}</div>
+                                          <div className="flex gap-2 mt-1">
+                                            <span className="text-green-600">
+                                              {
+                                                (appointment as GroupSession).patients.filter(
+                                                  (p) => p.payment.status === "paid",
+                                                ).length
+                                              }{" "}
+                                              paid
+                                            </span>
+                                            <span className="text-yellow-600">
+                                              {
+                                                (appointment as GroupSession).patients.filter(
+                                                  (p) => p.payment.status === "pending",
+                                                ).length
+                                              }{" "}
+                                              pending
+                                            </span>
+                                          </div>
+                                        </div>
+                                      </>
+                                    ) : (
+                                      // Individual Appointment Display (keep existing)
+                                      <>
+                                        <div className="flex items-center gap-1 mb-1">
+                                          <User className="w-3 h-3 flex-shrink-0" />
+                                          <p className="font-semibold text-xs truncate">
+                                            {(appointment as CalendarAppointment).patientName}
+                                          </p>
+                                        </div>
+                                        <div className="flex items-center gap-2 mb-1">
+                                          <span className="inline-block px-2 py-0.5 text-xs font-medium bg-white bg-opacity-60 rounded-full">
+                                            {(appointment as CalendarAppointment).type?.substring(0, 8)}
+                                          </span>
+                                          <span className="text-xs opacity-70">
+                                            {(appointment as CalendarAppointment).duration}min
+                                          </span>
+                                        </div>
+                                        {/* Status and Payment Row */}
+                                        <div className="flex items-center gap-2 mb-1">
+                                          <div className="flex items-center gap-1">
+                                            {getStatusIcon((appointment as CalendarAppointment).status)}
+                                            <span className="text-xs font-medium capitalize">
+                                              {(appointment as CalendarAppointment).status}
+                                            </span>
+                                          </div>
+                                          <div className="flex items-center gap-1">
+                                            {getPaymentStatusIcon((appointment as CalendarAppointment).payment?.status)}
+                                            <span className="text-xs">
+                                              ₹{(appointment as CalendarAppointment).payment?.amount}
+                                            </span>
+                                          </div>
+                                        </div>
+                                        {/* Sessions Progress */}
+
+                                      </>
+                                    )}
                                   </div>
                                   <div className="flex flex-col gap-1">
-                                    <button
-                                      className="p-1 hover:bg-white hover:bg-opacity-60 rounded transition-colors"
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        handleStatusClick(appointment)
-                                      }}
-                                      title="Update Status & Payment"
-                                    >
-                                      <CheckCircle className="w-3 h-3" />
-                                    </button>
-                                    <button
-                                      className="p-1 hover:bg-white hover:bg-opacity-60 rounded transition-colors"
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        handleRescheduleClick(appointment)
-                                      }}
-                                      title="Reschedule"
-                                    >
-                                      <Edit3 className="w-3 h-3" />
-                                    </button>
-                                    <button
-                                      className="p-1 hover:bg-white hover:bg-opacity-60 rounded transition-colors"
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        handleCancelAppointment(appointment?.id)
-                                      }}
-                                      title="Cancel Appointment"
-                                    >
-                                      <Trash2 className="w-3 h-3" />
-                                    </button>
+                                    {isGroupSession ? (
+                                      // Enhanced Group Session Actions
+                                      <>
+                                        <button
+                                          className="p-1 hover:bg-white hover:bg-opacity-60 rounded transition-colors"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            handleGroupViewClick(appointment as GroupSession)
+                                          }}
+                                          title="View Group Patients"
+                                        >
+                                          <Eye className="w-3 h-3" />
+                                        </button>
+                                        <button
+                                          className="p-1 hover:bg-white hover:bg-opacity-60 rounded transition-colors"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            handleStatusClick(appointment)
+                                          }}
+                                          title="Update Group Status"
+                                        >
+                                          <CheckCircle className="w-3 h-3" />
+                                        </button>
+                                        <button
+                                          className="p-1 hover:bg-white hover:bg-opacity-60 rounded transition-colors"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            handleRescheduleClick(appointment)
+                                          }}
+                                          title="Reschedule Group"
+                                        >
+                                          <Edit3 className="w-3 h-3" />
+                                        </button>
+                                        <button
+                                          className="p-1 hover:bg-white hover:bg-opacity-60 rounded transition-colors"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            handleCancelAppointment(appointment)
+                                          }}
+                                          title="Cancel Group Session"
+                                        >
+                                          <Trash2 className="w-3 h-3" />
+                                        </button>
+                                      </>
+                                    ) : (
+                                      // Individual Appointment Actions (keep existing)
+                                      <>
+                                        <button
+                                          className="p-1 hover:bg-white hover:bg-opacity-60 rounded transition-colors"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            handleStatusClick(appointment)
+                                          }}
+                                          title="Update Status & Payment"
+                                        >
+                                          <CheckCircle className="w-3 h-3" />
+                                        </button>
+                                        <button
+                                          className="p-1 hover:bg-white hover:bg-opacity-60 rounded transition-colors"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            handleRescheduleClick(appointment)
+                                          }}
+                                          title="Reschedule"
+                                        >
+                                          <Edit3 className="w-3 h-3" />
+                                        </button>
+                                        <button
+                                          className="p-1 hover:bg-white hover:bg-opacity-60 rounded transition-colors"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            handleCancelAppointment(appointment)
+                                          }}
+                                          title="Cancel Appointment"
+                                        >
+                                          <Trash2 className="w-3 h-3" />
+                                        </button>
+                                      </>
+                                    )}
                                   </div>
                                 </div>
                               </div>
@@ -1433,17 +2274,37 @@ const DoctorScheduleTable: React.FC = () => {
             console.log(doctors, "doctosdata")
             const doctorAppointments = Object.values(scheduleData[doctor.name] || {}).filter(
               Boolean,
-            ) as CalendarAppointment[]
+            ) as AppointmentOrGroup[]
             const completedCount = doctorAppointments.filter((apt) => apt.status === "completed").length
-            const paidCount = doctorAppointments.filter((apt) => apt.payment?.status === "paid").length
-            const totalRevenue = doctorAppointments
-              .filter((apt) => apt.payment?.status === "paid")
-              .reduce((sum, apt) => sum + apt.payment?.amount, 0)
+            // Enhanced calculation for paid count and total revenue considering both individual and group appointments
+            let paidCount = 0
+            let totalRevenue = 0
+            let groupSessionsCount = 0
+            let individualAppointmentsCount = 0
+
+            doctorAppointments.forEach((apt) => {
+              if ("isGroupSession" in apt && apt.isGroupSession) {
+                // Group session
+                groupSessionsCount += 1
+                const groupSession = apt as GroupSession
+                const paidPatients = groupSession.patients.filter((p) => p.payment.status === "paid")
+                paidCount += paidPatients.length
+                totalRevenue += paidPatients.reduce((sum, p) => sum + p.payment.amount, 0)
+              } else {
+                // Individual appointment
+                individualAppointmentsCount += 1
+                const singleApt = apt as CalendarAppointment
+                if (singleApt.payment?.status === "paid") {
+                  paidCount += 1
+                  totalRevenue += singleApt.payment.amount
+                }
+              }
+            })
 
             return (
               <div key={doctor.name} className="p-4 bg-white rounded-xl shadow-sm border">
                 <div className="flex items-center gap-3 mb-3">
-                  <div className={`p-2 bg-gradient-to-r ${getDoctorHeaderColor(doctor.color)} rounded-lg`}>
+                  <div className={`p-2 bg-gradient-to-r ${getDoctorHeaderColor(doctor.specialty)} rounded-lg`}>
                     <UserCheck className="w-5 h-5 text-white" />
                   </div>
                   <div>
@@ -1455,6 +2316,14 @@ const DoctorScheduleTable: React.FC = () => {
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Total:</span>
                     <span className="font-semibold">{getAppointmentCount(doctor.name)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Individual:</span>
+                    <span className="font-semibold text-blue-600">{individualAppointmentsCount}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Groups:</span>
+                    <span className="font-semibold text-purple-600">{groupSessionsCount}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Completed:</span>
@@ -1475,9 +2344,29 @@ const DoctorScheduleTable: React.FC = () => {
         </div>
       </div>
 
-      {/* Status Update Modal */}
+      {/* Enhanced Group Session View Modal */}
+      <GroupSessionViewModal
+        groupSession={selectedGroupSession}
+        isOpen={showGroupViewModal}
+        onClose={() => {
+          setShowGroupViewModal(false)
+          setSelectedGroupSession(null)
+        }}
+        onUpdateStatus={(groupSession) => {
+          setShowGroupViewModal(false)
+          setSelectedAppointment(groupSession)
+          setShowStatusModal(true)
+        }}
+        onReschedule={(groupSession) => {
+          setShowGroupViewModal(false)
+          setSelectedAppointment(groupSession)
+          setShowRescheduleModal(true)
+        }}
+      />
+
+      {/* Enhanced Status Update Modal */}
       <StatusUpdateModal
-        appointment={selectedAppointment!}
+        appointment={selectedAppointment}
         isOpen={showStatusModal}
         onClose={() => {
           setShowStatusModal(false)
@@ -1486,7 +2375,7 @@ const DoctorScheduleTable: React.FC = () => {
         onUpdate={handleAppointmentUpdate}
       />
 
-      {/* Enhanced Reschedule Modal with Availability Checking */}
+      {/* Enhanced Reschedule Modal */}
       <RescheduleModal
         appointment={selectedAppointment}
         isOpen={showRescheduleModal}
@@ -1498,6 +2387,24 @@ const DoctorScheduleTable: React.FC = () => {
       />
     </div>
   )
+}
+
+// Add this function to determine appointment type color
+const getAppointmentTypeColor = (appointment: AppointmentOrGroup, doctorColor: string) => {
+  if ("isGroupSession" in appointment && appointment.isGroupSession) {
+    return "border-l-4 border-l-purple-500 bg-purple-200 text-purple-900"
+  }
+
+  switch (appointment.type) {
+    case "initial assessment":
+      return "bg-blue-200 border-blue-400 text-blue-900"
+    case "therapy session":
+      return "bg-orange-200 border-orange-400 text-orange-900"
+    case "follow-up":
+      return "bg-green-200 border-green-400 text-green-900"
+    default:
+      return "bg-gray-200 border-gray-400 text-gray-900"
+  }
 }
 
 export default ReceptionistDashboard

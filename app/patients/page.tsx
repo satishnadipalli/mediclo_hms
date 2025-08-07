@@ -1,27 +1,7 @@
 "use client"
 import type React from "react"
 import { useState, useEffect } from "react"
-import {
-  Search,
-  X,
-  CreditCard,
-  Loader2,
-  Clock,
-  CheckCircle,
-  AlertCircle,
-  Eye,
-  Users,
-  TrendingUp,
-  Download,
-  RefreshCw,
-  User,
-  FileText,
-  Edit,
-  Save,
-  ChevronDown,
-  Upload,
-  Trash2,
-} from "lucide-react"
+import { Search, X, CreditCard, Loader2, Clock, CheckCircle, AlertCircle, Eye, Users, TrendingUp, Download, RefreshCw, User, FileText, Edit, Save, ChevronDown, Upload, Trash2 } from 'lucide-react'
 
 // Enhanced interfaces for comprehensive appointment and payment management
 interface AppointmentDetails {
@@ -31,6 +11,11 @@ interface AppointmentDetails {
   endTime: string
   type: string
   status: "scheduled" | "completed" | "cancelled" | "no-show"
+  // NEW: Group session fields
+  isGroupSession?: boolean
+  groupSessionName?: string | null
+  groupSessionId?: string | null
+  maxCapacity?: number | null
   payment: {
     amount: number
     status: "pending" | "paid" | "partial" | "refunded"
@@ -174,7 +159,6 @@ const DeleteConfirmationModal: React.FC<{
             <X className="w-6 h-6 text-gray-500" />
           </button>
         </div>
-
         {/* Content */}
         <div className="p-6">
           <div className="mb-4">
@@ -185,7 +169,6 @@ const DeleteConfirmationModal: React.FC<{
               <p className="text-sm text-red-600">Total Appointments: {patient.totalAppointments}</p>
             </div>
           </div>
-
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
             <div className="flex items-start gap-2">
               <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
@@ -199,7 +182,6 @@ const DeleteConfirmationModal: React.FC<{
             </div>
           </div>
         </div>
-
         {/* Footer */}
         <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
           <button
@@ -578,7 +560,6 @@ const EditPatientModal: React.FC<{
                   <option value="other">Other</option>
                 </select>
               </div>
-
               {/* Child Photo Upload */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -620,7 +601,6 @@ const EditPatientModal: React.FC<{
                   </div>
                 )}
               </div>
-
               {/* Birth Certificate Upload */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -693,7 +673,6 @@ const EditPatientModal: React.FC<{
                     <p className="text-xs text-gray-500">Upload a new photo above to replace this one</p>
                   </div>
                 )}
-
                 {/* Current Birth Certificate */}
                 {patient.birthCertificate?.url && (
                   <div className="space-y-3">
@@ -908,7 +887,6 @@ const ImageModal: React.FC<{
             <X className="w-5 h-5 text-gray-500" />
           </button>
         </div>
-
         {/* Image Container */}
         <div className="p-6 flex justify-center items-center bg-gray-50 min-h-[400px]">
           <img
@@ -921,7 +899,6 @@ const ImageModal: React.FC<{
             }}
           />
         </div>
-
         {/* Footer */}
         <div className="p-4 border-t border-gray-200 flex justify-end">
           <button
@@ -1044,7 +1021,6 @@ const PatientDetailsModal: React.FC<{
                   </div>
                 </div>
               </div>
-
               <div className="space-y-4">
                 <h4 className="text-lg font-semibold text-gray-900 border-b pb-2">Parent Information</h4>
                 <div className="space-y-3">
@@ -1132,7 +1108,6 @@ const PatientDetailsModal: React.FC<{
                       </div>
                     </div>
                   )}
-
                   {/* Birth Certificate */}
                   {patient?.birthCertificate?.url && (
                     <div className="space-y-3">
@@ -1255,6 +1230,7 @@ const PatientsEnhancedPage: React.FC = () => {
       }
 
       const apiResponse = await response.json()
+
       if (!apiResponse.success) {
         throw new Error("API returned unsuccessful response")
       }
@@ -1348,18 +1324,14 @@ const PatientsEnhancedPage: React.FC = () => {
       }
 
       const result = await response.json()
-
       if (result.success) {
         // Remove patient from local state
         setPatients((prevPatients) => prevPatients.filter((patient) => patient._id !== selectedPatient._id))
-
         // Recalculate payment summary
         const updatedPatients = patients.filter((patient) => patient._id !== selectedPatient._id)
         calculatePaymentSummary(updatedPatients)
-
         // Show success message
         alert(`Patient ${getPatientName(selectedPatient)} has been successfully deleted.`)
-
         // Close modal and reset state
         setShowDeleteModal(false)
         setSelectedPatient(null)
@@ -1512,7 +1484,7 @@ const PatientsEnhancedPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="p-6 max-w-[84%] mt-15 ml-70 mx-auto flex items-center justify-center min-h-[400px]">
+      <div className="p-6 max-w-[84%] mt-15 ml-[150px] mx-auto flex items-center justify-center min-h-[400px]">
         <div className="flex items-center gap-3">
           <Loader2 className="w-6 h-6 animate-spin text-[#C83C92]" />
           <span className="text-[#1E437A]">Loading patient payment data...</span>
@@ -1523,7 +1495,7 @@ const PatientsEnhancedPage: React.FC = () => {
 
   if (error) {
     return (
-      <div className="p-6 font-sans max-w-[84%] mt-15 ml-70 mx-auto">
+      <div className="p-6 font-sans max-w-[84%] mt-15 ml-[170px] mx-auto">
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <h2 className="text-red-800 font-semibold mb-2">Error Loading Patient Data</h2>
           <p className="text-red-600">{error}</p>
@@ -1539,7 +1511,7 @@ const PatientsEnhancedPage: React.FC = () => {
   }
 
   return (
-    <div className="p-6 max-w-[84%] font-sans mt-15 ml-70 mx-auto overflow-y-auto hide-scrollbar">
+    <div className="p-6 max-w-[84%] font-sans mt-15 ml-[170px] mx-auto overflow-y-auto hide-scrollbar">
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-[#1E437A] mb-2">Patient Payment Management</h1>
@@ -2062,6 +2034,13 @@ const PaymentModal: React.FC<{
                             <div>
                               <div className="font-medium text-sm text-gray-900">
                                 {new Date(appointment.date).toLocaleDateString()} - {appointment.startTime}
+                                {/* NEW: Show group session name if it's a group appointment */}
+                                {appointment.isGroupSession && appointment.groupSessionName && (
+                                  <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 bg-purple-100 text-purple-800 rounded-full text-xs font-medium">
+                                    <Users className="w-3 h-3" />
+                                    {appointment.groupSessionName}
+                                  </span>
+                                )}
                               </div>
                               <div className="text-xs text-gray-600 mt-1">
                                 {appointment.service.name} with {appointment.therapist.name}
@@ -2257,8 +2236,16 @@ const AppointmentsDetailModal: React.FC<{
             <div key={appointment._id} className="border rounded-lg p-4 hover:bg-gray-50">
               <div className="flex justify-between items-start mb-3">
                 <div>
-                  <div className="font-medium text-[#456696]">
+                  <div className="font-medium text-[#456696] flex items-center gap-2">
                     {new Date(appointment.date).toLocaleDateString()} - {appointment.startTime} to {appointment.endTime}
+                    {/* NEW: Show group session indicator and name */}
+                    {appointment.isGroupSession && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-100 text-purple-800 rounded-full text-xs font-medium">
+                        <Users className="w-3 h-3" />
+                        Group Session
+                        {appointment.groupSessionName && `: ${appointment.groupSessionName}`}
+                      </span>
+                    )}
                   </div>
                   <div className="text-sm text-gray-600 mt-1">
                     {appointment.service.name} with {appointment.therapist.name}

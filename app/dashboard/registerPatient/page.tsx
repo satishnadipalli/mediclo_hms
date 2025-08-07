@@ -668,7 +668,7 @@ const PatientRegistrationForm = () => {
 
   return (
     <ToastContext.Provider value={{ toasts, addToast, removeToast }}>
-      <div className="p-6 mw-[85%] font-sans ml-[300px] mx-auto bg-gray-50 min-h-screen">
+      <div className="p-6 mw-[85%] font-sans ml-[150px] mx-auto bg-gray-50 min-h-screen">
         {/* Toast container */}
         <div className="fixed top-4 right-4 z-50 space-y-2">
           {toasts.map((toast) => (

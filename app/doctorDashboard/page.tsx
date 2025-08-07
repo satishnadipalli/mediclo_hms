@@ -368,7 +368,7 @@ const DoctorsDashboard: React.FC = () => {
   };
 
   return (
-    <div className="p-6 max-w-[84%] mt-15 ml-70 mx-auto overflow-y-auto hide-scrollbar">
+    <div className="p-6 max-w-[84%] mt-15 ml-[170px] mx-auto overflow-y-auto hide-scrollbar">
       {/* Header */}
       <h1 className="text-2xl font-bold text-[#1E437A] mb-6">Hello, Doctor!</h1>
       

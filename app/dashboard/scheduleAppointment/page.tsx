@@ -1,7 +1,7 @@
 "use client"
 import type React from "react"
 import { useState, useEffect, useRef, Suspense } from "react"
-import { Calendar, ChevronLeft, Search, Plus, X, AlertTriangle, Clock, User, CalendarDays, Lock } from "lucide-react"
+import { Calendar, ChevronLeft, Search, Plus, X, AlertTriangle, Clock, User, CalendarDays, Lock, Users } from 'lucide-react'
 import { toast } from "react-toastify"
 import { useRouter, useSearchParams } from "next/navigation"
 
@@ -19,7 +19,6 @@ const CHIP_COLORS = [
   "bg-gray-100 border-gray-300 text-gray-800",
 ]
 
-// Keep ALL existing interfaces exactly the same...
 interface CalendarAppointment {
   id: string
   patientId: string
@@ -73,10 +72,9 @@ interface ScheduledAppointment {
   colorClass: string
 }
 
-// Keep the exact same loading component
 const AppointmentSchedulingLoading = () => {
   return (
-    <div className="font-sans p-6 max-w-[84%] mt-15 ml-70 mx-auto overflow-y-auto hide-scrollbar">
+    <div className="font-sans p-6 max-w-[84%] mt-15 ml-[170px] mx-auto overflow-y-auto hide-scrollbar">
       <div className="animate-pulse">
         <div className="-mb-10">
           <div className="flex items-center mb-2">
@@ -111,7 +109,6 @@ const AppointmentSchedulingLoading = () => {
   )
 }
 
-// Main component - keeping ALL your original logic
 const AppointmentSchedulingContent = () => {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
@@ -119,23 +116,20 @@ const AppointmentSchedulingContent = () => {
   const [availableDoctors, setAvailableDoctors] = useState<Array<{ id: string; name: string }>>([])
   const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([])
   const [services, setServices] = useState<Array<{ _id: string; name: string; price: number }>>([])
-
-  // Keep your existing conflict detection
   const [conflictingSlots, setConflictingSlots] = useState<string[]>([])
   const [patientConflicts, setPatientConflicts] = useState<{ [timeSlot: string]: string }>({})
+  // NEW: Group session specific conflict tracking
+  const [groupConflictingSlots, setGroupConflictingSlots] = useState<string[]>([])
+  const [groupPatientConflicts, setGroupPatientConflicts] = useState<{ [timeSlot: string]: string[] }>({})
 
   const searchParams = useSearchParams()
   const slot = searchParams.get("slot")
   const date = searchParams.get("date")
   const doctorName = searchParams.get("doctorName")
 
-  // Keep your existing refs
   const autoFillExecuted = useRef(false)
   const initialDateSet = useRef(false)
 
-  console.log(date, "date,slot", slot)
-
-  // Keep your EXACT original form data structure
   const [formData, setFormData] = useState({
     doctor: "",
     appointmentDates: [] as string[],
@@ -154,6 +148,11 @@ const AppointmentSchedulingContent = () => {
     type: "initial assessment",
     consent: false,
     totalSessions: 1,
+    // Group appointment fields
+    isGroupSession: false,
+    groupSessionName: "",
+    maxCapacity: 6,
+    selectedPatients: [] as Patient[],
   })
 
   const [patients, setPatients] = useState<Patient[]>([])
@@ -161,19 +160,14 @@ const AppointmentSchedulingContent = () => {
   const [showPatientSearch, setShowPatientSearch] = useState(false)
   const [patientSearchTerm, setPatientSearchTerm] = useState("")
   const [filteredPatients, setFilteredPatients] = useState<Patient[]>([])
-
-  // Keep your existing states - ADDED currentDateInput for tracking input value
   const [isMultipleAppointments, setIsMultipleAppointments] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<{ [key: string]: boolean }>({})
   const [showValidation, setShowValidation] = useState(false)
-  const [currentDateInput, setCurrentDateInput] = useState("") // NEW: Track current date input
-
-  // UPDATED: Add persistent service state
+  const [currentDateInput, setCurrentDateInput] = useState("")
   const [scheduledAppointments, setScheduledAppointments] = useState<ScheduledAppointment[]>([])
   const [persistentDoctor, setPersistentDoctor] = useState<any>(null)
   const [persistentService, setPersistentService] = useState<any>(null)
 
-  // Keep ALL your existing functions exactly the same
   const fetchServices = async () => {
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/services`, {
@@ -190,7 +184,6 @@ const AppointmentSchedulingContent = () => {
     }
   }
 
-  // UPDATED: Fetch calendar data for persistent doctor when date changes
   const fetchCalendarData = async (selectedDate: string, doctorId?: string) => {
     if (!selectedDate) return
     try {
@@ -211,15 +204,12 @@ const AppointmentSchedulingContent = () => {
           name: apiResponse.data[id].name,
         }))
         setAvailableDoctors(doctorDetails)
-
-        // If we have a persistent doctor, automatically select it
         if (persistentDoctor && doctorId === persistentDoctor.id) {
           setFormData((prev) => ({
             ...prev,
             doctor: persistentDoctor.id,
           }))
         }
-
         if (apiResponse.patients) {
           setPatients(apiResponse.patients)
           setFilteredPatients(apiResponse.patients)
@@ -231,7 +221,6 @@ const AppointmentSchedulingContent = () => {
     }
   }
 
-  // Keep your existing conflict detection functions
   const checkPatientConflicts = (patientId: string, dates: string[], timeSlot: string) => {
     if (!patientId || dates.length === 0 || !timeSlot) return []
     const conflicts: Array<{ date: string; doctor: string; doctorName: string }> = []
@@ -282,7 +271,84 @@ const AppointmentSchedulingContent = () => {
     return { conflictingSlots, conflicts }
   }
 
-  // UPDATED: Enhanced add appointment function with persistent doctor and service + reset date input
+  // NEW: Function to check conflicts for multiple patients in group sessions
+  const getGroupPatientConflicts = (selectedPatients: Patient[], dates: string[]) => {
+    if (!selectedPatients.length || dates.length === 0) {
+      return { conflictingSlots: [], conflicts: {} }
+    }
+    const conflictingSlots: string[] = []
+    const conflicts: { [timeSlot: string]: string[] } = {}
+    // Get all available time slots
+    const allTimeSlots = new Set<string>()
+    Object.values(calendarData).forEach((doctorData) => {
+      if (doctorData?.slots) {
+        Object.keys(doctorData.slots).forEach((slot) => allTimeSlots.add(slot))
+      }
+    })
+    // Check each time slot for conflicts with any selected patient
+    allTimeSlots.forEach((timeSlot) => {
+      const conflictingPatients: string[] = []
+      selectedPatients.forEach((patient) => {
+        dates.forEach((date) => {
+          Object.keys(calendarData).forEach((doctorId) => {
+            const doctorSlots = calendarData[doctorId]?.slots
+            if (doctorSlots && doctorSlots[timeSlot]) {
+              const appointment = doctorSlots[timeSlot]
+              if (appointment && appointment.patientId === patient._id) {
+                const patientName =
+                  patient.firstName && patient.lastName
+                    ? `${patient.firstName} ${patient.lastName}`
+                    : patient.fullName || patient.childName || "Unknown Patient"
+                const doctorName = calendarData[doctorId]?.name || "another doctor"
+                const conflictInfo = `${patientName} (with ${doctorName})`
+                if (!conflictingPatients.includes(conflictInfo)) {
+                  conflictingPatients.push(conflictInfo)
+                }
+              }
+            }
+          })
+        })
+      })
+      if (conflictingPatients.length > 0) {
+        conflictingSlots.push(timeSlot)
+        conflicts[timeSlot] = conflictingPatients
+      }
+    })
+    return { conflictingSlots, conflicts }
+  }
+
+  // NEW: Function to check if a specific patient has conflict at selected time slot
+  const checkPatientConflictAtTimeSlot = (patient: Patient, timeSlot: string, dates: string[]) => {
+    if (!timeSlot || !dates.length) return false
+    
+    return dates.some((date) => {
+      return Object.keys(calendarData).some((doctorId) => {
+        const doctorSlots = calendarData[doctorId]?.slots
+        if (doctorSlots && doctorSlots[timeSlot]) {
+          const appointment = doctorSlots[timeSlot]
+          return appointment && appointment.patientId === patient._id
+        }
+        return false
+      })
+    })
+  }
+
+  const handlePatientToggle = (patient: Patient, checked: boolean) => {
+    setFormData((prev) => ({
+      ...prev,
+      selectedPatients: checked
+        ? [...prev.selectedPatients, patient]
+        : prev.selectedPatients.filter((p) => p._id !== patient._id),
+    }))
+  }
+
+  const removePatientFromGroup = (patientId: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      selectedPatients: prev.selectedPatients.filter((p) => p._id !== patientId),
+    }))
+  }
+
   const addAppointmentToSchedule = () => {
     const currentDoctor = persistentDoctor ? persistentDoctor.id : formData.doctor
     const currentServiceId = persistentService ? persistentService._id : formData.serviceId
@@ -290,16 +356,26 @@ const AppointmentSchedulingContent = () => {
       toast.error("Please complete all selections before adding appointment")
       return
     }
-
+    if (formData.isGroupSession) {
+      if (!formData.groupSessionName.trim()) {
+        toast.error("Please enter a group session name")
+        return
+      }
+      if (formData.selectedPatients.length === 0) {
+        toast.error("Please select at least one patient for the group session")
+        return
+      }
+      if (formData.selectedPatients.length > formData.maxCapacity) {
+        toast.error(`Maximum ${formData.maxCapacity} patients allowed per group session`)
+        return
+      }
+    }
     const doctor = persistentDoctor || availableDoctors.find((d) => d.id === formData.doctor)
     const service = persistentService || services.find((s) => s._id === formData.serviceId)
-
     if (!doctor || !service) {
       toast.error("Invalid doctor or service selection")
       return
     }
-
-    // Check if this date/time combination already exists in scheduled appointments
     const exists = scheduledAppointments.some(
       (apt) => formData.appointmentDates.some((date) => apt.date === date) && apt.time === formData.timeSlot,
     )
@@ -307,8 +383,6 @@ const AppointmentSchedulingContent = () => {
       toast.error("This time slot is already scheduled for one of the selected dates")
       return
     }
-
-    // Create appointments for all selected dates
     const newAppointments: ScheduledAppointment[] = formData.appointmentDates.map((date, index) => {
       const colorClass = CHIP_COLORS[(scheduledAppointments.length + index) % CHIP_COLORS.length]
       return {
@@ -325,40 +399,30 @@ const AppointmentSchedulingContent = () => {
         colorClass,
       }
     })
-
     setScheduledAppointments((prev) => [...prev, ...newAppointments])
-
-    // UPDATED: Set persistent doctor and service after first appointment
     if (!persistentDoctor) {
       setPersistentDoctor(doctor)
       setPersistentService(service)
       toast.success(`Doctor (${doctor.name}) and Service (${service.name}) are now locked for subsequent appointments`)
     }
-
-    // Remove this slot from available slots for all selected dates
     setAvailableTimeSlots((prev) => prev.filter((slot) => slot !== formData.timeSlot))
-
-    // FIXED: Reset selections for next appointment - keep doctor and service if persistent + reset date input
     setFormData((prev) => ({
       ...prev,
       timeSlot: "",
       appointmentDates: [],
-      // Keep doctor and service if they're persistent
       doctor: persistentDoctor ? persistentDoctor.id : prev.doctor,
       serviceId: persistentService ? persistentService._id : prev.serviceId,
+      groupSessionName: "",
+      selectedPatients: [],
     }))
-
-    // FIXED: Reset the date input field
     setCurrentDateInput("")
-
-    toast.success(`${newAppointments.length} appointment(s) added to schedule`)
+    const appointmentType = formData.isGroupSession ? "group session" : "appointment"
+    toast.success(`${newAppointments.length} ${appointmentType}(s) added to schedule`)
   }
 
-  // UPDATED: Reset persistent states when removing appointments
   const removeAppointmentFromSchedule = (appointmentId: string) => {
     setScheduledAppointments((prev) => {
       const updated = prev.filter((apt) => apt.id !== appointmentId)
-      // If no appointments left, reset persistent states
       if (updated.length === 0) {
         setPersistentDoctor(null)
         setPersistentService(null)
@@ -374,21 +438,16 @@ const AppointmentSchedulingContent = () => {
     toast.info("Appointment removed from schedule")
   }
 
-  // FIXED: Improved date handling - immediate response with proper validation
   const handleMultipleDateChange = (selectedDate: string) => {
-    // Only process if we have a complete date (YYYY-MM-DD format)
     if (selectedDate && selectedDate.length === 10 && selectedDate.includes("-")) {
-      // Validate the date is actually valid
       const dateObj = new Date(selectedDate)
       if (!isNaN(dateObj.getTime()) && selectedDate === dateObj.toISOString().split("T")[0]) {
-        // Check if date is not already in the list
         if (!formData.appointmentDates.includes(selectedDate)) {
           setFormData((prev) => ({
             ...prev,
             appointmentDates: [...prev.appointmentDates, selectedDate],
           }))
           toast.success(`Date ${new Date(selectedDate).toLocaleDateString()} added`)
-          // Reset the input field after adding
           setCurrentDateInput("")
         } else {
           toast.info("Date already selected")
@@ -398,11 +457,8 @@ const AppointmentSchedulingContent = () => {
     }
   }
 
-  // Keep ALL your existing useEffect hooks exactly the same
   useEffect(() => {
-    console.log("Initial setup useEffect:", { date, initialDateSet: initialDateSet.current })
     if (date && !initialDateSet.current && formData.appointmentDates.length === 0) {
-      console.log("Setting initial date from search params:", date)
       initialDateSet.current = true
       setFormData((prev) => ({
         ...prev,
@@ -411,13 +467,7 @@ const AppointmentSchedulingContent = () => {
     }
   }, [date])
 
-  // UPDATED: Enhanced useEffect to handle persistent doctor
   useEffect(() => {
-    console.log("Calendar data fetch useEffect:", {
-      appointmentDatesLength: formData.appointmentDates.length,
-      firstDate: formData.appointmentDates[0],
-      persistentDoctor: persistentDoctor?.name,
-    })
     if (formData.appointmentDates.length > 0) {
       fetchCalendarData(formData.appointmentDates[0], persistentDoctor?.id)
       if (!autoFillExecuted.current && !persistentDoctor) {
@@ -431,14 +481,6 @@ const AppointmentSchedulingContent = () => {
   }, [formData.appointmentDates.join(","), persistentDoctor])
 
   useEffect(() => {
-    console.log("Auto-fill useEffect:", {
-      slot,
-      date,
-      doctorName,
-      availableDoctorsLength: availableDoctors.length,
-      autoFillExecuted: autoFillExecuted.current,
-      appointmentDatesLength: formData.appointmentDates.length,
-    })
     if (
       slot &&
       date &&
@@ -447,17 +489,13 @@ const AppointmentSchedulingContent = () => {
       !autoFillExecuted.current &&
       formData.appointmentDates.includes(date)
     ) {
-      console.log("Executing auto-fill...")
       autoFillExecuted.current = true
       const matchingDoctor = availableDoctors.find((doctor) => {
         const doctorNameLower = doctor.name.toLowerCase()
         const searchNameLower = doctorName.toLowerCase()
-        console.log(`Comparing: "${doctorNameLower}" with "${searchNameLower}"`)
         return doctorNameLower.includes(searchNameLower) || searchNameLower.includes(doctorNameLower)
       })
-      console.log("Matching doctor result:", matchingDoctor)
       if (matchingDoctor) {
-        console.log("Found matching doctor, updating form data...")
         setFormData((prev) => ({
           ...prev,
           doctor: matchingDoctor.id,
@@ -467,7 +505,6 @@ const AppointmentSchedulingContent = () => {
           `Auto-filled appointment details for ${matchingDoctor.name} on ${new Date(date).toLocaleDateString()} at ${slot}`,
         )
       } else {
-        console.log("No matching doctor found, doing partial auto-fill...")
         setFormData((prev) => ({
           ...prev,
           timeSlot: slot,
@@ -508,37 +545,64 @@ const AppointmentSchedulingContent = () => {
     }
   }, [patientSearchTerm, patients])
 
-  // UPDATED: Enhanced useEffect to include conflict checking and scheduled appointments filtering
+  // ENHANCED: Updated useEffect to handle group session conflicts
   useEffect(() => {
     if (formData.doctor && calendarData[formData.doctor]) {
       const doctorSlots = calendarData[formData.doctor].slots
       let availableSlots = Object.keys(doctorSlots).filter((timeSlot) => doctorSlots[timeSlot] === null)
-
-      // FIXED: Only filter out slots that are already scheduled for the CURRENT dates being selected
       if (formData.appointmentDates.length > 0) {
         const scheduledSlotsForCurrentDates = scheduledAppointments
           .filter((apt) => formData.appointmentDates.includes(apt.date))
           .map((apt) => apt.time)
         availableSlots = availableSlots.filter((slot) => !scheduledSlotsForCurrentDates.includes(slot))
       }
-
-      if (selectedPatient && formData.appointmentDates.length > 0) {
+      if (formData.isGroupSession && formData.selectedPatients.length > 0 && formData.appointmentDates.length > 0) {
+        // NEW: Handle group session conflicts
+        const { conflictingSlots, conflicts } = getGroupPatientConflicts(
+          formData.selectedPatients,
+          formData.appointmentDates,
+        )
+        setGroupConflictingSlots(conflictingSlots)
+        setGroupPatientConflicts(conflicts)
+        // Filter out slots where any selected patient has conflicts
+        const nonConflictingSlots = availableSlots.filter((slot) => !conflictingSlots.includes(slot))
+        setAvailableTimeSlots(nonConflictingSlots)
+        // Clear individual patient conflicts for group sessions
+        setConflictingSlots([])
+        setPatientConflicts({})
+      } else if (!formData.isGroupSession && selectedPatient && formData.appointmentDates.length > 0) {
+        // Existing logic for individual appointments
         const { conflictingSlots, conflicts } = getAllPatientConflicts(selectedPatient._id, formData.appointmentDates)
         setConflictingSlots(conflictingSlots)
         setPatientConflicts(conflicts)
         const nonConflictingSlots = availableSlots.filter((slot) => !conflictingSlots.includes(slot))
         setAvailableTimeSlots(nonConflictingSlots)
+        // Clear group conflicts for individual appointments
+        setGroupConflictingSlots([])
+        setGroupPatientConflicts({})
       } else {
         setAvailableTimeSlots(availableSlots)
         setConflictingSlots([])
         setPatientConflicts({})
+        setGroupConflictingSlots([])
+        setGroupPatientConflicts({})
       }
     } else {
       setAvailableTimeSlots([])
       setConflictingSlots([])
       setPatientConflicts({})
+      setGroupConflictingSlots([])
+      setGroupPatientConflicts({})
     }
-  }, [formData.doctor, calendarData, selectedPatient, formData.appointmentDates, scheduledAppointments])
+  }, [
+    formData.doctor,
+    calendarData,
+    selectedPatient,
+    formData.appointmentDates,
+    scheduledAppointments,
+    formData.isGroupSession,
+    formData.selectedPatients, // NEW: Added dependency for selected patients
+  ])
 
   useEffect(() => {
     fetchServices()
@@ -554,7 +618,6 @@ const AppointmentSchedulingContent = () => {
     }
   }, [persistentDoctor, persistentService])
 
-  // Keep ALL your existing functions exactly the same
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setFormData({
@@ -583,68 +646,138 @@ const AppointmentSchedulingContent = () => {
     return `${displayHours.toString().padStart(2, "0")}:${endMins.toString().padStart(2, "0")} ${endPeriod}`
   }
 
-  // Keep your existing handleSubmit function
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement> | React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault()
-
     setFieldErrors({})
     setShowValidation(false)
     const errors: { [key: string]: boolean } = {}
-
+    console.log("=== FORM SUBMISSION DEBUG ===")
+    console.log("Form Data:", formData)
+    console.log("Is Group Session:", formData.isGroupSession)
+    console.log("Group Session Name:", formData.groupSessionName)
+    console.log("Selected Patients:", formData.selectedPatients)
+    console.log("Is Multiple Appointments:", isMultipleAppointments)
+    console.log("Scheduled Appointments:", scheduledAppointments)
+    // Pre-submission conflict check for group sessions
+    if (formData.isGroupSession && formData.selectedPatients.length > 0 && formData.appointmentDates.length > 0) {
+      const { conflictingSlots } = getGroupPatientConflicts(formData.selectedPatients, formData.appointmentDates)
+      if (conflictingSlots.includes(formData.timeSlot)) {
+        const conflictingPatients = groupPatientConflicts[formData.timeSlot] || []
+        toast.error(
+          `Cannot schedule: The following patients already have appointments at this time: ${conflictingPatients.join(", ")}`,
+        )
+        return
+      }
+    }
     if (isMultipleAppointments) {
-      // For multiple appointments mode
       if (scheduledAppointments.length === 0) {
         toast.error("Please add at least one appointment to the schedule")
         return
       }
     } else {
-      // For single appointment mode - validate required fields
       if (!formData.doctor) errors.doctor = true
       if (!formData.appointmentDates[0]) errors.appointmentDates = true
       if (!formData.timeSlot) errors.timeSlot = true
       if (!formData.serviceId) errors.serviceId = true
     }
-
-    // Common validations for both modes
+    if (formData.isGroupSession) {
+      if (!formData.groupSessionName.trim()) {
+        console.log("❌ Group session name is missing!")
+        toast.error("Please enter a group session name")
+        return
+      }
+      if (formData.selectedPatients.length === 0) {
+        console.log("❌ No patients selected!")
+        toast.error("Please select at least one patient for the group session")
+        return
+      }
+      if (formData.selectedPatients.length > formData.maxCapacity) {
+        console.log("❌ Too many patients selected!")
+        toast.error(`Maximum ${formData.maxCapacity} patients allowed per group session`)
+        return
+      }
+    }
     if (!formData.consultationMode) errors.consultationMode = true
     if (!formData.type) errors.type = true
-    if (!selectedPatient && (!formData.patientName || !formData.phone || !formData.email)) {
+    if (!formData.isGroupSession && !selectedPatient && (!formData.patientName || !formData.phone || !formData.email)) {
       if (!formData.patientName) errors.patientName = true
       if (!formData.phone) errors.phone = true
       if (!formData.email) errors.email = true
     }
-
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors)
       setShowValidation(true)
       toast.error("Please fill in all required fields")
       return
     }
-
     setLoading(true)
-
     try {
       let appointmentData
-
-      if (isMultipleAppointments && scheduledAppointments.length > 0) {
-        // FIXED: Multiple appointments mode
+      if (formData.isGroupSession) {
+        console.log("✅ Creating group appointment...")
+        appointmentData = {
+          therapistId: formData.doctor,
+          serviceId: formData.serviceId,
+          date: formData.appointmentDates[0],
+          startTime: formData.timeSlot,
+          endTime: calculateEndTime(formData.timeSlot),
+          type: formData.type,
+          consultationMode: formData.consultationMode,
+          notes: formData.notes,
+          paymentMethod: formData.paymentMethod,
+          groupSessionName: formData.groupSessionName,
+          maxCapacity: formData.maxCapacity,
+          patients: formData.selectedPatients.map((patient) => ({
+            patientId: patient._id,
+            patientName:
+              `${patient.firstName || ""} ${patient.lastName || ""}`.trim() || patient.fullName || patient.childName,
+            fatherName: patient.parentInfo?.name || patient.parentName || "",
+            email: patient.email || patient.parentInfo?.email || "",
+            phone: patient.contactNumber || patient.parentInfo?.phone || "",
+          })),
+        }
+        console.log("Sending group appointment data:", JSON.stringify(appointmentData, null, 2))
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/group`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
+          },
+          body: JSON.stringify(appointmentData),
+        })
+        if (!response.ok) {
+          let errorMessage = "Failed to create group appointment"
+          try {
+            const errorData = await response.json()
+            console.error("Server error response:", errorData)
+            // Handle different error response structures
+            errorMessage = errorData.error || errorData.message || errorData.details || errorMessage
+          } catch (parseError) {
+            console.error("Failed to parse error response:", parseError)
+            errorMessage = `Server error: ${response.status} ${response.statusText}`
+          }
+          throw new Error(errorMessage)
+        }
+        const result = await response.json()
+        console.log("✅ Successfully created group appointment", result)
+        toast.success(
+          `Group session "${formData.groupSessionName}" scheduled successfully for ${formData.selectedPatients.length} patients!`,
+        )
+        router.push("/dashboard")
+      } else if (isMultipleAppointments && scheduledAppointments.length > 0) {
         appointmentData = {
           patientId: selectedPatient?._id,
-          patientName: formData.patientName || (selectedPatient?.firstName + " " + selectedPatient?.lastName),
+          patientName: formData.patientName || selectedPatient?.firstName + " " + selectedPatient?.lastName,
           fatherName: formData.fatherName || formData.patientName,
           email: formData.email,
           phone: formData.phone,
           serviceId: persistentService?._id || formData.serviceId,
           therapistId: persistentDoctor?.id || scheduledAppointments[0]?.therapist?.id,
-          // FIXED: Properly structure the scheduledAppointments array
-          scheduledAppointments: scheduledAppointments.map((apt) => {
-            console.log("Processing appointment for submission:", apt)
-            return {
-              date: apt.date,
-              startTime: apt.time, // apt.time contains the time slot like "10:00 AM"
-              endTime: calculateEndTime(apt.time), // Calculate end time from the start time
-            }
-          }),
+          scheduledAppointments: scheduledAppointments.map((apt) => ({
+            date: apt.date,
+            startTime: apt.time,
+            endTime: calculateEndTime(apt.time),
+          })),
           type: formData.type,
           consultationMode: formData.consultationMode,
           notes: formData.notes,
@@ -654,17 +787,37 @@ const AppointmentSchedulingContent = () => {
           consent: formData.consent,
           totalSessions: scheduledAppointments.length,
         }
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/multiple`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
+          },
+          body: JSON.stringify(appointmentData),
+        })
+        if (!response.ok) {
+          let errorMessage = "Failed to create appointments"
+          try {
+            const errorData = await response.json()
+            errorMessage = errorData.error || errorData.message || errorMessage
+          } catch (parseError) {
+            errorMessage = `Server error: ${response.status} ${response.statusText}`
+          }
+          throw new Error(errorMessage)
+        }
+        const result = await response.json()
+        toast.success(`${scheduledAppointments.length} appointment(s) scheduled successfully!`)
+        router.push("/dashboard")
       } else {
-        // FIXED: Single appointment mode
         appointmentData = {
           patientId: selectedPatient?._id,
-          patientName: formData.patientName || (selectedPatient?.firstName + " " + selectedPatient?.lastName),
+          patientName: formData.patientName || selectedPatient?.firstName + " " + selectedPatient?.lastName,
           fatherName: formData.fatherName || formData.patientName,
           email: formData.email,
           phone: formData.phone,
           serviceId: formData.serviceId,
           therapistId: formData.doctor,
-          dates: formData.appointmentDates, // This should be the array of dates
+          dates: formData.appointmentDates,
           startTime: formData.timeSlot,
           endTime: calculateEndTime(formData.timeSlot),
           type: formData.type,
@@ -676,52 +829,29 @@ const AppointmentSchedulingContent = () => {
           consent: formData.consent,
           totalSessions: formData.totalSessions,
         }
-      }
-
-      // FIXED: Add validation to ensure we have appointment data
-      if (isMultipleAppointments) {
-        if (!appointmentData.scheduledAppointments || appointmentData.scheduledAppointments.length === 0) {
-          toast.error("No appointments provided")
-          return
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/multiple`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
+          },
+          body: JSON.stringify(appointmentData),
+        })
+        if (!response.ok) {
+          let errorMessage = "Failed to create appointments"
+          try {
+            const errorData = await response.json()
+            errorMessage = errorData.error || errorData.message || errorMessage
+          } catch (parseError) {
+            errorMessage = `Server error: ${response.status} ${response.statusText}`
+          }
+          throw new Error(errorMessage)
         }
-      } else {
-        if (!appointmentData.dates || appointmentData.dates.length === 0) {
-          toast.error("No appointment dates provided")
-          return
-        }
+        const result = await response.json()
+        const appointmentCount = formData.appointmentDates.length
+        toast.success(`${appointmentCount} appointment(s) scheduled successfully!`)
+        router.push("/dashboard")
       }
-
-      console.log("Final appointment data being sent:", {
-        isMultipleAppointments,
-        scheduledAppointmentsLength: scheduledAppointments.length,
-        appointmentDatesLength: formData.appointmentDates.length,
-        appointmentData
-      })
-
-      console.log("Sending appointment data:", JSON.stringify(appointmentData, null, 2))
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/multiple`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("receptionToken")}`,
-        },
-        body: JSON.stringify(appointmentData),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        console.error("Server error response:", errorData)
-        throw new Error(errorData.error || "Failed to create appointments")
-      }
-
-      const result = await response.json()
-      console.log("Successfully created appointments", result)
-
-      const appointmentCount = isMultipleAppointments ? scheduledAppointments.length : formData.appointmentDates.length
-      toast.success(`${appointmentCount} appointment(s) scheduled successfully!`)
-      router.push("/dashboard")
-
     } catch (error) {
       console.error("Error creating appointments:", error)
       toast.error(error instanceof Error ? error.message : "Failed to schedule appointments")
@@ -731,8 +861,7 @@ const AppointmentSchedulingContent = () => {
   }
 
   return (
-    <div className="font-sans p-6 max-w-[84%] mt-15 ml-70 mx-auto overflow-y-auto hide-scrollbar">
-      {/* Keep your EXACT original header */}
+    <div className="font-sans p-6 max-w-[84%] mt-15 ml-[150px] mx-auto overflow-y-auto hide-scrollbar">
       <div className="-mb-10">
         <div className="flex items-center text-[#1E437A] mb-2">
           <ChevronLeft className="w-5 h-5" />
@@ -750,14 +879,12 @@ const AppointmentSchedulingContent = () => {
         </div>
       </div>
 
-      {/* UPDATED: Enhanced Scheduled Appointments Chips with persistent info */}
       {isMultipleAppointments && scheduledAppointments.length > 0 && (
         <div className="mb-6 mt-10">
           <div className="bg-white rounded-lg border border-gray-200 p-6">
             <h3 className="text-lg font-semibold text-[#1E437A] mb-4">
               Scheduled Appointments ({scheduledAppointments.length})
             </h3>
-            {/* Show persistent doctor and service info */}
             {persistentDoctor && persistentService && (
               <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                 <div className="flex items-center gap-2 text-blue-800">
@@ -799,7 +926,6 @@ const AppointmentSchedulingContent = () => {
                 </div>
               ))}
             </div>
-            {/* Summary */}
             <div className="mt-4 p-3 bg-gray-50 rounded-lg">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div>
@@ -824,7 +950,6 @@ const AppointmentSchedulingContent = () => {
         </div>
       )}
 
-      {/* Keep your EXACT original Actions */}
       <div className="flex justify-end mb-6">
         <button
           className="flex items-center gap-2 bg-[#C83C92] text-white px-4 py-2 rounded-lg font-medium disabled:opacity-50"
@@ -834,16 +959,16 @@ const AppointmentSchedulingContent = () => {
           <Calendar className="w-5 h-5" />
           {loading
             ? "Scheduling..."
-            : isMultipleAppointments && scheduledAppointments.length > 0
-              ? `Schedule ${scheduledAppointments.length} Appointments & Send Notification`
-              : `Schedule ${formData.appointmentDates.length || 1} Appointment${formData.appointmentDates.length > 1 ? "s" : ""} & Send Notification`}
+            : formData.isGroupSession
+              ? `Schedule Group Session (${formData.selectedPatients.length} patients) & Send Notification`
+              : isMultipleAppointments && scheduledAppointments.length > 0
+                ? `Schedule ${scheduledAppointments.length} Appointments & Send Notification`
+                : `Schedule ${formData.appointmentDates.length || 1} Appointment${formData.appointmentDates.length > 1 ? "s" : ""} & Send Notification`}
         </button>
       </div>
 
-      {/* FIXED: Enhanced Appointment Information Section with fixed date selection */}
       <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
         <h2 className="text-lg font-semibold text-[#1E437A] mb-4">Appointment Information</h2>
-        {/* Multiple Appointments Toggle */}
         <div className="mb-6">
           <label className="flex items-center gap-2">
             <input
@@ -855,7 +980,15 @@ const AppointmentSchedulingContent = () => {
                   setScheduledAppointments([])
                   setPersistentDoctor(null)
                   setPersistentService(null)
-                  setFormData((prev) => ({ ...prev, doctor: "", timeSlot: "", serviceId: "" }))
+                  setFormData((prev) => ({
+                    ...prev,
+                    doctor: "",
+                    timeSlot: "",
+                    serviceId: "",
+                    isGroupSession: false,
+                    groupSessionName: "",
+                    selectedPatients: [],
+                  }))
                 }
               }}
               className="w-4 h-4 text-[#C83C92] border-gray-300 rounded focus:ring-[#C83C92]"
@@ -863,22 +996,77 @@ const AppointmentSchedulingContent = () => {
             <span className="text-[#1E437A] font-medium">Schedule Multiple Appointments</span>
           </label>
         </div>
+        <div className="mb-6">
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={formData.isGroupSession}
+              onChange={(e) => {
+                setFormData((prev) => ({
+                  ...prev,
+                  isGroupSession: e.target.checked,
+                  groupSessionName: "",
+                  selectedPatients: [],
+                }))
+                if (e.target.checked) {
+                  setSelectedPatient(null)
+                }
+              }}
+              className="w-4 h-4 text-[#C83C92] border-gray-300 rounded focus:ring-[#C83C92]"
+            />
+            <span className="text-[#1E437A] font-medium flex items-center gap-2">
+              <Users className="w-4 h-4" />
+              Group Session (Multiple Patients, Same Time Slot)
+            </span>
+          </label>
+        </div>
+        {/* FIXED: Add Group Session Name field for BOTH modes */}
+        {formData.isGroupSession && (
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[#1E437A] mb-2 font-medium">Group Session Name *</label>
+                <input
+                  type="text"
+                  value={formData.groupSessionName}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, groupSessionName: e.target.value }))}
+                  placeholder="e.g., Morning Speech Therapy Group"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-white text-gray-900"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-[#1E437A] mb-2 font-medium">Max Capacity</label>
+                <input
+                  type="number"
+                  min="2"
+                  max="10"
+                  value={formData.maxCapacity || ""}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    const numValue = value === "" ? 6 : Number.parseInt(value) || 6
+                    setFormData((prev) => ({ ...prev, maxCapacity: numValue }))
+                  }}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-white text-gray-900"
+                />
+              </div>
+            </div>
+          </div>
+        )}
 
         {isMultipleAppointments ? (
-          /* FIXED: Streamlined Flow for Multiple Appointments with immediate date chip rendering */
           <div className="space-y-6">
-            {/* Step 1 & 2: Date and Doctor selection side-by-side */}
             <div className="flex justify-between gap-6">
-              {/* FIXED: Step 1: Select Dates with immediate response */}
               <div className="w-[48%]">
-                <label className="block text-[#1E437A] mb-2 font-medium">Select Dates *</label>
+                <label className="block text-[#1E437A] mb-2 font-medium">
+                  Select Date{formData.isGroupSession ? "" : "s"} *
+                </label>
                 <div className="mb-3">
                   <input
                     type="date"
                     value={currentDateInput}
                     onChange={(e) => {
                       setCurrentDateInput(e.target.value)
-                      // Immediately process the date when it's selected
                       if (e.target.value) {
                         handleMultipleDateChange(e.target.value)
                       }
@@ -891,7 +1079,8 @@ const AppointmentSchedulingContent = () => {
                 {formData.appointmentDates.length > 0 && (
                   <div className="space-y-2">
                     <p className="text-sm text-[#1E437A] font-medium">
-                      Selected Dates ({formData.appointmentDates.length}):
+                      Selected Date{formData.appointmentDates.length > 1 ? "s" : ""} ({formData.appointmentDates.length}
+                      ):
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {formData.appointmentDates.map((date, index) => (
@@ -913,8 +1102,6 @@ const AppointmentSchedulingContent = () => {
                   </div>
                 )}
               </div>
-
-              {/* Step 2: Select Doctor */}
               <div className="w-[48%]">
                 <label className="block text-[#1E437A] mb-2 font-medium">
                   Select Doctor * {persistentDoctor && <span className="text-blue-600">(Locked)</span>}
@@ -925,10 +1112,11 @@ const AppointmentSchedulingContent = () => {
                     onChange={handleInputChange}
                     name="doctor"
                     disabled={formData.appointmentDates.length === 0 || !!persistentDoctor}
-                    className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none ${formData.appointmentDates.length === 0 || !!persistentDoctor
+                    className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none ${
+                      formData.appointmentDates.length === 0 || !!persistentDoctor
                         ? "opacity-50 cursor-not-allowed"
                         : ""
-                      } ${persistentDoctor ? "bg-blue-50 border-blue-300" : ""}`}
+                    } ${persistentDoctor ? "bg-blue-50 border-blue-300" : ""}`}
                     required
                   >
                     <option value="">
@@ -967,10 +1155,7 @@ const AppointmentSchedulingContent = () => {
                 </div>
               </div>
             </div>
-
-            {/* Step 3 & 4: Time Slot and Service selection side-by-side */}
             <div className="flex justify-between gap-6">
-              {/* Step 3: Time Slot */}
               <div className="w-[48%]">
                 <label className="block text-[#1E437A] mb-2 font-medium">Available Time Slots *</label>
                 <div className="relative">
@@ -979,8 +1164,9 @@ const AppointmentSchedulingContent = () => {
                     onChange={handleInputChange}
                     name="timeSlot"
                     disabled={!formData.doctor}
-                    className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none ${!formData.doctor ? "opacity-50 cursor-not-allowed" : ""
-                      }`}
+                    className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none ${
+                      !formData.doctor ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
                     required
                   >
                     <option value="">{!formData.doctor ? "Select doctor first" : "Select time slot"}</option>
@@ -1005,10 +1191,45 @@ const AppointmentSchedulingContent = () => {
                     </svg>
                   </div>
                 </div>
-                {formData.doctor && availableTimeSlots.length === 0 && !selectedPatient && (
+                {formData.doctor && availableTimeSlots.length === 0 && !selectedPatient && !formData.isGroupSession && (
                   <p className="text-sm text-red-500 mt-1">No available slots for selected doctor</p>
                 )}
-                {selectedPatient && conflictingSlots.length > 0 && (
+                {formData.doctor &&
+                  availableTimeSlots.length === 0 &&
+                  formData.isGroupSession &&
+                  formData.selectedPatients.length === 0 && (
+                    <p className="text-sm text-red-500 mt-1">No available slots for selected doctor</p>
+                  )}
+                {/* NEW: Group session conflict display */}
+                {formData.isGroupSession &&
+                  formData.selectedPatients.length > 0 &&
+                  groupConflictingSlots.length > 0 && (
+                    <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle className="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+                        <div className="text-sm">
+                          <p className="text-yellow-800 font-medium mb-1">
+                            Some patients have conflicting appointments:
+                          </p>
+                          <div className="text-yellow-700 space-y-1 max-h-32 overflow-y-auto">
+                            {groupConflictingSlots.map((slot) => (
+                              <div key={slot} className="text-xs">
+                                <strong>{slot}:</strong>
+                                <ul className="ml-2 mt-1">
+                                  {groupPatientConflicts[slot]?.map((conflict, index) => (
+                                    <li key={index} className="text-xs">
+                                      • {conflict}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                {!formData.isGroupSession && selectedPatient && conflictingSlots.length > 0 && (
                   <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                     <div className="flex items-start gap-2">
                       <AlertTriangle className="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0" />
@@ -1026,8 +1247,6 @@ const AppointmentSchedulingContent = () => {
                   </div>
                 )}
               </div>
-
-              {/* Step 4: Select Service */}
               <div className="w-[48%]">
                 <label className="block text-[#1E437A] mb-2 font-medium">
                   Select Service * {persistentService && <span className="text-blue-600">(Locked)</span>}
@@ -1038,8 +1257,9 @@ const AppointmentSchedulingContent = () => {
                     onChange={handleInputChange}
                     name="serviceId"
                     disabled={!formData.timeSlot || !!persistentService}
-                    className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none ${!formData.timeSlot || !!persistentService ? "opacity-50 cursor-not-allowed" : ""
-                      } ${persistentService ? "bg-blue-50 border-blue-300" : ""}`}
+                    className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none ${
+                      !formData.timeSlot || !!persistentService ? "opacity-50 cursor-not-allowed" : ""
+                    } ${persistentService ? "bg-blue-50 border-blue-300" : ""}`}
                     required
                   >
                     <option value="">
@@ -1078,8 +1298,6 @@ const AppointmentSchedulingContent = () => {
                 </div>
               </div>
             </div>
-
-            {/* Step 5: Add Appointment Button */}
             {(persistentDoctor || formData.doctor) &&
               (persistentService || formData.serviceId) &&
               formData.appointmentDates.length > 0 &&
@@ -1091,33 +1309,32 @@ const AppointmentSchedulingContent = () => {
                     className="flex items-center gap-2 px-6 py-3 bg-[#C83C92] text-white rounded-lg hover:bg-[#B8358A] font-medium shadow-sm transition-colors"
                   >
                     <Plus className="w-5 h-5" />
-                    Add Appointment
+                    {formData.isGroupSession ? "Add Group Session" : "Add Appointment"}
                   </button>
                 </div>
               )}
           </div>
         ) : (
-          /* Original Single Appointment Form - Keep exactly the same */
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
-            {/* Single appointment date selection */}
             <div className="md:col-span-2">
               <label className="block text-[#1E437A] mb-2">Date *</label>
               <div className="relative">
                 <input
                   type="date"
-                  value={formData.appointmentDates[0] || ""} // This ensures it's never undefined
+                  value={formData.appointmentDates[0] || ""}
                   onChange={(e) => {
                     const newDate = e.target.value
                     setFormData({
                       ...formData,
-                      appointmentDates: newDate ? [newDate] : [], // Ensure array is never undefined
+                      appointmentDates: newDate ? [newDate] : [],
                     })
                   }}
                   min={new Date().toISOString().split("T")[0]}
-                  className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] ${showValidation && fieldErrors.appointmentDates
+                  className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] ${
+                    showValidation && fieldErrors.appointmentDates
                       ? "border-[#C83C92] ring-2 ring-[#C83C92] ring-opacity-50 animate-pulse"
                       : "border-gray-300"
-                    }`}
+                  }`}
                   placeholder="Select appointment date"
                   required
                 />
@@ -1126,8 +1343,6 @@ const AppointmentSchedulingContent = () => {
                 </div>
               </div>
             </div>
-
-            {/* Rest of single appointment form fields - keep exactly the same */}
             <div>
               <label className="block text-[#1E437A] mb-2" htmlFor="doctor">
                 Select Doctor *
@@ -1138,10 +1353,11 @@ const AppointmentSchedulingContent = () => {
                   name="doctor"
                   value={formData.doctor}
                   onChange={handleInputChange}
-                  className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none ${showValidation && fieldErrors.doctor
+                  className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none ${
+                    showValidation && fieldErrors.doctor
                       ? "border-[#C83C92] ring-2 ring-[#C83C92] ring-opacity-50 animate-pulse"
                       : "border-gray-300"
-                    }`}
+                  }`}
                   required
                   disabled={formData.appointmentDates.length === 0}
                 >
@@ -1170,7 +1386,6 @@ const AppointmentSchedulingContent = () => {
                 </div>
               </div>
             </div>
-
             <div>
               <label className="block text-[#1E437A] mb-2" htmlFor="timeSlot">
                 Available Time Slots *
@@ -1181,10 +1396,11 @@ const AppointmentSchedulingContent = () => {
                   name="timeSlot"
                   value={formData.timeSlot}
                   onChange={handleInputChange}
-                  className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none ${showValidation && fieldErrors.timeSlot
+                  className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none ${
+                    showValidation && fieldErrors.timeSlot
                       ? "border-[#C83C92] ring-2 ring-[#C83C92] ring-opacity-50 animate-pulse"
                       : "border-gray-300"
-                    }`}
+                  }`}
                   disabled={!formData.doctor}
                   required
                 >
@@ -1210,12 +1426,41 @@ const AppointmentSchedulingContent = () => {
                   </svg>
                 </div>
               </div>
-              {/* Show conflict warnings */}
-              {formData.doctor && availableTimeSlots.length === 0 && !selectedPatient && (
+              {formData.doctor && availableTimeSlots.length === 0 && !selectedPatient && !formData.isGroupSession && (
                 <p className="text-sm text-red-500 mt-1">No available slots for selected doctor</p>
               )}
-              {/* Show patient conflict information */}
-              {selectedPatient && conflictingSlots.length > 0 && (
+              {formData.doctor &&
+                availableTimeSlots.length === 0 &&
+                formData.isGroupSession &&
+                formData.selectedPatients.length === 0 && (
+                  <p className="text-sm text-red-500 mt-1">No available slots for selected doctor</p>
+                )}
+              {/* NEW: Group session conflict display */}
+              {formData.isGroupSession && formData.selectedPatients.length > 0 && groupConflictingSlots.length > 0 && (
+                <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+                    <div className="text-sm">
+                      <p className="text-yellow-800 font-medium mb-1">Some patients have conflicting appointments:</p>
+                      <div className="text-yellow-700 space-y-1 max-h-32 overflow-y-auto">
+                        {groupConflictingSlots.map((slot) => (
+                          <div key={slot} className="text-xs">
+                            <strong>{slot}:</strong>
+                            <ul className="ml-2 mt-1">
+                              {groupPatientConflicts[slot]?.map((conflict, index) => (
+                                <li key={index} className="text-xs">
+                                  • {conflict}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {!formData.isGroupSession && selectedPatient && conflictingSlots.length > 0 && (
                 <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                   <div className="flex items-start gap-2">
                     <AlertTriangle className="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0" />
@@ -1233,7 +1478,6 @@ const AppointmentSchedulingContent = () => {
                 </div>
               )}
             </div>
-
             <div>
               <label className="block text-[#1E437A] mb-2" htmlFor="serviceId">
                 Select Service *
@@ -1244,10 +1488,11 @@ const AppointmentSchedulingContent = () => {
                   name="serviceId"
                   value={formData.serviceId}
                   onChange={handleInputChange}
-                  className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none ${showValidation && fieldErrors.serviceId
+                  className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none ${
+                    showValidation && fieldErrors.serviceId
                       ? "border-[#C83C92] ring-2 ring-[#C83C92] ring-opacity-50 animate-pulse"
                       : "border-gray-300"
-                    }`}
+                  }`}
                   required
                 >
                   <option value="">Select a service</option>
@@ -1277,26 +1522,41 @@ const AppointmentSchedulingContent = () => {
         )}
       </div>
 
-      {/* Keep ALL your remaining form sections EXACTLY the same */}
       <form onSubmit={handleSubmit}>
-        {/* Patient Selection Section - EXACT same */}
         <div className="font-sans bg-white rounded-lg border border-gray-200 p-6 mb-6">
-          <h2 className="text-lg font-semibold text-[#1E437A] mb-4">Select Patient</h2>
-          <div className="mb-4">
-            <label className="block text-[#1E437A] mb-2">Choose Existing Patient or Add New</label>
-            <div className="flex gap-4">
-              <button
-                type="button"
-                onClick={() => setShowPatientSearch(!showPatientSearch)}
-                className="px-4 py-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-colors"
-              >
-                {showPatientSearch ? "Hide" : "Select Existing Patient"}
-              </button>
-            </div>
-          </div>
-
-          {showPatientSearch && (
-            <div className="border border-gray-200 rounded-lg p-4">
+          <h2 className="text-lg font-semibold text-[#1E437A] mb-4">
+            {formData.isGroupSession ? "Select Patients for Group Session" : "Select Patient"}
+          </h2>
+          {formData.isGroupSession ? (
+            <div className="space-y-4">
+              {formData.selectedPatients.length > 0 && (
+                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-green-800">
+                      Selected Patients ({formData.selectedPatients.length}/{formData.maxCapacity}):
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {formData.selectedPatients.map((patient) => (
+                      <div
+                        key={patient._id}
+                        className="flex items-center gap-2 bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm border border-green-300"
+                      >
+                        <span>
+                          {patient.firstName} {patient.lastName}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removePatientFromGroup(patient._id)}
+                          className="text-green-600 hover:text-green-800"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="mb-4">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -1311,33 +1571,44 @@ const AppointmentSchedulingContent = () => {
               </div>
               <div className="max-h-60 overflow-y-auto space-y-2">
                 {filteredPatients.length > 0 ? (
-                  filteredPatients.map((patient) => (
-                    <div
-                      key={patient?._id}
-                      onClick={() => {
-                        setSelectedPatient(patient)
-                        const childName = patient?.childName || patient?.fullName || ""
-                        const parentName = patient?.parentName || patient?.parentInfo?.name || ""
-                        const email = patient?.email || patient?.parentInfo?.email || ""
-                        const phone = patient?.contactNumber || patient?.parentInfo?.phone || ""
-                        const address = patient?.address || patient?.parentInfo?.address || ""
-                        setFormData({
-                          ...formData,
-                          patientName: childName,
-                          fatherName: parentName,
-                          email: email,
-                          phone: phone,
-                          address: address,
-                        })
-                        setShowPatientSearch(false)
-                        setPatientSearchTerm("")
-                      }}
-                      className="p-3 border border-gray-100 rounded-lg hover:bg-gray-50 cursor-pointer"
-                    >
-                      <div className="flex justify-between items-start">
-                        <div>
+                  filteredPatients.map((patient) => {
+                    const isSelected = formData.selectedPatients.some((p) => p._id === patient._id)
+                    const isDisabled = !isSelected && formData.selectedPatients.length >= formData.maxCapacity
+                    
+                    // NEW: Check if patient has conflict at selected time slot
+                    const hasConflict = formData.timeSlot && formData.appointmentDates.length > 0 
+                      ? checkPatientConflictAtTimeSlot(patient, formData.timeSlot, formData.appointmentDates)
+                      : false
+                    
+                    const finalDisabled = isDisabled || hasConflict
+                    
+                    return (
+                      <div
+                        key={patient._id}
+                        className={`flex items-center space-x-3 p-3 border rounded-lg ${
+                          isSelected 
+                            ? "bg-green-50 border-green-200" 
+                            : hasConflict 
+                              ? "bg-red-50 border-red-200" // NEW: Pale red background for conflicts
+                              : "hover:bg-gray-50"
+                        } ${finalDisabled ? "opacity-50" : ""}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          disabled={finalDisabled} // NEW: Disable if has conflict
+                          onChange={(e) => handlePatientToggle(patient, e.target.checked)}
+                          className="w-4 h-4 text-[#C83C92] border-gray-300 rounded focus:ring-[#C83C92]"
+                        />
+                        <div className="flex-1 min-w-0">
                           <div className="font-medium text-gray-900">
-                            {patient?.childName || patient?.fullName || patient?.firstName + patient?.lastName}
+                            {patient?.childName || patient?.fullName || patient?.firstName + " " + patient?.lastName}
+                            {/* NEW: Show conflict indicator */}
+                            {hasConflict && (
+                              <span className="ml-2 text-xs text-red-600 font-normal">
+                                (Has appointment at this time)
+                              </span>
+                            )}
                           </div>
                           <div className="text-sm text-gray-600">
                             Parent: {patient?.parentName || patient?.parentInfo?.name} | Phone:{" "}
@@ -1347,10 +1618,9 @@ const AppointmentSchedulingContent = () => {
                             ID: {patient?._id} | Gender: {patient?.gender || "Not specified"}
                           </div>
                         </div>
-                        <div className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">{patient?.status}</div>
                       </div>
-                    </div>
-                  ))
+                    )
+                  })
                 ) : (
                   <div className="text-center py-4 text-gray-500">
                     {patientSearchTerm ? "No patients found matching your search" : "No patients available"}
@@ -1358,27 +1628,104 @@ const AppointmentSchedulingContent = () => {
                 )}
               </div>
             </div>
-          )}
-
-          {selectedPatient && (
-            <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-              <div className="text-sm text-green-800">
-                ✓ Selected:{" "}
-                <strong>
-                  {selectedPatient?.childName ||
-                    selectedPatient?.fullName ||
-                    selectedPatient?.firstName + " " + selectedPatient?.lastName}
-                </strong>
-                <div className="text-xs mt-1">
-                  Parent: {selectedPatient?.parentName || selectedPatient?.parentInfo?.name} | Phone:{" "}
-                  {selectedPatient?.contactNumber || selectedPatient?.parentInfo?.phone}
+          ) : (
+            <div>
+              <div className="mb-4">
+                <label className="block text-[#1E437A] mb-2">Choose Existing Patient or Add New</label>
+                <div className="flex gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowPatientSearch(!showPatientSearch)}
+                    className="px-4 py-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-colors"
+                  >
+                    {showPatientSearch ? "Hide" : "Select Existing Patient"}
+                  </button>
                 </div>
               </div>
+              {showPatientSearch && (
+                <div className="border border-gray-200 rounded-lg p-4">
+                  <div className="mb-4">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <input
+                        type="text"
+                        placeholder="Search by Patient ID, Name, or Phone Number..."
+                        value={patientSearchTerm}
+                        onChange={(e) => setPatientSearchTerm(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+                      />
+                    </div>
+                  </div>
+                  <div className="max-h-60 overflow-y-auto space-y-2">
+                    {filteredPatients.length > 0 ? (
+                      filteredPatients.map((patient) => (
+                        <div
+                          key={patient?._id}
+                          onClick={() => {
+                            setSelectedPatient(patient)
+                            const childName = patient?.childName || patient?.fullName || ""
+                            const parentName = patient?.parentName || patient?.parentInfo?.name || ""
+                            const email = patient?.email || patient?.parentInfo?.email || ""
+                            const phone = patient?.contactNumber || patient?.parentInfo?.phone || ""
+                            const address = patient?.address || patient?.parentInfo?.address || ""
+                            setFormData({
+                              ...formData,
+                              patientName: childName,
+                              fatherName: parentName,
+                              email: email,
+                              phone: phone,
+                              address: address,
+                            })
+                            setShowPatientSearch(false)
+                            setPatientSearchTerm("")
+                          }}
+                          className="p-3 border border-gray-100 rounded-lg hover:bg-gray-50 cursor-pointer"
+                        >
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <div className="font-medium text-gray-900">
+                                {patient?.childName || patient?.fullName || patient?.firstName + patient?.lastName}
+                              </div>
+                              <div className="text-sm text-gray-600">
+                                Parent: {patient?.parentName || patient?.parentInfo?.name} | Phone:{" "}
+                                {patient?.contactNumber || patient?.parentInfo?.phone}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                ID: {patient?._id} | Gender: {patient?.gender || "Not specified"}
+                              </div>
+                            </div>
+                            <div className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">{patient?.status}</div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-4 text-gray-500">
+                        {patientSearchTerm ? "No patients found matching your search" : "No patients available"}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              {selectedPatient && (
+                <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="text-sm text-green-800">
+                    ✓ Selected:{" "}
+                    <strong>
+                      {selectedPatient?.childName ||
+                        selectedPatient?.fullName ||
+                        selectedPatient?.firstName + " " + selectedPatient?.lastName}
+                    </strong>
+                    <div className="text-xs mt-1">
+                      Parent: {selectedPatient?.parentName || selectedPatient?.parentInfo?.name} | Phone:{" "}
+                      {selectedPatient?.contactNumber || selectedPatient?.parentInfo?.phone}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
 
-        {/* Consultation & Session Details Section - EXACT same */}
         <div className="font-sans bg-white rounded-lg border border-gray-200 p-6 mb-6">
           <h2 className="text-lg font-semibold text-[#1E437A] mb-4">Consultation & Session Details</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
@@ -1392,10 +1739,11 @@ const AppointmentSchedulingContent = () => {
                   name="consultationMode"
                   value={formData.consultationMode}
                   onChange={handleInputChange}
-                  className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none ${showValidation && fieldErrors.consultationMode
+                  className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none ${
+                    showValidation && fieldErrors.consultationMode
                       ? "border-[#C83C92] ring-2 ring-[#C83C92] ring-opacity-50 animate-pulse"
                       : "border-gray-300"
-                    }`}
+                  }`}
                   required
                 >
                   <option value="in-person">In-Person</option>
@@ -1418,7 +1766,6 @@ const AppointmentSchedulingContent = () => {
                 </div>
               </div>
             </div>
-
             <div>
               <label className="block text-[#1E437A] mb-2" htmlFor="type">
                 Appointment Type *
@@ -1429,14 +1776,16 @@ const AppointmentSchedulingContent = () => {
                   name="type"
                   value={formData.type}
                   onChange={handleInputChange}
-                  className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none ${showValidation && fieldErrors.type
+                  className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C83C92] bg-gray-100 text-[#858D9D] appearance-none ${
+                    showValidation && fieldErrors.type
                       ? "border-[#C83C92] ring-2 ring-[#C83C92] ring-opacity-50 animate-pulse"
                       : "border-gray-300"
-                    }`}
+                  }`}
                   required
                 >
                   <option value="initial assessment">Initial Assessment</option>
                   <option value="follow-up">Follow-up</option>
+                  {formData.isGroupSession && <option value="group therapy session">Group Therapy Session</option>}
                 </select>
                 <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                   <svg
@@ -1455,7 +1804,6 @@ const AppointmentSchedulingContent = () => {
               </div>
             </div>
           </div>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
             <div>
               <label className="block text-[#1E437A] mb-2" htmlFor="paymentAmount">
@@ -1475,7 +1823,6 @@ const AppointmentSchedulingContent = () => {
               />
             </div>
           </div>
-
           <div className="mb-4">
             <label className="block text-[#1E437A] mb-2" htmlFor="paymentMethod">
               Payment Method
@@ -1508,7 +1855,6 @@ const AppointmentSchedulingContent = () => {
               </div>
             </div>
           </div>
-
           <div className="flex mt-10 justify-end mb-6">
             <button
               className="flex items-center gap-2 bg-[#C83C92] text-white px-4 py-2 rounded-lg font-medium disabled:opacity-50"
@@ -1518,9 +1864,11 @@ const AppointmentSchedulingContent = () => {
               <Calendar className="w-5 h-5" />
               {loading
                 ? "Scheduling..."
-                : isMultipleAppointments && scheduledAppointments.length > 0
-                  ? `Schedule ${scheduledAppointments.length} Appointments & Send Notification`
-                  : `Schedule ${formData.appointmentDates.length || 1} Appointment${formData.appointmentDates.length > 1 ? "s" : ""} & Send Notification`}
+                : formData.isGroupSession
+                  ? `Schedule Group Session (${formData.selectedPatients.length} patients) & Send Notification`
+                  : isMultipleAppointments && scheduledAppointments.length > 0
+                    ? `Schedule ${scheduledAppointments.length} Appointments & Send Notification`
+                    : `Schedule ${formData.appointmentDates.length || 1} Appointment${formData.appointmentDates.length > 1 ? "s" : ""} & Send Notification`}
             </button>
           </div>
         </div>
@@ -1529,7 +1877,6 @@ const AppointmentSchedulingContent = () => {
   )
 }
 
-// Main component wrapped with Suspense
 const AppointmentSchedulingPage = () => {
   return (
     <Suspense fallback={<AppointmentSchedulingLoading />}>
