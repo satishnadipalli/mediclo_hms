@@ -724,6 +724,7 @@ const AppointmentSchedulingContent = () => {
           type: formData.type,
           consultationMode: formData.consultationMode,
           notes: formData.notes,
+          paymentAmount: formData?.paymentAmount,
           paymentMethod: formData.paymentMethod,
           groupSessionName: formData.groupSessionName,
           maxCapacity: formData.maxCapacity,
@@ -1272,7 +1273,7 @@ const AppointmentSchedulingContent = () => {
                     {!persistentService &&
                       services.map((service) => (
                         <option key={service._id} value={service._id}>
-                          {service.name} - ₹{service.price}
+                          {service.name}
                         </option>
                       ))}
                   </select>
@@ -1498,7 +1499,7 @@ const AppointmentSchedulingContent = () => {
                   <option value="">Select a service</option>
                   {services.map((service) => (
                     <option key={service._id} value={service._id}>
-                      {service.name} - ₹{service.price}
+                      {service.name} 
                     </option>
                   ))}
                 </select>
