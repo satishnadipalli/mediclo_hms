@@ -51,15 +51,15 @@ export default function AdminLoginPage(): ReactElement {
       const {
         token,
         user,
-      }: { token: string; user: { role: "therapist" | "receptionist" } } =
+      }: { token: string; user: { role: "therapist" | "receptionist" | "admin" } } =
         await response.json();
 
       localStorage.setItem("receptionToken", token);
       localStorage.setItem("receptionDetails", JSON.stringify(user));
 
-      if (user.role === "therapist") {
+      if (user.role === "therapists") {
         router.push("/doctorDashboard");
-      } else if (user.role === "receptionist") {
+      } else if (user.role === "receptionist" || user.role === "admin" ) {
         window.location.replace("/hms/dashboard");
       } else {
         throw new Error("Unknown user role");
