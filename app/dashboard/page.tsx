@@ -247,14 +247,14 @@ interface CalendarAppointment {
   patientName: string
   type: "initial assessment" | "therapy session" | "follow-up" | "other"
   status:
-    | "scheduled"
-    | "rescheduled"
-    | "cancelled"
-    | "no-show"
-    | "pending-assignment"
-    | "pending_confirmation"
-    | "converted"
-    | "completed"
+  | "scheduled"
+  | "rescheduled"
+  | "cancelled"
+  | "no-show"
+  | "pending-assignment"
+  | "pending_confirmation"
+  | "converted"
+  | "completed"
   duration: number
   payment: {
     amount: number
@@ -309,14 +309,14 @@ interface GroupSession {
   duration: number
   type: "initial assessment" | "therapy session" | "follow-up" | "other"
   status:
-    | "scheduled"
-    | "rescheduled"
-    | "cancelled"
-    | "no-show"
-    | "pending-assignment"
-    | "pending_confirmation"
-    | "converted"
-    | "completed"
+  | "scheduled"
+  | "rescheduled"
+  | "cancelled"
+  | "no-show"
+  | "pending-assignment"
+  | "pending_confirmation"
+  | "converted"
+  | "completed"
   consultationMode: string
   patients: GroupSessionPatient[]
   totalRevenue: number
@@ -466,13 +466,12 @@ const GroupSessionViewModal: React.FC<{
                             <span className="text-gray-600">Payment:</span>
                             <div className="flex items-center gap-2">
                               <span
-                                className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                  patient.payment.status === "paid"
+                                className={`px-2 py-1 rounded-full text-xs font-medium ${patient.payment.status === "paid"
                                     ? "bg-green-100 text-green-800"
                                     : patient.payment.status === "pending"
                                       ? "bg-yellow-100 text-yellow-800"
                                       : "bg-red-100 text-red-800"
-                                }`}
+                                  }`}
                               >
                                 {patient.payment.status}
                               </span>
@@ -1626,8 +1625,8 @@ const DoctorScheduleTable: React.FC = () => {
         const errorData = await response.json()
         throw new Error(
           errorData.error ||
-            errorData.message ||
-            `Failed to reschedule ${isGroupSession ? "group session" : "appointment"}`,
+          errorData.message ||
+          `Failed to reschedule ${isGroupSession ? "group session" : "appointment"}`,
         )
       }
 
@@ -1893,23 +1892,8 @@ const DoctorScheduleTable: React.FC = () => {
 
   const handleExportPDF = async () => {
     try {
-      // Sort doctors: those with appointments first, then those without
-      const doctorsWithAppointments: typeof doctors = []
-      const doctorsWithoutAppointments: typeof doctors = []
-
-      doctors.forEach((doctor) => {
-        const hasAppointments = getAppointmentCount(doctor.name) > 0
-        if (hasAppointments) {
-          doctorsWithAppointments.push(doctor)
-        } else {
-          doctorsWithoutAppointments.push(doctor)
-        }
-      })
-
-      const sortedDoctors = [...doctorsWithAppointments, ...doctorsWithoutAppointments]
-
       // Generate simplified table format data for PDF
-      const { tableData } = exportTableFormatCSV(scheduleData, sortedDoctors, timeSlots, selectedDate)
+      const { tableData } = exportTableFormatCSV(scheduleData, doctors, timeSlots, selectedDate)
 
       // Generate PDF directly without downloading CSV
       await generatePDF(tableData, selectedDate)
@@ -2138,9 +2122,8 @@ const DoctorScheduleTable: React.FC = () => {
                   {timeSlots.map((time, timeIndex) => (
                     <tr
                       key={time}
-                      className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${
-                        timeIndex % 2 === 0 ? "bg-gray-25" : "bg-white"
-                      }`}
+                      className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${timeIndex % 2 === 0 ? "bg-gray-25" : "bg-white"
+                        }`}
                     >
                       {/* Time Column */}
                       <td className="p-4 border-r border-gray-200 bg-slate-50 sticky left-0 z-8 min-w-[80px]">
@@ -2176,9 +2159,9 @@ const DoctorScheduleTable: React.FC = () => {
                                           <p className="font-semibold text-xs truncate">
                                             {(appointment as GroupSession).groupSessionName.split(" ").length > 2
                                               ? (appointment as GroupSession).groupSessionName.split(" ")[0] +
-                                                " " +
-                                                (appointment as GroupSession).groupSessionName.split(" ")[1] +
-                                                ".."
+                                              " " +
+                                              (appointment as GroupSession).groupSessionName.split(" ")[1] +
+                                              ".."
                                               : (appointment as GroupSession).groupSessionName}
                                           </p>
                                         </div>
