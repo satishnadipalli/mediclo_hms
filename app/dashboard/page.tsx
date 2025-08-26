@@ -467,10 +467,10 @@ const GroupSessionViewModal: React.FC<{
                             <div className="flex items-center gap-2">
                               <span
                                 className={`px-2 py-1 rounded-full text-xs font-medium ${patient.payment.status === "paid"
-                                    ? "bg-green-100 text-green-800"
-                                    : patient.payment.status === "pending"
-                                      ? "bg-yellow-100 text-yellow-800"
-                                      : "bg-red-100 text-red-800"
+                                  ? "bg-green-100 text-green-800"
+                                  : patient.payment.status === "pending"
+                                    ? "bg-yellow-100 text-yellow-800"
+                                    : "bg-red-100 text-red-800"
                                   }`}
                               >
                                 {patient.payment.status}
@@ -1687,7 +1687,7 @@ const DoctorScheduleTable: React.FC = () => {
         })
         // Sort doctors by specialty priority
         const sortedDoctors = sortDoctorsBySpecialty(doctorsData)
-        console.log("Sorted doctors by specialty:", sortedDoctors)
+        console.log("Sorted doctors by specialty: sat", sortedDoctors)
         setDoctors(sortedDoctors)
       }
     } catch (error) {
@@ -1726,23 +1726,62 @@ const DoctorScheduleTable: React.FC = () => {
     }
   }
 
-  const sortDoctorsBySpecialty = (doctors: Array<{ name: string; specialty: string; color: string }>) => {
+  const sortDoctorsBySpecialty = (
+    doctors: Array<{ name: string; specialty: string; color: string }>
+  ) => {
+    console.log("gaming features", doctors)
+
     const specialtyOrder = {
       "Occupational Therapist": 1,
       "Speech Language Therapist": 2,
       "Special Education": 3,
       Specialist: 4,
     }
-    return doctors.sort((a, b) => {
+
+    // Custom order only for Occupational Therapists
+    const occupationalTherapistOrder = [
+      "Dr. Shruti Patil",
+      "Dr. Trupti Ramesh Dhonnar",
+      "Dr. Nirmala Paswan",
+      "Dr. Rutuja Korade",
+      "Dr. Shikha Pathak",
+    ]
+
+    // Remove "Dr." for selected Special Education doctors
+    const removeDrFor = ["Kalyani Vijay Shewale", "Amruta Shekhar Bam", "Divya Yashwant Bagul"]
+
+    // First clean up names (remove Dr. where required)
+    const cleanedDoctors = doctors.map(doc => {
+      if (
+        doc.specialty === "Special Education" &&
+        removeDrFor.some(n => doc.name.includes(n))
+      ) {
+        return { ...doc, name: doc.name.replace(/^Dr\. /, "") }
+      }
+      return doc
+    })
+
+    // Now sort
+    return cleanedDoctors.sort((a, b) => {
       const orderA = specialtyOrder[a.specialty as keyof typeof specialtyOrder] || 999
       const orderB = specialtyOrder[b.specialty as keyof typeof specialtyOrder] || 999
+
       if (orderA !== orderB) {
         return orderA - orderB
       }
-      // If same specialty, sort alphabetically by name
+
+      // If both are Occupational Therapists → use custom order
+      if (a.specialty === "Occupational Therapist" && b.specialty === "Occupational Therapist") {
+        const indexA = occupationalTherapistOrder.findIndex(name => a.name.includes(name.split(" ")[1]))
+        const indexB = occupationalTherapistOrder.findIndex(name => b.name.includes(name.split(" ")[1]))
+        return indexA - indexB
+      }
+
+      // Otherwise alphabetical
       return a.name.localeCompare(b.name)
     })
   }
+
 
   const getDoctorHeaderColor = (specialty: string) => {
     return getDoctorHeaderColorBySpecialty(specialty)
