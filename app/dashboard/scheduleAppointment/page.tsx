@@ -894,7 +894,7 @@ const AppointmentSchedulingContent = () => {
                   <span>Doctor: {persistentDoctor.name}</span>
                   <span className="mx-2">•</span>
                   <span>
-                    Service: {persistentService.name} (₹{persistentService.price})
+                    Service: {persistentService.name}
                   </span>
                 </div>
               </div>

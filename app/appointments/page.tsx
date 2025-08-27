@@ -1300,8 +1300,13 @@ const AppointmentsEnhancedPage: React.FC = () => {
         }
       })
 
-      setAppointments(transformedData)
-      calculateSummary(transformedData)
+      const sortedData = transformedData.sort((a, b) => {
+  // Make sure createdAt exists and is comparable
+  return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+})
+
+      setAppointments(sortedData)
+      calculateSummary(sortedData)
     } catch (err) {
       console.error("Error fetching appointments:", err)
       const errorMessage = err instanceof Error ? err.message : "Failed to fetch appointments"
@@ -1937,7 +1942,7 @@ const AppointmentsEnhancedPage: React.FC = () => {
   }
 
   return (
-    <div className="p-6 max-w-[84%] font-sans mt-15 ml-[170px] mx-auto overflow-y-auto hide-scrollbar">
+    <div className="p-6 max-w-[84%] font-sans mt-15 ml-[170px] mx-auto custom-scrollbar h-[95vh] mt-10">
       {/* Loading overlay */}
       {updating && (
         <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-40">
