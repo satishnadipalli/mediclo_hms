@@ -4,7 +4,7 @@ import type React from "react"
 import { useEffect, useState } from "react"
 import { ChevronDown, LogOut, User, Briefcase, Menu } from "lucide-react"
 import { useRouter } from "next/navigation" // Import useRouter for navigation
-import logo from "@/public/SensesLogo.png";
+import logo from "@/public/mediclo.jpg";
 import Image from "next/image"
 
 interface NavbarProps {
@@ -52,7 +52,7 @@ const Navbar: React.FC<NavbarProps> = ({ isOpen, setIsOpen, userDetails, setUser
         <Image
           src={logo || "/placeholder.svg"}
           alt="8Senses Logo"
-          className="h-15"
+          className="h-15 w-2xs"
         />
       </div>
       <div className="flex items-center space-x-8 relative">
