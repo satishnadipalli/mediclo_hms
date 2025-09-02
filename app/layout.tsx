@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "8senses",
-  description: "8senses HMS",
+  title: "Mediqlo",
+  description: "Mediqlo HMS",
   icons: {
     icon: "/FinalLogo.svg",
   },
